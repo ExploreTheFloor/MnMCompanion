@@ -89,6 +89,76 @@ These are shares of **looted corpses, not of kills**. A corpse nobody looted lea
 all, so every counted corpse gave something and their shares read high). An item a looter chose to leave behind is never recorded, so
 shares are floors. Key by mob *and* zone, show the corpse count, and hide shares below about 20 corpses.
 
+## The history tables (built from the saved rows)
+
+Besides the raw rows, `ledger.db` has typed tables that the History window's Trades, Vendors, Drops / Pickups / Destroys and Harvest pages
+read. They are **worked out from `ledger_row`** by `EventBuilder` and can be dropped and built again at any time: it carries on from the last row
+it handled (`meta.events_built_upto`), and raising `EventBuilder.Version` (`meta.events_version`) empties them and rebuilds from the saved rows,
+so nothing is ever lost. Only a character's **own** rows (the Character files) feed them. Each row keeps `row_id`, the `ledger_row.id` it came
+from, so you can always get back to the raw row.
+
+| Table | From | Columns |
+|---|---|---|
+| `vendor_trade` | act_24, act_28 | `direction` (`sold` / `bought`), `item`, `qty`, `total_copper` (the whole stack), `zone`, `level` |
+| `harvest` | act_27 | `item`, `qty`, `zone`, `level` |
+| `item_move` | act_11, act_12, act_15 | `kind` (`dropped` / `picked_up` / `destroyed`), `item`, `qty`, `zone`, `level` |
+| `trade` | act_16, act_20 | `direction` (`gave` = act_16, `received` = act_20), `partner` (an id), `coin_copper`, `item_count`, `summary` |
+| `trade_item` | the item list inside a trade | `trade_row_id`, `line`, `name`, `qty`, `item_id` |
+
+All carry `server`, `character` and `at_utc`. Checked against the real ledger, the tables hold exactly the rows the raw counts say (544 sales and 30
+purchases, 1,828 harvests, 79 destroys, 333 drops and 138 pickups, and every trade row).
+
+Things worth knowing about them:
+
+- **A price for one** is the stack's coin divided by its count, in whole copper (`total_copper / qty`, rounded down). The item values use the same
+  sum, so the Vendors page's Price book and the loot values always agree. A sale whose coin couldn't be read is kept with `total_copper = 0` and is
+  left out of every price.
+- **A trade is two rows.** The ledger writes one for what you gave (act_16, written for every completed trade, often with no items because it was
+  only coin) and one for what you received (act_20). They share a partner and usually the same second, and the History page joins rows that are
+  within 5 seconds of each other. They are **not always** that close: some received rows come minutes after the matching gave row, and those show as
+  two separate lines with "nothing" on one side. The partner is an id like `ref_71358`, never a name; the same id is the same player.
+- **Harvest quantities** are always 1 per row in the data seen so far, and the ledger gives the item and zone but not the node.
+- **Drops, pickups and destroys** aren't about monsters. A pickup within 10 minutes of dropping the same item is "taken back".
+
+Example queries (SQLite, tested on the real file):
+
+```sql
+-- Sold and bought per day (UTC) from vendors
+SELECT substr(at_utc, 1, 10) AS day,
+       sum(CASE direction WHEN 'sold'   THEN total_copper ELSE 0 END) AS sold,
+       sum(CASE direction WHEN 'bought' THEN total_copper ELSE 0 END) AS bought
+FROM vendor_trade GROUP BY day ORDER BY day DESC;
+
+-- What vendors pay: how often each item sold, and the lowest and highest price for one
+SELECT item, count(*) AS sales, sum(qty) AS units,
+       min(total_copper / max(qty, 1)) AS lowest, max(total_copper / max(qty, 1)) AS highest
+FROM vendor_trade WHERE direction = 'sold' AND total_copper > 0 GROUP BY item ORDER BY units DESC;
+
+-- What you gathered
+SELECT item, count(*) AS harvests, sum(qty) AS units FROM harvest GROUP BY item ORDER BY units DESC;
+
+-- What you got rid of
+SELECT item,
+       sum(CASE kind WHEN 'dropped'   THEN qty ELSE 0 END) AS dropped,
+       sum(CASE kind WHEN 'destroyed' THEN qty ELSE 0 END) AS destroyed,
+       sum(CASE kind WHEN 'picked_up' THEN qty ELSE 0 END) AS picked_up
+FROM item_move GROUP BY item ORDER BY dropped + destroyed DESC;
+
+-- Trades with their item lines
+SELECT t.at_utc, t.direction, t.partner, t.coin_copper, group_concat(i.name || ' x' || i.qty, ', ') AS items
+FROM trade t LEFT JOIN trade_item i ON i.trade_row_id = t.row_id GROUP BY t.row_id ORDER BY t.at_utc DESC;
+
+-- Back to the raw row an event came from
+SELECT r.raw FROM vendor_trade v JOIN ledger_row r ON r.id = v.row_id;
+```
+
+## Drop rates in the app
+
+The Loot page's **Drop rates** tab computes the "share of looted corpses" described above, over every day of the selected character's ledger, not
+from these tables: it uses the same loot reading as the rest of the Loot page. A corpse is one looter's visit to one corpse (rows by one looter from
+a corpse of one name, each within six seconds of the last, a second purse starting another), monsters are kept apart by zone, and each share carries a
+95% Wilson range. Fewer than 20 corpses is flagged as a rough guess.
+
 ## Querying `ledger.db`
 
 SQLite with the JSON functions. Tested on the real file:

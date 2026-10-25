@@ -19,7 +19,7 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 2. [Install it](#install-it)
 3. [Your first minute](#your-first-minute)
 4. [Finding your way around](#finding-your-way-around)
-5. [Looking back: History](#looking-back-history)
+5. [The History window](#the-history-window)
 6. [Sessions: starting a fresh tally](#sessions-starting-a-fresh-tally)
 7. [How the numbers are worked out](#how-the-numbers-are-worked-out)
 8. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
@@ -40,6 +40,10 @@ them and turns them into something you can look at:
 - **Which monsters** gave the most, and what they dropped.
 - **A live feed** of every loot line as it happens.
 - **A full history** of every day, with a page for each player.
+- **How often a monster drops an item**, worked out from everything your group has looted ("drop rates").
+- **What you sold and bought**, what vendors pay for each item, and how much you made.
+- **What you gathered**, how fast, and what it's worth.
+- **Your trades**, and what you dropped, picked up or destroyed.
 - **A copy button** that turns any of it into text you can paste into chat.
 
 It only *reads*. It never touches the game, never reads the game's memory, and never presses a key for you.
@@ -133,27 +137,92 @@ So `2gp 16sp 62cp+` reads "at least this much." The footer tells you how many it
 
 ---
 
-## Looking back: History
+## The History window
 
-Press the **History** button for the big window.
+Press the **History** button for the big window. Down the left is a **rail** with a page for each kind of thing that happens to you in the game:
 
-<img src="docs/images/breakdown-everyone.png" alt="The History window showing the whole group for one day" width="100%">
+| Page | What it's for |
+|---|---|
+| **Loot** | Who looted what, day by day, and how often monsters drop things. |
+| **Trades** | What you gave other players and what you got. |
+| **Vendors** | What you sold and bought, and what vendors pay for every item. |
+| **Drops / Pickups / Destroys** | Items you put on the ground, picked up, or deleted. |
+| **Harvest** | What you gathered, how fast, and what it's worth. |
 
-It has three columns:
+Under each name on the rail is a small count, so you can see at a glance which pages have something.
 
-- **Left: the days.** Every day you have loot for, with the day's total.
+### The bar across the top (every page except Loot)
+
+<img src="docs/images/history-vendors.png" alt="The Vendors page, with the period bar across the top" width="100%">
+
+The strip at the top chooses **when**: **Today**, **Yesterday**, **7 days**, **30 days**, **All time**, or **Pick a day** for any single day that has something on it. The box on the right **filters** by an item, trader or place (type "backpack" and every page shows only rows with a backpack in them). Your choice stays as you move between pages. Every page also has a **Copy summary** button, and every table sorts when you click a column heading.
+
+### Loot
+
+<img src="docs/images/history-loot.png" alt="The Loot page showing the whole group for one day" width="100%">
+
+The Loot page has three columns:
+
+- **Left: the days.** Every day you have loot for, with the day's total, and a box to filter by player, item or monster.
 - **Middle: the group.** *Everyone* at the top, then each player with a coloured bar.
-- **Right: the details** for whatever you picked, with tiles for the headline numbers (monsters looted, coin, item value, best item,
-  and "your splits": your share of the coin purses) and tabs underneath.
+- **Right: the details** for whatever you picked, with tiles for the headline numbers (monsters looted, coin, item value, best item, and "your splits": your share of the coin purses) and tabs underneath.
 
-Click **Everyone** and the tabs are **Looters**, **Items**, **Mobs** and **Loot log**. Click a **player** and you see their own
-**Items** (how many they took, the price of each, their share of the group's, and which monster they mostly came from), **Mobs** and
-**Loot log**.
+Click **Everyone** and the tabs are **Looters**, **Items**, **Mobs**, **Drop rates** and **Loot log**. Click a **player** and you see their own **Items** (how many they took, the price of each, their share of the group's, and which monster they mostly came from), **Mobs** and **Loot log**.
 
-<img src="docs/images/breakdown-player.png" alt="The History window showing one player's items" width="100%">
+<img src="docs/images/history-player.png" alt="The Loot page showing one player's items" width="100%">
 
-Every table can be sorted by clicking a column heading, and every tab has a **Copy summary** button. The little box at the top left filters
-by player, item or monster.
+#### Drop rates: "how often does this monster drop that?"
+
+The **Drop rates** tab answers it from everything your group has looted, across **every day** in the ledger (a much bigger sample than a single night).
+
+<img src="docs/images/history-drop-rates.png" alt="The Drop rates tab listing monsters" width="100%">
+
+Pick **By monster** or **By item**:
+
+- **By monster:** every kind of monster, with how many of its corpses were looted, the coin and items it gives on average, and its likeliest item. Click one to see **every item it has given**, ranked by how often.
+- **By item:** every item, with the monsters it comes from. Click one to see where to find it.
+
+<img src="docs/images/history-drop-detail.png" alt="One monster's drop table" width="100%">
+
+For each item you get a **share** (out of all the corpses of that monster that were looted, how many had the item), a **range** (how sure that share is; it's wide when there aren't many corpses), how many corpses that is, how many items, and what a vendor pays for one.
+
+**Please read this part, because it's honest about what the numbers can and can't be:**
+
+- It's a share of **looted corpses, not of kills.** The game's diary only records what someone *took*. A corpse nobody opened leaves no trace, and an item someone chose to leave behind isn't recorded, so real drop rates are **at least** what you see.
+- A corpse that two players both looted counts twice.
+- Monsters are kept apart by **zone**, because the same name in two zones can have different loot.
+- A **star (\*)** means fewer than 20 corpses were looted. The share is then a rough guess, and the range will tell you so.
+
+### Trades
+
+<img src="docs/images/history-trades.png" alt="The Trades page" width="100%">
+
+One line per trade: what you **gave** and what you **received**. The game doesn't record the other player's *name*, only a number, so they show as **Trader #71358**. The same number is always the same player, so you can spot repeat customers. (The game writes two entries for each trade, one per side, and they are put back together here.)
+
+### Vendors
+
+The Vendors page has four tabs:
+
+- **Sales:** every item you sold in the period, with how many, the price you got for one, and the total.
+- **Purchases:** the same for what you bought (food, water, supplies).
+- **Price book:** every price this PC has ever seen, for every character, all time. This is where item values everywhere in the app come from.
+- **Log:** every single stack, newest first.
+
+<img src="docs/images/history-price-book.png" alt="The Vendors page, Price book tab" width="100%">
+
+The tiles show **Sold for**, **Bought for**, and the **Net** between them (what the vendors paid you minus what you spent). In the **Price book**, "Pays" is the middle price vendors paid for one, and "Range" is the lowest and highest. Different vendors pay slightly different amounts and tiny prices get rounded, so a range is normal. Sell one of an item you've never sold and it gets a price.
+
+### Harvest
+
+<img src="docs/images/history-harvest.png" alt="The Harvest page" width="100%">
+
+What you gathered: how many harvests, how many items, the **time you actually spent gathering** (a break of more than 10 minutes isn't counted), and so **items per hour**. **Worth** uses the same vendor prices as the loot, with the same `~` (estimated) and `+` (some items unpriced) marks. The game records the item and the zone, but not which node it came from.
+
+### Drops / Pickups / Destroys
+
+<img src="docs/images/history-changes.png" alt="The Drops, Pickups and Destroys page" width="100%">
+
+What you did with items you were holding: **dropped** them on the ground, **picked up** things off the ground, or **destroyed** them. None of it is about monsters. It's for answering "where did that item go?" **Taken back** counts the things you picked up within 10 minutes of dropping them. **Most discarded** ranks what's gone for good.
 
 ---
 
@@ -238,9 +307,9 @@ in a small database file. It includes **every kind of entry** (loot, harvests, v
 and entries nobody has identified yet), for **every server and character** on the PC. Nothing in it is ever changed or deleted, and
 nothing leaves your PC.
 
-The window doesn't use it yet. It's there so that future views (drop rates for each monster, harvest totals, money made, group history)
-can be built from your own complete history. What the entries mean, and how to look inside the file, is written up in
-[docs/ledger-notes.md](docs/ledger-notes.md).
+The History window's **Trades, Vendors, Drops / Pickups / Destroys and Harvest** pages read from it (the small panel and the Loot page read
+the game's files directly). It's also there for views still to come, built from your own complete history. What the entries mean, and
+how to look inside the file, is written up in [docs/ledger-notes.md](docs/ledger-notes.md).
 
 ---
 
@@ -316,10 +385,11 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
 | `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
 | `--snapshot <png> [--view Value\|Items\|Mobs\|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]` | Draw the panel to a picture and quit (how the pictures in this README were made). |
-| `--snapshot <png> --breakdown [--member <name>] [--tab Looters\|Items\|Mobs\|"Loot log"] [--size WxH]` | The same for the History window. |
+| `--snapshot <png> --breakdown [--page Loot\|Trades\|Vendors\|Changes\|Harvest] [--member <name>] [--tab <tab>] [--drop "<monster>"] [--size WxH]` | The same for the History window: any page, any tab, or one monster's drop table. |
 
 To try it without the game, `scripts/make-demo-ledger.py` writes a made-up game folder full of invented players:
 `python scripts/make-demo-ledger.py demo-data`, then `LootGoblin.exe --ledger demo-data --character Brindlewick`.
+`scripts/make-screenshots.ps1` uses that to remake every picture in this README (nothing appears on your desktop and no real player is shown).
 
 ### Building it yourself
 
@@ -347,13 +417,13 @@ straight from the files.
 ### How the project is laid out
 
 ```
-src/LootWindow.Core     reads the ledger and works out the loot (no windows, no packages)
-src/LootWindow.Data     the saved database (the only project that may use SQLite)
+src/LootWindow.Core     reads the ledger and works out the loot, drop rates and histories (no windows, no packages)
+src/LootWindow.Data     the saved database and the history tables built from it (the only project that may use SQLite)
 src/LootWindow.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256
                         (the only project that may use the network, and only github.com)
-src/LootWindow          the Windows app: the panel, the History window, the update banner
+src/LootWindow          the Windows app: the panel, the History window and its pages, the update banner
 tests/LootWindow.Tests  the automatic tests
-scripts/                build-release.ps1, make-demo-ledger.py
+scripts/                build-release.ps1, make-demo-ledger.py, make-screenshots.ps1
 docs/                   ledger-notes.md (what the ledger holds), images/
 ```
 
@@ -365,5 +435,9 @@ back out if the new one won't start) are all tested without a network.
 
 - One character at a time. A combined view of several characters needs the same party's loot de-duplicated across their folders.
 - Sessions only start by hand.
-- The saved database isn't used by any view yet.
+- Drop rates use one character's ledger at a time. Pooling several characters' ledgers for bigger samples needs the same party's loot
+  de-duplicated across their folders.
+- There is no combined "net" figure across pages. The ledger records your own coin purses whole even when you're in a party, so
+  adding them to vendor sales would mislead. The Vendors page shows sold, bought and net *from vendors*, which is certain.
+- The Loot page and the small panel still read the game's files directly; they could move onto the saved copy later.
 - No licence has been chosen, so for now it is all rights reserved.

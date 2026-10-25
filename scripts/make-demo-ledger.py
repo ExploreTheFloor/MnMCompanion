@@ -120,12 +120,61 @@ for zone, mob, purse_chance, (lo, hi), table in CAMPS:
         rows_character.append(row("act_24", item, {"d01": n, "d02": "", "d03": b64(coin_words(PRICES[item] * n)), "d04": item, "d05": ""}, sell_at, "nightharborw", 31, OWNER, "", "Character"))
     t = sell_at + timedelta(minutes=1)
 
-# a little harvesting for the owner, as the real ledger has
-for item in ("Copper Ore", "Resin", "Wood"):
-    for _ in range(4):
-        t += timedelta(seconds=rng.randint(30, 90))
+def mine(act, f02, detail, at, zone):
+    rows_character.append(row(act, f02, detail, at, zone, 31, OWNER, "", "Character"))
+
+
+# gathering for the owner: a long session with a break in the middle, as the real ledger has
+gather_t = start - timedelta(hours=2, minutes=10)
+for n in range(46):
+    gather_t += timedelta(seconds=rng.randint(40, 110)) + (timedelta(minutes=25) if n == 23 else timedelta())
+    item = rng.choices(["Copper Ore", "Resin", "Wood", "Pungent Healing Herbs"], [4, 3, 3, 1])[0]
+    counter[0] += 1
+    mine("act_27", f"ref_{counter[0]}", {"d01": rng.choice([1, 1, 2, 3]), "d02": "", "d03": b64("harvest"), "d04": item, "d05": "".join(rng.choice("0123456789abcdef") for _ in range(24))},
+         gather_t, "nightharborw" if n < 30 else "fallenpass")
+
+# the gathered stock is sold, so the gathering page can say what it is worth
+sale_t = gather_t + timedelta(minutes=4)
+for item, n, each in (("Copper Ore", 26, 30), ("Resin", 24, 12), ("Wood", 19, 6), ("Pungent Healing Herbs", 12, 20)):
+    sale_t += timedelta(seconds=4)
+    mine("act_24", item, {"d01": n, "d02": "", "d03": b64(coin_words(each * n)), "d04": item, "d05": ""}, sale_t, "nightharborw")
+
+# supplies bought before the night and again halfway through
+for when, shop in ((start - timedelta(minutes=25), "nightharborw"), (start + timedelta(hours=1, minutes=40), "nightharborw")):
+    at = when
+    for item, n, copper in (("Water Flask", 20, 100), ("Wild Carrots", 20, 180), ("Bandage", 10, 60)):
+        at += timedelta(seconds=rng.randint(3, 8))
+        mine("act_28", item, {"d01": n, "d02": "", "d03": b64(coin_words(copper)), "d04": item, "d05": ""}, at, shop)
+
+# clearing the bag: drops, a couple taken back, and a few things destroyed
+bag = start + timedelta(minutes=50)
+for item, n in (("Raw Orc Meat", 6), ("Bone Chips", 12), ("Raw Crocodile Meat", 4), ("Fish Bones", 9), ("Wool Scraps", 5), ("Worn Fine Wood Buckler", 1), ("Rusty Greatsword", 1)):
+    bag += timedelta(seconds=rng.randint(20, 90))
+    counter[0] += 1
+    mine("act_11", f"ref_{counter[0]}", {"d01": n, "d02": "", "d03": b64("user_confirmed_drop"), "d04": item, "d05": "".join(rng.choice("0123456789abcdef") for _ in range(24))}, bag, "valeofzintar")
+    if item in ("Worn Fine Wood Buckler", "Raw Orc Meat"):
         counter[0] += 1
-        rows_character.append(row("act_27", f"ref_{counter[0]}", {"d01": 1, "d02": "", "d03": b64("harvest"), "d04": item, "d05": "".join(rng.choice("0123456789abcdef") for _ in range(24))}, t, "nightharborw", 31, OWNER, "", "Character"))
+        mine("act_12", f"ref_{counter[0]}", {"d01": 1, "d02": "", "d03": "", "d04": item, "d05": "".join(rng.choice("0123456789abcdef") for _ in range(24))}, bag + timedelta(minutes=3), "valeofzintar")
+for k, (item, n) in enumerate((("Incarnal Residue", 3), ("Incarnal Residue", 2), ("Trainee's Candle", 1), ("Well-Worn Cloth Trousers", 1))):
+    counter[0] += 1
+    mine("act_15", f"ref_{counter[0]}", {"d01": n, "d02": "", "d03": b64("user_confirmed_destroy"), "d04": item, "d05": "".join(rng.choice("0123456789abcdef") for _ in range(24))},
+         start + timedelta(hours=1, minutes=15 + 20 * k), "shadeddunes")
+
+# trades: the ledger writes one row for what you gave and one for what you got, in the same second, naming the same partner
+def trade(at, partner, gave_coin, gave_items, got_coin, got_items):
+    def side(act, coin, items, summary):
+        return {"partner": partner, "itemCount": sum(q for _, q in items), "currency": b64(coin), "summary": b64(summary),
+                "tradingPp": 0, "tradingGp": 0, "tradingSp": 0, "tradingCp": 0,
+                "items": [{"publicLinkID": "".join(rng.choice("0123456789abcdef") for _ in range(24)), "name": n, "quantity": q} for n, q in items]}
+    counter[0] += 1
+    mine("act_16", "name_" + b64("trader"), side("act_16", gave_coin, gave_items, f"trade_completed_with_{sum(q for _, q in gave_items)}_items"), at, "nightharborw")
+    mine("act_20", "name_" + b64("trader"), side("act_20", got_coin, got_items, "received_from_trade"), at, "nightharborw")
+
+trade(start - timedelta(minutes=70), "ref_71358", "0,0,7,0", [], "0,0,0,0", [("Rawhide Backpack", 1)])
+trade(start - timedelta(minutes=48), "ref_20917", "0,0,0,0", [("Worn Bow", 1)], "0,0,4,0", [])
+trade(start + timedelta(minutes=95), "ref_38206", "0,0,0,0", [("Polished Medallion", 2)], "0,1,2,0", [])
+trade(start + timedelta(hours=2, minutes=5), "ref_71358", "0,0,5,0", [], "0,0,0,0", [("Copper Scimitar", 1), ("Rawhide Backpack", 1)])
+trade(start + timedelta(hours=2, minutes=30), "ref_65143", "0,0,0,24", [], "0,0,0,0", [("Rat Ear", 6)])
 
 folder = os.path.join(OUT, SERVER, OWNER, "Ledger")
 os.makedirs(folder, exist_ok=True)
