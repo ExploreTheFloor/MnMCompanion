@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Finds out whether a newer Loot Goblin is on GitHub and downloads it, checked against its SHA-256. The only project allowed to use
+       the network, and only for this project's own GitHub release pages (see LedgerOnlyTests). No packages. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LootWindow.Update</RootNamespace>
+  </PropertyGroup>
+
+</Project>

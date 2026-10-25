@@ -1,0 +1,207 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using LootWindow.Data;
+using LootWindow.Loot;
+using LootWindow.Update;
+
+namespace LootWindow;
+
+public partial class App : Application
+{
+    private LootStore _store = null!;
+    private Settings _settings = null!;
+    private PanelWindow? _panel;
+    private BreakdownWindow? _breakdown;
+    private BackgroundArchiver? _archiver;
+    private UpdateController? _updates;
+
+    private void OnStartup(object sender, StartupEventArgs e)
+    {
+        Resources.MergedDictionaries.Add(Ui.Theme);
+        Resources.MergedDictionaries.Add(Ui.Menus);
+        var args = Args.Parse(e.Args);
+
+        _settings = Settings.Load();
+        _store = new LootStore(Settings.Folder, args.Ledger ?? _settings.LedgerRoot);
+        if (args.About)
+        {
+            About(args);
+            Shutdown();
+            return;
+        }
+        if (args.Archive)
+        {
+            Archive(args);
+            Shutdown();
+            return;
+        }
+        var pick = _store.Sources.FirstOrDefault(s => args.Character is { } c
+                ? s.Character.Equals(c, StringComparison.OrdinalIgnoreCase)
+                : s.Character.Equals(_settings.Character, StringComparison.OrdinalIgnoreCase) && s.Server.Equals(_settings.Server, StringComparison.OrdinalIgnoreCase))
+            ?? _store.Sources.FirstOrDefault();
+        if (pick is not null) _store.Select(pick);
+
+        if (args.Snapshot is { } png)
+        {
+            Snapshot(png, args);
+            Shutdown();
+            return;
+        }
+
+        _updates = new UpdateController(_settings);
+        _panel = new PanelWindow(_store, _settings, _updates);
+        MainWindow = _panel;
+        _panel.Closed += (_, _) => Shutdown();
+        _panel.BreakdownRequested += OpenBreakdown;
+        _panel.Show();
+        _archiver = new BackgroundArchiver(() => _store.LedgerRoot);
+        _updates.Start();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _archiver?.Dispose();
+        _updates?.Dispose();
+        base.OnExit(e);
+    }
+
+    /// <summary><c>--about</c>: writes the version, whether this copy can update itself, and where its files are, to a report file and quits.</summary>
+    private void About(Args args)
+    {
+        var report = args.Report ?? Path.Combine(Settings.Folder, "about.txt");
+        using var updates = new UpdateController(_settings);
+        var lines = new[]
+        {
+            $"Loot Goblin {AppVersion.Show(updates.Current)}",
+            $"program: {Environment.ProcessPath}",
+            $"can update itself: {(updates.CanInstall ? "yes" : "no (not a published single-file program, or its folder is read-only)")}",
+            $"checks for updates: {(_settings.CheckForUpdates ? "yes" : "no")}; skipped version: {_settings.SkippedVersion ?? "none"}",
+            $"settings and database: {Settings.Folder}",
+            $"game data: {_store.LedgerRoot}",
+        };
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
+        File.WriteAllLines(report, lines);
+    }
+
+    /// <summary>
+    /// <c>--archive</c>: copies every ledger row on this PC into the database once, writes what it did to a report file
+    /// (<c>archive-report.txt</c> beside the settings, or <c>--report</c>) and quits without showing a window.
+    /// </summary>
+    private void Archive(Args args)
+    {
+        var report = args.Report ?? Path.Combine(Settings.Folder, "archive-report.txt");
+        var lines = new List<string>();
+        try
+        {
+            using var db = new LedgerDb(args.Db);
+            var result = LedgerArchiver.Run(db, _store.LedgerRoot);
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {result}");
+            lines.Add($"{db.FilePath}: {db.RowCount():N0} rows from {db.FileCount():N0} files");
+            lines.AddRange(db.RowsByAct().Select(a => $"  {a.Act}  {a.Rows,8:N0}  {a.Meaning}"));
+            lines.AddRange(result.Problems.Select(p => "  to retry: " + p));
+        }
+        catch (Exception ex)
+        {
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  failed: {ex.Message}");
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
+        File.WriteAllLines(report, lines);
+    }
+
+    /// <summary>Opens the breakdown window (or brings it forward) on a day, optionally one player and one session.</summary>
+    private void OpenBreakdown(DateOnly day, string? member, LootSession? session)
+    {
+        if (_breakdown is null)
+        {
+            _breakdown = new BreakdownWindow(_store, _settings);
+            if (_settings.Breakdown is null && _panel is not null) _breakdown.PlaceBeside(_panel);
+            _breakdown.Closed += (_, _) => _breakdown = null;
+            _breakdown.Show();
+        }
+        _breakdown.ShowDay(day, member, session);
+        if (_breakdown.WindowState == WindowState.Minimized) _breakdown.WindowState = WindowState.Normal;
+        _breakdown.Activate();
+    }
+
+    /// <summary>Draws the panel to a PNG and quits: for checking the layout without sitting in front of it. Writes no settings.</summary>
+    private void Snapshot(string path, Args args)
+    {
+        _store.Refresh();
+        if (args.Breakdown)
+        {
+            var window = new BreakdownWindow(_store, new Settings { ReadOnly = true }) { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
+            window.Left = -20000;
+            window.Top = 0;
+            window.Width = args.Width;
+            window.Height = args.Height;
+            window.Show();
+            window.ShowDay(args.Day ?? _store.Days().FirstOrDefault(), args.Member);
+            if (args.Tab is { } tab) window.PickTab(tab);
+            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
+            window.Close();
+            return;
+        }
+        if (args.Window)
+        {
+            // The whole window with its title bar, shown far off screen so nothing appears on the desktop
+            // The same window the player sees, update button included; nothing is checked or downloaded
+            var updates = new UpdateController(new Settings { ReadOnly = true });
+            if (args.PreviewUpdate)
+                updates.Preview(new UpdateOffer(new Version(0, 2, 0), "v0.2.0", "Faster refresh, a Harvest tab and a few fixes.", UpdateService.ReleasesUrl, "", "", 0));
+            var window = new PanelWindow(_store, new Settings { View = args.View ?? "Value", ReadOnly = true }, updates) { ShowActivated = false, ShowInTaskbar = false, Width = args.Width, Height = args.Height };
+            window.Left = -20000;
+            window.Show();
+            if (args.Day is { } shown) window.Panel.ShowDay(shown);
+            else window.Panel.Refresh();
+            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var content = (FrameworkElement)window.Content;
+            File.WriteAllText(path + ".txt", $"window {window.ActualWidth}x{window.ActualHeight} content {content.ActualWidth}x{content.ActualHeight} dpi {VisualTreeHelper.GetDpi(window).PixelsPerDip}");
+            RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
+            window.Close();
+            return;
+        }
+        var panel = new LootPanel(_store, args.View ?? "Value", _ => { }, (_, _, _) => { });
+        if (args.Day is { } day) panel.ShowDay(day);
+        else panel.Refresh();
+        Render(panel, args.Width, args.Height, path);
+    }
+
+    private static void Render(FrameworkElement element, int width, int height, string path)
+    {
+        element.Width = width;
+        element.Height = height;
+        element.Measure(new Size(width, height));
+        element.Arrange(new Rect(0, 0, width, height));
+        element.UpdateLayout();
+        RenderVisual(element, width, height, path);
+    }
+
+    private static void RenderVisual(Visual visual, int width, int height, string path)
+    {
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+    }
+}
+
+/// <summary>Command line: <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--member name] [--tab Looters|Items|Mobs|"Loot log"] [--size WxH]</c> for the breakdown window.</summary>
+internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false)
+{
+    public static Args Parse(string[] args)
+    {
+        string? Value(string name) => Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+        int w = 390, h = 600;
+        if (Value("--size") is { } size && size.Split('x') is [var sw, var sh] && int.TryParse(sw, out var pw) && int.TryParse(sh, out var ph)) (w, h) = (pw, ph);
+        DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
+        return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
+            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"));
+    }
+}

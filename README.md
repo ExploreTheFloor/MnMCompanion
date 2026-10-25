@@ -1,0 +1,369 @@
+# Loot Goblin
+
+**See who looted what in Monsters & Memories, and what it was worth, without touching the game.**
+
+<p align="center"><img src="docs/images/window-value.png" alt="The Loot Goblin window showing each player's coin and item value" width="360"></p>
+
+Loot Goblin sits beside the game and keeps a running tally of your group's loot: every item and every coin purse, who took it, which
+monster it came from, and roughly what a vendor would pay for it. At the end of a night it can tell you exactly who got what.
+
+> **Status: private beta.** Everything below works. While the project is private, the in-app "new version" check can't see the releases
+> (GitHub hides them from anyone not signed in), so it quietly does nothing. Until the project goes public, get new versions by hand from
+> the Releases page.
+
+---
+
+## Contents
+
+1. [What it does](#what-it-does)
+2. [Install it](#install-it)
+3. [Your first minute](#your-first-minute)
+4. [Finding your way around](#finding-your-way-around)
+5. [Looking back: History](#looking-back-history)
+6. [Sessions: starting a fresh tally](#sessions-starting-a-fresh-tally)
+7. [How the numbers are worked out](#how-the-numbers-are-worked-out)
+8. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
+9. [Updates](#updates)
+10. [Something looks wrong](#something-looks-wrong)
+11. [For the curious](#for-the-curious)
+
+---
+
+## What it does
+
+When you play, the game quietly writes a diary of what happens to you and the people around you: items looted, coin picked up, things
+sold to vendors, who joined the group. Those diary files are called **ledgers**, and they sit in a folder on your PC. Loot Goblin reads
+them and turns them into something you can look at:
+
+- **Who looted what**, for you and everyone in your group.
+- **Coin and item value** per person, with a share bar so you can see at a glance who is ahead.
+- **Which monsters** gave the most, and what they dropped.
+- **A live feed** of every loot line as it happens.
+- **A full history** of every day, with a page for each player.
+- **A copy button** that turns any of it into text you can paste into chat.
+
+It only *reads*. It never touches the game, never reads the game's memory, and never presses a key for you.
+
+---
+
+## Install it
+
+You need Windows 10 or 11 (64-bit). **Nothing else has to be installed.**
+
+1. Open the project's [**Releases** page](https://github.com/ExploreTheFloor/MnMCompanion/releases) and download two files from the newest release:
+   - **`LootGoblin.exe`**, the program;
+   - **`LootGoblin.exe.sha256`**, its checksum (optional, see step 3).
+2. Put `LootGoblin.exe` anywhere you like (a folder on your desktop is fine) and double-click it.
+3. *Optional: check the download wasn't damaged.* Open PowerShell in the folder and run
+   `(Get-FileHash LootGoblin.exe).Hash`. The long string it prints should match the one in `LootGoblin.exe.sha256`
+   (capital or small letters doesn't matter).
+
+**Windows may warn you the first time** ("Windows protected your PC"). That happens to any program that hasn't paid for a code-signing
+certificate. Click **More info**, then **Run anyway**. If you want to be sure, do step 3 first.
+
+To uninstall, close it and delete the file. Its settings and saved history live in `%LOCALAPPDATA%\LootWindow\` (paste that into the
+File Explorer address bar); delete that folder too if you want everything gone.
+
+---
+
+## Your first minute
+
+1. Start the game and play a little (or just start Loot Goblin; it reads yesterday's loot too).
+2. Run **LootGoblin.exe**. A narrow window appears on the right side of your screen, on top of other windows.
+3. At the top left, next to the title, is your **character's name with a small arrow**. If you have more than one character, click it
+   and pick the one you want.
+4. That's it. Loot shows up within a couple of seconds of being looted, and the window refreshes itself.
+
+If the window says it can't find any ledger, see [Something looks wrong](#something-looks-wrong).
+
+---
+
+## Finding your way around
+
+### The title bar
+
+<img src="docs/images/window-update.png" alt="The window with an update banner under the title bar" width="300" align="right">
+
+From left to right: the **name** of the program, your **character** (click to switch), then on the right an **ⓘ** button
+(about, and updates), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
+Drag the title bar to move the window; drag any edge or the corner grip to resize it. It remembers where you left it.
+
+When a new version is available, a strip appears under the title bar (picture on the right). More on that in [Updates](#updates).
+
+### The header
+
+Under the title bar you'll see the **day** you're looking at (use the arrows to go back or forward), a big number for the **total worth**
+of everything looted, and a smaller line breaking it into **coin** and **items**. Next to the day is a menu that says **Whole day** or
+**This session**; see [Sessions](#sessions-starting-a-fresh-tally).
+
+The four buttons on the right of the header are:
+
+| Button | What it does |
+|---|---|
+| **History** (clock) | Opens the big window with every day, every player, every item. |
+| **New session** (circle arrow) | Saves what's been looted so far and starts a fresh tally. It asks first, and it can be undone. |
+| **Copy summary** (pages) | Copies what you're looking at to the clipboard as plain text, ready to paste. |
+| **Open ledger folder** (folder) | Opens the folder where the game keeps your ledger files. |
+
+Hover over any button and a tooltip tells you what it does.
+
+### The four tabs
+
+| Tab | Shows |
+|---|---|
+| **Value** | One bar per player: how many monsters they looted, how many items, and what it was all worth. The bar is their share of the group's total. Click a name to open their page in History. |
+| **Items** | Every kind of item looted, how many, what they're worth, and who took the most of them. |
+| **Mobs** | Every kind of monster looted, how many times, and what each one is worth on average. |
+| **Feed** | Every loot line, newest first, with the time, who, what, and what it came from. A box at the top filters it by player, item or monster. |
+
+<p align="center">
+  <img src="docs/images/window-items.png" alt="The Items tab" width="260">
+  <img src="docs/images/window-mobs.png" alt="The Mobs tab" width="260">
+  <img src="docs/images/window-feed.png" alt="The Feed tab" width="260">
+</p>
+
+### Those little symbols after a number
+
+Not every item has a known price (more on that [below](#how-the-numbers-are-worked-out)), so Loot Goblin is honest about it:
+
+- **`~`** after a number means *"includes an estimate"*: some items in the total were priced by comparison with similar items.
+- **`+`** after a number means *"and some more"*: some items had no price at all and aren't counted.
+
+So `2gp 16sp 62cp+` reads "at least this much." The footer tells you how many items are unpriced.
+
+---
+
+## Looking back: History
+
+Press the **History** button for the big window.
+
+<img src="docs/images/breakdown-everyone.png" alt="The History window showing the whole group for one day" width="100%">
+
+It has three columns:
+
+- **Left: the days.** Every day you have loot for, with the day's total.
+- **Middle: the group.** *Everyone* at the top, then each player with a coloured bar.
+- **Right: the details** for whatever you picked, with tiles for the headline numbers (monsters looted, coin, item value, best item,
+  and "your splits": your share of the coin purses) and tabs underneath.
+
+Click **Everyone** and the tabs are **Looters**, **Items**, **Mobs** and **Loot log**. Click a **player** and you see their own
+**Items** (how many they took, the price of each, their share of the group's, and which monster they mostly came from), **Mobs** and
+**Loot log**.
+
+<img src="docs/images/breakdown-player.png" alt="The History window showing one player's items" width="100%">
+
+Every table can be sorted by clicking a column heading, and every tab has a **Copy summary** button. The little box at the top left filters
+by player, item or monster.
+
+---
+
+## Sessions: starting a fresh tally
+
+A **session** is just "since I last pressed New session." It's how you answer *"what did we get from this one dungeon run?"* without it being
+mixed in with the whole day.
+
+- Press **New session** (or use the **Whole day** menu → *New session*) and Loot Goblin saves the old tally as a text file and starts again
+  from zero. **Nothing is deleted**: the game's ledger still has everything, and the *Whole day* view still shows it all.
+- Use the **Whole day / This session** menu to switch between the current session, an earlier one, or the whole day.
+- Pressed it by accident? Open that menu and choose **Undo the last new session**; the two merge back together.
+- The saved text files are in `%LOCALAPPDATA%\LootWindow\<server>-<character>\sessions\`.
+
+Sessions start only when you press the button; they don't start by themselves when the group changes.
+
+---
+
+## How the numbers are worked out
+
+### Where the loot comes from
+
+The game's ledger records every item and every coin purse that anyone in range looted, along with the name of the kind of monster it came
+from. Loot Goblin adds it up.
+
+- **Your own loot** comes from your character's own ledger file.
+- **Everyone else's** comes from the "social" ledger: what your group and the people around you looted.
+- The game also moves older social entries into an **archive** folder from time to time. Those entries exist nowhere else, so Loot Goblin
+  reads the archive too. (Skipping it would lose about half of what other players looted.)
+
+### What counts as "a mob looted"
+
+The ledger doesn't say *which* corpse something came from, only what kind of monster. So Loot Goblin treats one player's items and
+purse from one kind of monster, looted within six seconds of each other, as one corpse. It's an excellent guess, not a certainty.
+
+### What coin is worth
+
+100 copper make 1 silver, 100 silver make 1 gold, 100 gold make 1 platinum. A coin purse is split between group members by the game; the
+ledger only records *your* share of other players' purses, so Loot Goblin shows exactly that as "your splits."
+
+### What an item is worth
+
+There's no price list inside the game, so Loot Goblin works it out **from what vendors actually paid you**:
+
+1. **Seen it sold:** the middle value of what vendors paid for that item (across all your characters on this PC). No mark.
+2. **Never sold, but a similar item was:** items whose names start the same way (for example "Rusty Iron ...") sell for about the same, so it
+   borrows the family's price. Shown with **`~`**.
+3. **Nothing to go on:** left out of the total and marked with **`+`**.
+
+Sell one of an unpriced item to any vendor and from then on it's priced, for every character. You don't have to do anything else.
+
+The price is *what a vendor pays*, not what another player might pay. It's a floor, not a market value.
+
+---
+
+## Your privacy, and what it never does
+
+**It reads files. That's all.** Loot Goblin:
+
+- reads the game's ledger files, and nothing else the game writes;
+- **never** touches the running game, its memory, your keyboard or your mouse;
+- **never** sends your loot, your characters, your ledgers or anything about you anywhere;
+- **never** installs anything by itself. Updates are only ever *offered*.
+
+The one thing it does over the internet is ask GitHub *"is there a newer version of Loot Goblin?"* (see [Updates](#updates)). That's a plain
+request that carries only the program's name and version number. You can switch it off.
+
+The other players' names you see in the group come from your own ledger files; they never leave your PC.
+
+**What it saves on your PC**, all in `%LOCALAPPDATA%\LootWindow\`:
+
+| File | What |
+|---|---|
+| `settings.json` | Which character you picked, where the windows sit, whether to check for updates. |
+| `<server>-<character>\` | Your session markers and the text files for archived sessions. |
+| `ledger.db` | A private copy of **every ledger row** the app has read (see below). |
+
+### The saved copy (`ledger.db`)
+
+The game moves old rows out of its files and may delete files over time, so Loot Goblin keeps its own permanent copy of everything it reads,
+in a small database file. It includes **every kind of entry** (loot, harvests, vendor sales and purchases, trades, level-ups, group changes,
+and entries nobody has identified yet), for **every server and character** on the PC. Nothing in it is ever changed or deleted, and
+nothing leaves your PC.
+
+The window doesn't use it yet. It's there so that future views (drop rates for each monster, harvest totals, money made, group history)
+can be built from your own complete history. What the entries mean, and how to look inside the file, is written up in
+[docs/ledger-notes.md](docs/ledger-notes.md).
+
+---
+
+## Updates
+
+<img src="docs/images/window-update.png" alt="The update banner" width="260" align="right">
+
+A few seconds after it starts, and every six hours while it's running, Loot Goblin asks GitHub whether a newer version has been released.
+If there is one, a strip appears under the title bar:
+
+> **Version 0.2.0 is ready (you have 0.1.0).**   `Update now`   `Later`   `Skip this version`
+
+- **Update now** downloads the new program, **checks it against the checksum published with the release**, and only if that matches replaces
+  the old one and restarts. If anything doesn't match (a damaged or tampered download), it throws the download away, keeps your current
+  version, and tells you why.
+- **Later** hides the strip until the next check.
+- **Skip this version** stops it being offered again. A newer one after it still will be.
+- Hover over the message to read the release notes.
+
+Click the **ⓘ** in the title bar for **Check for updates now**, and an option to **switch automatic checking off**.
+Nothing is ever installed unless you press **Update now**.
+
+If you run Loot Goblin from somewhere it can't replace itself (a read-only folder, say), the button becomes **Open the download page** instead.
+
+---
+
+## Something looks wrong
+
+**The window says it can't find a ledger, or my character isn't in the list.**
+Loot Goblin looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click your character name, then
+**Choose the game's data folder…** and point it at that folder (or wherever your game keeps its data). A character only appears once
+the game has written a ledger file for it (it does that as you loot, sell, level up and so on), so a brand-new character with no
+activity yet won't be listed.
+
+**"I don't see my old loot!"**
+You probably pressed **New session**. The window then shows only the *current* session. Open the **This session** menu and pick
+**Whole day** (or **Undo the last new session**). Nothing was lost.
+
+**Some of my items show no price, or a `~`.**
+See [What an item is worth](#what-an-item-is-worth). Sell one of that item to a vendor and it will be priced.
+
+**The totals don't match what I remember.**
+Prices are *what a vendor pays*, not what you could sell for to a player, and coin splits are only known for your own share. The
+corpse count is an inference (see above). Totals with a `~` or a `+` are estimates.
+
+**Windows says "Windows protected your PC".**
+Normal for an unsigned program. **More info → Run anyway.** To be sure the file is the one that was published, check its checksum
+([Install it](#install-it), step 3).
+
+**My antivirus complained.**
+Single-file programs like this one sometimes get flagged by cautious antivirus software. If you'd rather not run a downloaded program,
+you can build it yourself from the source (below).
+
+**The window is on the wrong monitor, or off the screen.**
+It pulls itself back onto the desktop when it starts. If it's on the wrong screen, drag it by the title bar.
+
+**It hasn't updated and there's a newer version.**
+While the project is private, the automatic check can't see releases. Download the new `LootGoblin.exe` from the Releases page and replace
+the old one; your settings and history are kept.
+
+---
+
+## For the curious
+
+### Command-line options
+
+Run these from a command prompt or a shortcut. None of them is needed for normal use.
+
+| Option | What it does |
+|---|---|
+| `--ledger <folder>` | Read the game's data from somewhere else. |
+| `--character <name>` | Start on this character. |
+| `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
+| `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
+| `--snapshot <png> [--view Value\|Items\|Mobs\|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]` | Draw the panel to a picture and quit (how the pictures in this README were made). |
+| `--snapshot <png> --breakdown [--member <name>] [--tab Looters\|Items\|Mobs\|"Loot log"] [--size WxH]` | The same for the History window. |
+
+To try it without the game, `scripts/make-demo-ledger.py` writes a made-up game folder full of invented players:
+`python scripts/make-demo-ledger.py demo-data`, then `LootGoblin.exe --ledger demo-data --character Brindlewick`.
+
+### Building it yourself
+
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download).
+
+```
+dotnet build LootWindow.sln
+dotnet test  LootWindow.sln
+src\LootWindow\bin\Debug\net10.0-windows\LootGoblin.exe
+```
+
+A run from the source folder can't replace itself, so it will send you to the download page instead of updating.
+
+`LOOTWINDOW_REAL_LEDGER=<character>` makes one test read that character's real ledger and print what it found, for comparing against counts made
+straight from the files.
+
+### Making a release
+
+1. Raise `<Version>` in `src\LootWindow\LootWindow.csproj` (for example `0.1.1`) and commit and push.
+2. Run `scripts\build-release.ps1`. It runs the tests, builds the single-file `LootGoblin.exe`, writes `LootGoblin.exe.sha256`
+   beside it in `dist\`, and checks the built program starts and reports that version.
+3. Add `-Publish` to create the GitHub release `v<version>` with both files attached
+   (`scripts\build-release.ps1 -Publish -Notes "What changed"`). The app's update check looks for exactly those two file names.
+
+### How the project is laid out
+
+```
+src/LootWindow.Core     reads the ledger and works out the loot (no windows, no packages)
+src/LootWindow.Data     the saved database (the only project that may use SQLite)
+src/LootWindow.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256
+                        (the only project that may use the network, and only github.com)
+src/LootWindow          the Windows app: the panel, the History window, the update banner
+tests/LootWindow.Tests  the automatic tests
+scripts/                build-release.ps1, make-demo-ledger.py
+docs/                   ledger-notes.md (what the ledger holds), images/
+```
+
+A few tests exist purely to keep the promises above: they fail the build if any source file reaches for the game, someone else's
+database, or the network, anywhere except the two projects that are allowed to. Updating, checksums, and swapping the program in (and
+back out if the new one won't start) are all tested without a network.
+
+### Not yet
+
+- One character at a time. A combined view of several characters needs the same party's loot de-duplicated across their folders.
+- Sessions only start by hand.
+- The saved database isn't used by any view yet.
+- No licence has been chosen, so for now it is all rights reserved.

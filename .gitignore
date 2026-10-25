@@ -1,0 +1,11 @@
+bin/
+obj/
+publish/
+.vs/
+.idea/
+*.user
+*.suo
+# Never commit a companion code or anything from the player's own ledger
+settings.json
+*.local.json
+dist/
