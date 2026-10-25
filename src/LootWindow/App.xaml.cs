@@ -128,6 +128,7 @@ public partial class App : Application
     {
         var prompt = new SharePrompt(() => { _settings.ShareWithCommunity = true; _settings.Save(); }, OpenShare) { Owner = _panel };
         prompt.Show();
+        prompt.Activate();
     }
 
     /// <summary>Opens the window where the player previews and saves the file they can share with the community data.</summary>

@@ -23,7 +23,7 @@ internal sealed class SharePrompt : Window
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Topmost = true;
-        ShowInTaskbar = false;
+        ShowInTaskbar = true;   // a taskbar button, so it can't be missed
         Background = (Brush)Ui.Theme["Window"];
         Foreground = Palette.Text;
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
