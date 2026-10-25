@@ -7,14 +7,14 @@
   2. The built program draws each picture off screen with its --snapshot option (nothing appears on the desktop, no settings are written).
   3. The empty margin around each picture is trimmed.
 
-  Build first (dotnet build LootWindow.sln). Needs python for step 1.
+  Build first (dotnet build MnMCompanion.sln). Needs python for step 1.
 
 .EXAMPLE
   scripts\make-screenshots.ps1
-  scripts\make-screenshots.ps1 -Exe src\LootWindow\bin\Release\net10.0-windows\win-x64\LootGoblin.exe
+  scripts\make-screenshots.ps1 -Exe src\MnMCompanion\bin\Release\net10.0-windows\win-x64\MnMCompanion.exe
 #>
 param(
-    [string]$Exe = (Join-Path $PSScriptRoot '..\src\LootWindow\bin\Debug\net10.0-windows\LootGoblin.exe'),
+    [string]$Exe = (Join-Path $PSScriptRoot '..\src\MnMCompanion\bin\Debug\net10.0-windows\MnMCompanion.exe'),
     [string]$Out = (Join-Path $PSScriptRoot '..\docs\images')
 )
 
@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $Exe = (Resolve-Path $Exe).Path
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path
-$demo = Join-Path ([IO.Path]::GetTempPath()) ("lootgoblin-demo-" + [guid]::NewGuid().ToString('N'))
+$demo = Join-Path ([IO.Path]::GetTempPath()) ("mnmcompanion-demo-" + [guid]::NewGuid().ToString('N'))
 python (Join-Path $PSScriptRoot 'make-demo-ledger.py') $demo | Out-Null
 if ($LASTEXITCODE) { throw 'The demo ledger could not be made.' }
 

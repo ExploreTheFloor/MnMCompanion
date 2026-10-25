@@ -1,10 +1,12 @@
-# Loot Goblin
+# Companion
 
 **See who looted what in Monsters & Memories, and what it was worth, without touching the game.**
 
-<p align="center"><img src="docs/images/window-value.png" alt="The Loot Goblin window showing each player's coin and item value" width="360"></p>
+*Companion for Monsters & Memories (the project is `MnMCompanion`). Version 0.1.0 was called Loot Goblin.*
 
-Loot Goblin sits beside the game and keeps a running tally of your group's loot: every item and every coin purse, who took it, which
+<p align="center"><img src="docs/images/window-value.png" alt="The Companion window showing each player's coin and item value" width="360"></p>
+
+Companion sits beside the game and keeps a running tally of your group's loot: every item and every coin purse, who took it, which
 monster it came from, and roughly what a vendor would pay for it. At the end of a night it can tell you exactly who got what.
 
 > **Status: private beta.** Everything below works. While the project is private, the in-app "new version" check can't see the releases
@@ -33,7 +35,7 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 ## What it does
 
 When you play, the game quietly writes a diary of what happens to you and the people around you: items looted, coin picked up, things
-sold to vendors, who joined the group. Those diary files are called **ledgers**, and they sit in a folder on your PC. Loot Goblin reads
+sold to vendors, who joined the group. Those diary files are called **ledgers**, and they sit in a folder on your PC. Companion reads
 them and turns them into something you can look at:
 
 - **Who looted what**, for you and everyone in your group.
@@ -57,25 +59,26 @@ It only *reads*. It never touches the game, never reads the game's memory, and n
 You need Windows 10 or 11 (64-bit). **Nothing else has to be installed.**
 
 1. Open the project's [**Releases** page](https://github.com/ExploreTheFloor/MnMCompanion/releases) and download two files from the newest release:
-   - **`LootGoblin.exe`**, the program;
-   - **`LootGoblin.exe.sha256`**, its checksum (optional, see step 3).
-2. Put `LootGoblin.exe` anywhere you like (a folder on your desktop is fine) and double-click it.
+   - **`MnMCompanion.exe`**, the program;
+   - **`MnMCompanion.exe.sha256`**, its checksum (optional, see step 3).
+2. Put `MnMCompanion.exe` anywhere you like (a folder on your desktop is fine) and double-click it.
 3. *Optional: check the download wasn't damaged.* Open PowerShell in the folder and run
-   `(Get-FileHash LootGoblin.exe).Hash`. The long string it prints should match the one in `LootGoblin.exe.sha256`
+   `(Get-FileHash MnMCompanion.exe).Hash`. The long string it prints should match the one in `MnMCompanion.exe.sha256`
    (capital or small letters doesn't matter).
 
 **Windows may warn you the first time** ("Windows protected your PC"). That happens to any program that hasn't paid for a code-signing
 certificate. Click **More info**, then **Run anyway**. If you want to be sure, do step 3 first.
 
-To uninstall, close it and delete the file. Its settings and saved history live in `%LOCALAPPDATA%\LootWindow\` (paste that into the
-File Explorer address bar); delete that folder too if you want everything gone.
+To uninstall, close it and delete the file. Its settings and saved history live in `%LOCALAPPDATA%\MnMCompanion\` (paste that into the
+File Explorer address bar); delete that folder too if you want everything gone. If you used it when it was called Loot Goblin, the
+first start moves your old `%LOCALAPPDATA%\LootWindow\` folder to that name, so your settings and saved history carry on.
 
 ---
 
 ## Your first minute
 
-1. Start the game and play a little (or just start Loot Goblin; it reads yesterday's loot too).
-2. Run **LootGoblin.exe**. A narrow window appears on the right side of your screen, on top of other windows.
+1. Start the game and play a little (or just start Companion; it reads yesterday's loot too).
+2. Run **MnMCompanion.exe**. A narrow window appears on the right side of your screen, on top of other windows.
 3. At the top left, next to the title, is your **character's name with a small arrow**. If you have more than one character, click it
    and pick the one you want.
 4. That's it. Loot shows up within a couple of seconds of being looted, and the window refreshes itself.
@@ -130,7 +133,7 @@ Hover over any button and a tooltip tells you what it does.
 
 ### Those little symbols after a number
 
-Not every item has a known price (more on that [below](#how-the-numbers-are-worked-out)), so Loot Goblin is honest about it:
+Not every item has a known price (more on that [below](#how-the-numbers-are-worked-out)), so Companion is honest about it:
 
 - **`~`** after a number means *"includes an estimate"*: some items in the total were priced by comparison with similar items.
 - **`+`** after a number means *"and some more"*: some items had no price at all and aren't counted.
@@ -233,11 +236,11 @@ What you did with items you were holding: **dropped** them on the ground, **pick
 A **session** is just "since I last pressed New session." It's how you answer *"what did we get from this one dungeon run?"* without it being
 mixed in with the whole day.
 
-- Press **New session** (or use the **Whole day** menu → *New session*) and Loot Goblin saves the old tally as a text file and starts again
+- Press **New session** (or use the **Whole day** menu → *New session*) and Companion saves the old tally as a text file and starts again
   from zero. **Nothing is deleted**: the game's ledger still has everything, and the *Whole day* view still shows it all.
 - Use the **Whole day / This session** menu to switch between the current session, an earlier one, or the whole day.
 - Pressed it by accident? Open that menu and choose **Undo the last new session**; the two merge back together.
-- The saved text files are in `%LOCALAPPDATA%\LootWindow\<server>-<character>\sessions\`.
+- The saved text files are in `%LOCALAPPDATA%\MnMCompanion\<server>-<character>\sessions\`.
 
 Sessions start only when you press the button; they don't start by themselves when the group changes.
 
@@ -248,26 +251,26 @@ Sessions start only when you press the button; they don't start by themselves wh
 ### Where the loot comes from
 
 The game's ledger records every item and every coin purse that anyone in range looted, along with the name of the kind of monster it came
-from. Loot Goblin adds it up.
+from. Companion adds it up.
 
 - **Your own loot** comes from your character's own ledger file.
 - **Everyone else's** comes from the "social" ledger: what your group and the people around you looted.
-- The game also moves older social entries into an **archive** folder from time to time. Those entries exist nowhere else, so Loot Goblin
+- The game also moves older social entries into an **archive** folder from time to time. Those entries exist nowhere else, so Companion
   reads the archive too. (Skipping it would lose about half of what other players looted.)
 
 ### What counts as "a mob looted"
 
-The ledger doesn't say *which* corpse something came from, only what kind of monster. So Loot Goblin treats one player's items and
+The ledger doesn't say *which* corpse something came from, only what kind of monster. So Companion treats one player's items and
 purse from one kind of monster, looted within six seconds of each other, as one corpse. It's an excellent guess, not a certainty.
 
 ### What coin is worth
 
 100 copper make 1 silver, 100 silver make 1 gold, 100 gold make 1 platinum. A coin purse is split between group members by the game; the
-ledger only records *your* share of other players' purses, so Loot Goblin shows exactly that as "your splits."
+ledger only records *your* share of other players' purses, so Companion shows exactly that as "your splits."
 
 ### What an item is worth
 
-There's no price list inside the game, so Loot Goblin works it out **from what vendors actually paid you**:
+There's no price list inside the game, so Companion works it out **from what vendors actually paid you**:
 
 1. **Seen it sold:** the middle value of what vendors paid for that item (across all your characters on this PC). No mark.
 2. **Never sold, but a similar item was:** items whose names start the same way (for example "Rusty Iron ...") sell for about the same, so it
@@ -282,19 +285,19 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 
 ## Your privacy, and what it never does
 
-**It reads files. That's all.** Loot Goblin:
+**It reads files. That's all.** Companion:
 
 - reads the game's ledger files, and nothing else the game writes;
 - **never** touches the running game, its memory, your keyboard or your mouse;
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - **never** installs anything by itself. Updates are only ever *offered*.
 
-The one thing it does over the internet is ask GitHub *"is there a newer version of Loot Goblin?"* (see [Updates](#updates)). That's a plain
+The one thing it does over the internet is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)). That's a plain
 request that carries only the program's name and version number. You can switch it off.
 
 The other players' names you see in the group come from your own ledger files; they never leave your PC.
 
-**What it saves on your PC**, all in `%LOCALAPPDATA%\LootWindow\`:
+**What it saves on your PC**, all in `%LOCALAPPDATA%\MnMCompanion\`:
 
 | File | What |
 |---|---|
@@ -304,7 +307,7 @@ The other players' names you see in the group come from your own ledger files; t
 
 ### The saved copy (`ledger.db`)
 
-The game moves old rows out of its files and may delete files over time, so Loot Goblin keeps its own permanent copy of everything it reads,
+The game moves old rows out of its files and may delete files over time, so Companion keeps its own permanent copy of everything it reads,
 in a small database file. It includes **every kind of entry** (loot, harvests, vendor sales and purchases, trades, level-ups, group changes,
 and entries nobody has identified yet), for **every server and character** on the PC. Nothing in it is ever changed or deleted, and
 nothing leaves your PC.
@@ -338,9 +341,9 @@ The first time you start the app (and every time after, while the answer is No) 
 
 It **never** contains your character names, any other player's name, individual loot lines, trades, or when anything happened (only the day). Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
 
-**An honest note about "No means no community data":** the community data lives in a public project under an open licence, so anyone can still download it by hand. What "No" means is that *Loot Goblin* won't fetch or use it for you.
+**An honest note about "No means no community data":** the community data lives in a public project under an open licence, so anyone can still download it by hand. What "No" means is that *Companion* won't fetch or use it for you.
 
-> **Status:** the Yes/No question, the reminder and the rule are in. The part that actually sends a Yes player's totals needs a small community "drop box" to be set up first, so for now saying Yes saves your answer and the ⓘ window says "Sending isn't connected yet". Nothing is sent until it is. Until then, `LootGoblin.exe --contribute <folder>` saves your totals as a file you can read or upload to the community project yourself.
+> **Status:** the Yes/No question, the reminder and the rule are in. The part that actually sends a Yes player's totals needs a small community "drop box" to be set up first, so for now saying Yes saves your answer and the ⓘ window says "Sending isn't connected yet". Nothing is sent until it is. Until then, `MnMCompanion.exe --contribute <folder>` saves your totals as a file you can read or upload to the community project yourself.
 
 ---
 
@@ -348,7 +351,7 @@ It **never** contains your character names, any other player's name, individual 
 
 <img src="docs/images/window-update.png" alt="The update banner" width="260" align="right">
 
-A few seconds after it starts, and every six hours while it's running, Loot Goblin asks GitHub whether a newer version has been released.
+A few seconds after it starts, and every six hours while it's running, Companion asks GitHub whether a newer version has been released.
 If there is one, a strip appears under the title bar:
 
 > **Version 0.2.0 is ready (you have 0.1.0).**   `Update now`   `Later`   `Skip this version`
@@ -363,14 +366,14 @@ If there is one, a strip appears under the title bar:
 Click the **ⓘ** in the title bar for **Check for updates now**, and an option to **switch automatic checking off**.
 Nothing is ever installed unless you press **Update now**.
 
-If you run Loot Goblin from somewhere it can't replace itself (a read-only folder, say), the button becomes **Open the download page** instead.
+If you run Companion from somewhere it can't replace itself (a read-only folder, say), the button becomes **Open the download page** instead.
 
 ---
 
 ## Something looks wrong
 
 **The window says it can't find a ledger, or my character isn't in the list.**
-Loot Goblin looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click your character name, then
+Companion looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click your character name, then
 **Choose the game's data folder…** and point it at that folder (or wherever your game keeps its data). A character only appears once
 the game has written a ledger file for it (it does that as you loot, sell, level up and so on), so a brand-new character with no
 activity yet won't be listed.
@@ -398,7 +401,7 @@ you can build it yourself from the source (below).
 It pulls itself back onto the desktop when it starts. If it's on the wrong screen, drag it by the title bar.
 
 **It hasn't updated and there's a newer version.**
-While the project is private, the automatic check can't see releases. Download the new `LootGoblin.exe` from the Releases page and replace
+While the project is private, the automatic check can't see releases. Download the new `MnMCompanion.exe` from the Releases page and replace
 the old one; your settings and history are kept.
 
 ---
@@ -423,7 +426,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--snapshot <png> --breakdown [--page Loot\|Trades\|Vendors\|Changes\|Harvest] [--member <name>] [--tab <tab>] [--drop "<monster>"] [--size WxH]` | The same for the History window: any page, any tab, or one monster's drop table. |
 
 To try it without the game, `scripts/make-demo-ledger.py` writes a made-up game folder full of invented players:
-`python scripts/make-demo-ledger.py demo-data`, then `LootGoblin.exe --ledger demo-data --character Brindlewick`.
+`python scripts/make-demo-ledger.py demo-data`, then `MnMCompanion.exe --ledger demo-data --character Brindlewick`.
 `scripts/make-screenshots.ps1` uses that to remake every picture in this README (nothing appears on your desktop and no real player is shown).
 
 ### Building it yourself
@@ -431,9 +434,9 @@ To try it without the game, `scripts/make-demo-ledger.py` writes a made-up game 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```
-dotnet build LootWindow.sln
-dotnet test  LootWindow.sln
-src\LootWindow\bin\Debug\net10.0-windows\LootGoblin.exe
+dotnet build MnMCompanion.sln
+dotnet test  MnMCompanion.sln
+src\MnMCompanion\bin\Debug\net10.0-windows\MnMCompanion.exe
 ```
 
 A run from the source folder can't replace itself, so it will send you to the download page instead of updating.
@@ -443,8 +446,8 @@ straight from the files.
 
 ### Making a release
 
-1. Raise `<Version>` in `src\LootWindow\LootWindow.csproj` (for example `0.1.1`) and commit and push.
-2. Run `scripts\build-release.ps1`. It runs the tests, builds the single-file `LootGoblin.exe`, writes `LootGoblin.exe.sha256`
+1. Raise `<Version>` in `src\MnMCompanion\MnMCompanion.csproj` (for example `0.1.1`) and commit and push.
+2. Run `scripts\build-release.ps1`. It runs the tests, builds the single-file `MnMCompanion.exe`, writes `MnMCompanion.exe.sha256`
    beside it in `dist\`, and checks the built program starts and reports that version.
 3. Add `-Publish` to create the GitHub release `v<version>` with both files attached
    (`scripts\build-release.ps1 -Publish -Notes "What changed"`). The app's update check looks for exactly those two file names.
@@ -452,12 +455,12 @@ straight from the files.
 ### How the project is laid out
 
 ```
-src/LootWindow.Core     reads the ledger and works out the loot, drop rates and histories (no windows, no packages)
-src/LootWindow.Data     the saved database and the history tables built from it (the only project that may use SQLite)
-src/LootWindow.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256
+src/MnMCompanion.Core     reads the ledger and works out the loot, drop rates and histories (no windows, no packages)
+src/MnMCompanion.Data     the saved database and the history tables built from it (the only project that may use SQLite)
+src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256
                         (the only project that may use the network, and only github.com)
-src/LootWindow          the Windows app: the panel, the History window and its pages, the update banner
-tests/LootWindow.Tests  the automatic tests
+src/MnMCompanion          the Windows app: the panel, the History window and its pages, the update banner
+tests/MnMCompanion.Tests  the automatic tests
 scripts/                build-release.ps1, make-demo-ledger.py, make-screenshots.ps1
 docs/                   ledger-notes.md (what the ledger holds), images/
 ```

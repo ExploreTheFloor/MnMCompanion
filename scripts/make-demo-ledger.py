@@ -5,7 +5,7 @@
 Every player here is invented; the monsters and items are ordinary game names. The files look exactly like the ones the game
 writes (one Character and one Social ledger for the day), so the app reads them like the real thing:
 
-    LootWindow --ledger <output folder> --character Brindlewick
+    MnMCompanion --ledger <output folder> --character Brindlewick
 """
 import base64
 import json

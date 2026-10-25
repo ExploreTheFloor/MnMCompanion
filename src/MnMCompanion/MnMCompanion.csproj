@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Companion: who looted what, read from the game's own ledger files. Reads files only; it never touches the game. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MnMCompanion</RootNamespace>
+    <AssemblyName>MnMCompanion</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.1.0</Version>
+    <Product>Companion for Monsters &amp; Memories</Product>
+    <Description>Shows who looted what in Monsters &amp; Memories, from the game's own ledger files.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MnMCompanion.Core\MnMCompanion.Core.csproj" />
+    <ProjectReference Include="..\MnMCompanion.Data\MnMCompanion.Data.csproj" />
+    <ProjectReference Include="..\MnMCompanion.Update\MnMCompanion.Update.csproj" />
+  </ItemGroup>
+
+</Project>
