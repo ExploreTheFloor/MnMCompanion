@@ -19,7 +19,7 @@ public sealed class LootStore
     private readonly object _gate = new();
     private readonly string _stateRoot;
     private string _ledgerRoot;
-    private LedgerFolder? _folder;
+    private List<LedgerFolder> _folders = [];
     private List<LedgerFolder> _prices = [];
     private DateTime _pricesChecked;
     private bool _pricesChanged = true;
@@ -45,12 +45,22 @@ public sealed class LootStore
     /// <summary>The characters with a ledger on this PC, the most recently played first.</summary>
     public IReadOnlyList<LedgerSource> Sources { get; private set; }
 
+    /// <summary>The character being read when it is exactly one; null when none is selected or several are.</summary>
     public LedgerSource? Selected { get; private set; }
+
+    /// <summary>Every character being read: one, or several when a History view covers more than one.</summary>
+    public IReadOnlyList<LedgerSource> Selection { get; private set; } = [];
+
+    /// <summary>Changes when the set of characters being read does.</summary>
+    public string SelectionKey => string.Join("|", Selection.Select(s => s.Directory));
+
+    /// <summary>Where this app keeps its own files (the folder the per-character session folders are in).</summary>
+    public string StateRoot => _stateRoot;
 
     public LootSessions Sessions => _sessions;
 
     /// <summary>The selected character's ledger folder (what the folder button opens).</summary>
-    public string? LedgerPath => Selected?.LedgerDirectory;
+    public string? LedgerPath => Selected?.LedgerDirectory ?? (Selection.Count > 1 ? _ledgerRoot : null);
 
     /// <summary>The folder this app keeps the selected character's sessions in.</summary>
     public string? StateFolder => Selected is null ? null : Path.Combine(_stateRoot, Safe($"{Selected.Server}-{Selected.Character}"));
@@ -105,9 +115,10 @@ public sealed class LootStore
         lock (_gate)
         {
             _ledgerRoot = root;
-            _folder = null;
+            _folders = [];
             _prices = [];
             Selected = null;
+            Selection = [];
             _pricesChanged = true;
             _snap = new Snapshot(++_version, [], Nothing.ByDay, ItemValues.Empty);
             Error = null;
@@ -117,13 +128,20 @@ public sealed class LootStore
     }
 
     /// <summary>Starts reading <paramref name="source"/>'s ledger. Call <see cref="Refresh"/> after.</summary>
-    public void Select(LedgerSource source)
+    public void Select(LedgerSource source) => Select([source]);
+
+    /// <summary>
+    /// Starts reading these characters' ledgers together: their loot merged, an event more than one of them logged counting once
+    /// (<see cref="LootMerge"/>). Sessions are the one character's own; with several there are none. Call <see cref="Refresh"/> after.
+    /// </summary>
+    public void Select(IReadOnlyList<LedgerSource> sources)
     {
         lock (_gate)
         {
-            Selected = source;
-            _folder = new LedgerFolder(source.Directory);
-            _sessions = new LootSessions(StateFolder!);
+            Selection = sources.ToList();
+            Selected = Selection.Count == 1 ? Selection[0] : null;
+            _folders = Selection.Select(s => new LedgerFolder(s.Directory)).ToList();
+            _sessions = new LootSessions(StateFolder ?? Path.Combine(_stateRoot, "everyone"));
             _snap = new Snapshot(++_version, [], Nothing.ByDay, _snap.Values);
             _dirty = true;
             Error = null;
@@ -138,23 +156,27 @@ public sealed class LootStore
     {
         lock (_gate)
         {
-            if (_folder is null) return false;
-            bool changed = _folder.Refresh() | _dirty;
+            if (_folders.Count == 0) return false;
+            bool changed = _dirty;
+            foreach (var f in _folders) changed |= f.Refresh();
+            changed |= _sessions.Reload();
             if (_prices.Count == 0 || DateTime.UtcNow - _pricesChecked > TimeSpan.FromSeconds(30))
             {
                 _pricesChecked = DateTime.UtcNow;
                 if (_prices.Count == 0) _prices = Sources.Select(s => new LedgerFolder(s.Directory, characterFilesOnly: true)).ToList();
                 foreach (var p in _prices) _pricesChanged |= p.Refresh();
             }
-            Error = _folder.Error;
-            FileCount = _folder.FileCount;
+            Error = _folders.Select(f => f.Error).FirstOrDefault(e => e is not null);
+            FileCount = _folders.Sum(f => f.FileCount);
             if (!changed && !_pricesChanged) return false;
 
             // New values only when a sale changed, so anything caching on the instance can tell
             var values = _pricesChanged ? ItemValues.FromLedger(_prices.SelectMany(p => p.Rows), _public) : _snap.Values;
             _pricesChanged = false;
             _dirty = false;
-            var byDay = LootExtractor.Extract(_folder.Rows).GroupBy(e => e.Day)
+            var perCharacter = _folders.Select(f => (IReadOnlyList<LootEvent>)LootExtractor.Extract(f.Rows)).ToList();
+            var events = perCharacter.Count == 1 ? perCharacter[0] : LootMerge.Combine(perCharacter);
+            var byDay = events.GroupBy(e => e.Day)
                 .ToDictionary(g => g.Key, g => (IReadOnlyList<LootEvent>)g.ToList());
             _snap = new Snapshot(++_version, byDay.Keys.OrderByDescending(d => d).ToList(), byDay, values);
             return true;

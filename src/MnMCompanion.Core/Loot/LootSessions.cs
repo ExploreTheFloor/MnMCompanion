@@ -39,6 +39,7 @@ public sealed class LootSessions
     private readonly string _path;
     private readonly List<Mark> _marks;
     private readonly object _gate = new();
+    private DateTime _loadedWrite;
 
     public sealed record Mark(DateTime At, string Reason);
 
@@ -46,6 +47,28 @@ public sealed class LootSessions
     {
         _path = Path.Combine(folder, "sessions.json");
         _marks = Load(_path);
+        _loadedWrite = Stamp();
+    }
+
+    private DateTime Stamp() => File.Exists(_path) ? File.GetLastWriteTimeUtc(_path) : DateTime.MinValue;
+
+    /// <summary>
+    /// Reads the markers again when another copy of the app changed the file (the small window starting a new session while the History window
+    /// is open). True when they changed.
+    /// </summary>
+    public bool Reload()
+    {
+        lock (_gate)
+        {
+            var stamp = Stamp();
+            if (stamp == _loadedWrite) return false;
+            _loadedWrite = stamp;
+            var now = Load(_path);
+            if (now.SequenceEqual(_marks)) return false;
+            _marks.Clear();
+            _marks.AddRange(now);
+            return true;
+        }
     }
 
     public IReadOnlyList<Mark> Marks
@@ -113,6 +136,7 @@ public sealed class LootSessions
             var temp = _path + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(_marks.Select(m => new Row(m.At.ToString("O", CultureInfo.InvariantCulture), m.Reason)).ToList()));
             File.Move(temp, _path, overwrite: true);
+            _loadedWrite = Stamp();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }

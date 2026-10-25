@@ -27,6 +27,17 @@ public sealed class LedgerDb : IDisposable
 
     public static string DefaultPath => Path.Combine(AppFolder.Folder, "ledger.db");
 
+    /// <summary>
+    /// The folder for a run pointed at some other game folder on the command line (a test, a picture, a borrowed copy): its own saved copy and
+    /// sessions, so an invented or borrowed ledger never ends up in the player's own database. The same folder always gets the same one.
+    /// </summary>
+    public static string OtherFolder(string ledgerRoot)
+    {
+        var full = Path.GetFullPath(ledgerRoot).TrimEnd('\\', '/').ToLowerInvariant();
+        var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(full)))[..12].ToLowerInvariant();
+        return Path.Combine(AppFolder.Folder, "other-ledgers", id);
+    }
+
     public string FilePath { get; }
 
     public LedgerDb(string? path = null)
