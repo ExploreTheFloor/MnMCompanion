@@ -41,6 +41,12 @@ try {
     Shot 'window-items'  '--window', '--view', 'Items', '--size', '480x640'
     Shot 'window-mobs'   '--window', '--view', 'Mobs', '--size', '480x640'
     Shot 'window-feed'   '--window', '--view', 'Feed', '--size', '480x640'
+    # The other pages of the bottom bar (the Map page is drawn as its first-time question: the atlas itself is a live web page)
+    Shot 'window-vendor'  '--window', '--mini', 'Vendor', '--size', '480x640'
+    Shot 'window-trades'  '--window', '--mini', 'Trades', '--size', '480x640'
+    Shot 'window-changes' '--window', '--mini', 'Items', '--size', '480x640'
+    Shot 'window-harvest' '--window', '--mini', 'Harvest', '--size', '480x640'
+    Shot 'window-map'     '--window', '--mini', 'Map', '--size', '480x640'
     Shot 'window-update' '--window', '--view', 'Value', '--size', '480x640', '--preview-update'
     # The History window
     $big = '--breakdown', '--size', '1560x900'

@@ -123,6 +123,13 @@ public partial class HistoryWindow : Window
         ((LootHistoryPage)Page("Loot")).ShowDay(day, member, session);
     }
 
+    /// <summary>Opens a page for the character the small window follows (from a row of its Vendor, Trades, Items or Harvest page).</summary>
+    public void ShowPageFor(string key)
+    {
+        if (_smallWindow.Selected is { } following) SetScope(HistoryScope.Of(following.Server, following.Character));
+        ShowPage(key);
+    }
+
     /// <summary>Opens a tab of the open page by name (on Loot: "Looters", "Items", "Mobs", "Drop rates", "Loot log").</summary>
     public void PickTab(string tab)
     {

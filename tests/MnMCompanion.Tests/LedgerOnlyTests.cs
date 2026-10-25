@@ -6,7 +6,9 @@ namespace MnMCompanion.Tests;
 /// Memento code. Two exceptions are made on purpose, each confined to its own project: <c>src\MnMCompanion.Data</c> keeps this app's
 /// OWN database of the rows it has read (the only project that may use SQLite, and the only package, Microsoft.Data.Sqlite), and
 /// <c>src\MnMCompanion.Update</c> asks GitHub whether a newer version of this app exists (the only project that may use the network,
-/// and only github.com and api.github.com). Everything else, the Core included, stays free of both. (There is no wiki layer: the
+/// and only github.com and api.github.com). A third is the map: the app itself carries one package, the system's web view, to show the
+/// community atlas's map of the zone the ledger says the character is in, only once the player has chosen to (Settings.MapsOnline); the atlas's
+/// address lives in the update project like the others. Everything else, the Core included, stays free of all of them. (There is no wiki layer: the
 /// community data is to live in an open repository on GitHub, and reading or sharing it is where this list will make its next exception.)
 /// </summary>
 public class LedgerOnlyTests
@@ -37,6 +39,9 @@ public class LedgerOnlyTests
     /// <summary>The project that looks for a newer version on GitHub.</summary>
     private static bool InUpdate(string file) => file.Contains($"{Path.DirectorySeparatorChar}MnMCompanion.Update{Path.DirectorySeparatorChar}");
 
+    /// <summary>The app itself, which shows the community atlas's map of the zone in a web view (the only package it has).</summary>
+    private static bool InApp(string file) => file.EndsWith($"{Path.DirectorySeparatorChar}MnMCompanion{Path.DirectorySeparatorChar}MnMCompanion.csproj");
+
     /// <summary>What the data project may mention that the rest may not.</summary>
     private static readonly string[] DatabaseWords = ["Sqlite"];
 
@@ -61,13 +66,14 @@ public class LedgerOnlyTests
     }
 
     [Fact]
-    public void Only_the_data_project_has_a_package_and_it_is_sqlite_alone()
+    public void Only_the_data_project_and_the_app_have_packages_sqlite_and_the_web_view_alone()
     {
         foreach (var project in Sources().Where(f => f.EndsWith(".csproj")))
         {
             var text = File.ReadAllText(project);
             var packages = text.Split('\n').Where(l => l.Contains("PackageReference")).ToList();
             if (InData(project)) Assert.All(packages, l => Assert.Contains("Microsoft.Data.Sqlite", l));
+            else if (InApp(project)) Assert.All(packages, l => Assert.Contains("Microsoft.Web.WebView2", l));
             else Assert.Empty(packages);
             foreach (var line in text.Split('\n').Where(l => l.Contains("ProjectReference")))
                 Assert.True(line.Contains("MnMCompanion.Core") || line.Contains("MnMCompanion.Data") || line.Contains("MnMCompanion.Update"), line);
@@ -92,9 +98,9 @@ public class LedgerOnlyTests
     }
 
     [Fact]
-    public void The_only_addresses_in_the_source_are_githubs_and_only_the_update_project_has_them()
+    public void The_only_addresses_in_the_source_are_githubs_and_the_atlas_and_only_the_update_project_has_them()
     {
-        var allowed = new[] { "api.github.com", "github.com" };
+        var allowed = new[] { "api.github.com", "github.com", "www.mnmatlas.com" };
         var urls = new System.Text.RegularExpressions.Regex("https?://[^\\s\"'<>{}/\\\\]+");
         foreach (var file in Sources().Where(f => f.EndsWith(".cs")))
             foreach (System.Text.RegularExpressions.Match m in urls.Matches(File.ReadAllText(file)))

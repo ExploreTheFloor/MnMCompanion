@@ -64,13 +64,14 @@ public partial class App : Application
         }
 
         _updates = new UpdateController(_settings);
-        _panel = new PanelWindow(_store, _settings, _updates);
+        _history = new HistoryData(() => _store.LedgerRoot, OtherDb(args));
+        _panel = new PanelWindow(_store, _settings, _updates, _history);
         MainWindow = _panel;
         _panel.Closed += (_, _) => Shutdown();
         _panel.BreakdownRequested += OpenBreakdown;
         _panel.ShareRequested += OpenShare;
+        _panel.HistoryPageRequested += OpenHistoryPage;
         _panel.Show();
-        _history = new HistoryData(() => _store.LedgerRoot, OtherDb(args));
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
         if (args.Share) OpenShare();
         // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here)
@@ -180,7 +181,7 @@ public partial class App : Application
     private static string? OtherDb(Args args) => args.Ledger is null ? null : Path.Combine(LedgerDb.OtherFolder(args.Ledger), "ledger.db");
 
     /// <summary>Opens the History window (or brings it forward) on a day of loot, optionally one player and one session.</summary>
-    private void OpenBreakdown(DateOnly day, string? member, LootSession? session)
+    private HistoryWindow EnsureBreakdown()
     {
         if (_breakdown is null)
         {
@@ -189,9 +190,23 @@ public partial class App : Application
             _breakdown.Closed += (_, _) => _breakdown = null;
             _breakdown.Show();
         }
-        _breakdown.ShowDay(day, member, session);
         if (_breakdown.WindowState == WindowState.Minimized) _breakdown.WindowState = WindowState.Normal;
-        _breakdown.Activate();
+        return _breakdown;
+    }
+
+    private void OpenBreakdown(DateOnly day, string? member, LootSession? session)
+    {
+        var window = EnsureBreakdown();
+        window.ShowDay(day, member, session);
+        window.Activate();
+    }
+
+    /// <summary>Opens the History window on one page, for the character the small window follows.</summary>
+    private void OpenHistoryPage(string key)
+    {
+        var window = EnsureBreakdown();
+        window.ShowPageFor(key);
+        window.Activate();
     }
 
     /// <summary>Draws the panel to a PNG and quits: for checking the layout without sitting in front of it. Writes no settings.</summary>
@@ -244,19 +259,33 @@ public partial class App : Application
             var updates = new UpdateController(new Settings { ReadOnly = true });
             if (args.PreviewUpdate)
                 updates.Preview(new UpdateOffer(new Version(0, 2, 0), "v0.2.0", "Faster refresh, a Harvest tab and a few fixes.", UpdateService.ReleasesUrl, "", "", 0));
-            var window = new PanelWindow(_store, new Settings { View = args.View ?? "Value", ReadOnly = true }, updates) { ShowActivated = false, ShowInTaskbar = false, Width = args.Width, Height = args.Height };
-            window.Left = -20000;
-            window.Show();
-            if (args.Day is { } shown) window.Panel.ShowDay(shown);
-            else window.Panel.Refresh();
-            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-            var content = (FrameworkElement)window.Content;
-            File.WriteAllText(path + ".txt", $"window {window.ActualWidth}x{window.ActualHeight} content {content.ActualWidth}x{content.ActualHeight} dpi {VisualTreeHelper.GetDpi(window).PixelsPerDip}");
-            RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
-            window.Close();
+            // The saved history for the Vendor, Trades, Items and Harvest pages is built into a scratch file for the picture (not the player's own)
+            var scratch = Path.Combine(Path.GetTempPath(), "mnmcompanion-snapshot-" + Guid.NewGuid().ToString("N") + ".db");
+            try
+            {
+                using var history = new HistoryData(() => _store.LedgerRoot, scratch, automatic: false);
+                history.RefreshNow();
+                var window = new PanelWindow(_store, new Settings { View = args.View ?? "Value", MiniPage = args.Mini ?? "Loot", ReadOnly = true }, updates, history)
+                    { ShowActivated = false, ShowInTaskbar = false, Width = args.Width, Height = args.Height };
+                window.Left = -20000;
+                window.Show();
+                if (args.Day is { } shown) window.Panel.ShowDay(shown);
+                else window.Panel.Refresh();
+                window.DrawPageNow();
+                Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                var content = (FrameworkElement)window.Content;
+                File.WriteAllText(path + ".txt", $"window {window.ActualWidth}x{window.ActualHeight} content {content.ActualWidth}x{content.ActualHeight} dpi {VisualTreeHelper.GetDpi(window).PixelsPerDip}");
+                RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
+                window.Close();
+            }
+            finally
+            {
+                foreach (var file in new[] { scratch, scratch + "-wal", scratch + "-shm" })
+                    try { File.Delete(file); } catch (IOException) { }
+            }
             return;
         }
-        var panel = new LootPanel(_store, args.View ?? "Value", _ => { }, (_, _, _) => { });
+        var panel = new LootPanel(_store, new SessionScope(_store), args.View ?? "Value", _ => { }, (_, _, _) => { });
         if (args.Day is { } day) panel.ShowDay(day);
         else panel.Refresh();
         Render(panel, args.Width, args.Height, path);
@@ -286,7 +315,7 @@ public partial class App : Application
 
 /// <summary>Command line: <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--size WxH]</c> for the History window.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null)
 {
     public static Args Parse(string[] args)
     {
@@ -295,6 +324,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         if (Value("--size") is { } size && size.Split('x') is [var sw, var sh] && int.TryParse(sw, out var pw) && int.TryParse(sh, out var ph)) (w, h) = (pw, ph);
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
-            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"));
+            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"));
     }
 }

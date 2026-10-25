@@ -21,6 +21,15 @@ public sealed class Settings
     public string View { get; set; } = "Value";
     public bool OnTop { get; set; } = true;
 
+    /// <summary>The page the small window was left on: Map, Loot, Vendor, Trades, Items or Harvest.</summary>
+    public string MiniPage { get; set; } = "Loot";
+
+    /// <summary>
+    /// The player's choice to show the map of their zone live from the community atlas (mnmatlas.com). No until they say so: showing it makes the
+    /// atlas's site see which zone they are in, and their address, like opening it in a browser.
+    /// </summary>
+    public bool MapsOnline { get; set; }
+
     /// <summary>
     /// What the History window shows, once the player has chosen: a server and a character, a server alone (everyone on it), or neither
     /// (everyone). Until <see cref="HistoryScopeChosen"/> it shows the character the small window follows.

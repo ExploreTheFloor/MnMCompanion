@@ -110,18 +110,42 @@ Under the title bar you'll see the **day** you're looking at (use the arrows to 
 of everything looted, and a smaller line breaking it into **coin** and **items**. Next to the day is a menu that says **Whole day** or
 **This session**; see [Sessions](#sessions-starting-a-fresh-tally).
 
-The four buttons on the right of the header are:
+### The bottom bar: six pages
+
+The bottom of the window has a button for each **page**, and under them four action buttons.
+
+<p align="center">
+  <img src="docs/images/window-vendor.png" alt="The Vendor page" width="200">
+  <img src="docs/images/window-trades.png" alt="The Trades page" width="200">
+  <img src="docs/images/window-harvest.png" alt="The Harvest page" width="200">
+</p>
+
+| Page | Shows, for the day and session on show |
+|---|---|
+| **Map** | The map of the zone you're in, which follows you from zone to zone. See [The Map page](#the-map-page). |
+| **Loot** | Who looted what: the page described above and below. |
+| **Vendor** | What you sold to vendors and bought from them, and what you're ahead or behind by. Tabs: Sales, Purchases, Log. |
+| **Trades** | Each trade with another player: what you gave and what you got. |
+| **Items** | Items you dropped, picked up and destroyed. Tabs: Log, and Lost (what was dropped or destroyed and not picked up again). |
+| **Harvest** | What you gathered, how many an hour, and roughly what it's worth. Tabs: Items, Log. |
+
+**Every page shows the same day and the same session.** Choose *This session* (or an earlier one, or the whole day) on one page and they all
+follow, so "what did this one run give me?" is the same question on every page. A click on a row of Vendor, Trades, Items or Harvest opens that
+page of the History window for the same character.
+
+The four buttons under the pages are:
 
 | Button | What it does |
 |---|---|
 | **History** (clock) | Opens the big window with every day, every player, every item. |
-| **New session** (circle arrow) | Saves what's been looted so far and starts a fresh tally. It asks first, and it can be undone. |
-| **Copy summary** (pages) | Copies what you're looking at to the clipboard as plain text, ready to paste. |
+| **New session** (circle arrow) | Saves what's happened so far and starts every page again from nothing. It asks first, and it can be undone. |
+| **Copy summary** (pages) | Copies the page you're looking at to the clipboard as plain text, ready to paste. |
 | **Open ledger folder** (folder) | Opens the folder where the game keeps your ledger files. |
 
-Hover over any button and a tooltip tells you what it does.
+Hover over any button and a tooltip tells you what it does. The line beside them says what just happened (what was copied, how many items are
+unpriced).
 
-### The four tabs
+### The Loot page's four tabs
 
 | Tab | Shows |
 |---|---|
@@ -135,6 +159,23 @@ Hover over any button and a tooltip tells you what it does.
   <img src="docs/images/window-mobs.png" alt="The Mobs tab" width="260">
   <img src="docs/images/window-feed.png" alt="The Feed tab" width="260">
 </p>
+
+### The Map page
+
+The ledger names the zone on every line it writes, so Companion always knows which zone your character was last in, and the **Map** page shows
+that zone's map. When you zone, it follows as soon as the game writes something in the new zone (loot, a sale, something gathered); the ledger
+doesn't have a line for zoning itself, so a freshly entered zone shows up a moment later.
+
+The maps are not stored in Companion. They are the **community atlas**, MnM Atlas (mnmatlas.com, made by ocombe, built on the community's wiki
+maps), which has vendors, places, hidden areas and zone exits on each map. The page shows the atlas's own map of your zone, with the atlas's
+credits visible. Because that loads the atlas's website, **it asks first**: the atlas's site sees which zone you're in and your internet
+address, just as if you'd opened it in a browser (nothing from your ledger is sent). Press **Show the map** to say yes (you can change your mind in
+the ⓘ menu: *Show the live map of my zone*), or **Open it in my browser instead**, or **Open in Atlas** at any time, which opens the same page in
+your browser and nothing else.
+
+The ledger has no positions, so there is no "you are here" dot. It needs the web view that comes with Windows 10 and 11 (Microsoft Edge
+WebView2); if that's missing the page says so and the **Open in Atlas** button still works. Maps are by the community (CC BY-SA 4.0); this is a fan
+atlas, not an official map, and Companion is not affiliated with it or with the game's makers.
 
 ### Those little symbols after a number
 
@@ -259,7 +300,7 @@ What you did with items you were holding: **dropped** them on the ground, **pick
 A **session** is just "since I last pressed New session." It's how you answer *"what did we get from this one dungeon run?"* without it being
 mixed in with the whole day.
 
-- Press **New session** (or use the **Whole day** menu → *New session*) and Companion saves the old tally as a text file and starts again
+- Press **New session** (or use the **Whole day** menu → *New session*) and Companion saves the old loot tally as a text file and starts every page again
   from zero. **Nothing is deleted**: the game's ledger still has everything, and the *Whole day* view still shows it all.
 - Use the **Whole day / This session** menu to switch between the current session, an earlier one, or the whole day.
 - Pressed it by accident? Open that menu and choose **Undo the last new session**; the two merge back together.
@@ -315,8 +356,12 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - **never** installs anything by itself. Updates are only ever *offered*.
 
-The one thing it does over the internet is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)). That's a plain
+The one thing it does over the internet by itself is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)). That's a plain
 request that carries only the program's name and version number. You can switch it off.
+
+The other exception is the **Map** page, and only if you say yes: it shows the community atlas's map of your zone, which loads mnmatlas.com, so that site
+sees your zone and your internet address (see [The Map page](#the-map-page)). Until you say yes, nothing is loaded, and "Open in Atlas" only opens
+your own browser when you press it.
 
 The other players' names you see in the group come from your own ledger files; they never leave your PC.
 
@@ -324,7 +369,7 @@ The other players' names you see in the group come from your own ledger files; t
 
 | File | What |
 |---|---|
-| `settings.json` | Which character you picked, where the windows sit, whether to check for updates. |
+| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates and whether to show the live map. |
 | `<server>-<character>\` | Your session markers and the text files for archived sessions. |
 | `ledger.db` | A private copy of **every ledger row** the app has read (see below). |
 
@@ -439,6 +484,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--ledger <folder>` | Read the game's data from somewhere else (a test, a demo, a copy). Such a run keeps its own saved copy and saves no settings, so it can never mix into your real history. |
 | `--character <name>` | Start on this character. |
 | `--history` | Open the History window as soon as the app starts. |
+| `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items or Harvest). |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
 | `--contribute <folder or file>` | Save the file you can share with the community data (named by your random id) and quit, without a window. |
@@ -481,22 +527,21 @@ src/MnMCompanion.Core     reads the ledger and works out the loot, drop rates an
 src/MnMCompanion.Data     the saved database and the history tables built from it (the only project that may use SQLite)
 src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256
                         (the only project that may use the network, and only github.com)
-src/MnMCompanion          the Windows app: the panel, the History window and its pages, the update banner
+src/MnMCompanion          the Windows app: the small window and its pages, the History window and its pages, the update banner
+                        (the only package it has is Windows' web view, for the Map page)
 tests/MnMCompanion.Tests  the automatic tests
 scripts/                build-release.ps1, make-demo-ledger.py, make-screenshots.ps1
 docs/                   ledger-notes.md (what the ledger holds), images/
 ```
 
 A few tests exist purely to keep the promises above: they fail the build if any source file reaches for the game, someone else's
-database, or the network, anywhere except the two projects that are allowed to. Updating, checksums, and swapping the program in (and
+database, or the network, anywhere except the projects that are allowed to (and the app may carry one package: the web view that shows the
+map, only once you've said yes). Updating, checksums, and swapping the program in (and
 back out if the new one won't start) are all tested without a network.
 
 ### Not yet
 
-- One character at a time. A combined view of several characters needs the same party's loot de-duplicated across their folders.
 - Sessions only start by hand.
-- Drop rates use one character's ledger at a time. Pooling several characters' ledgers for bigger samples needs the same party's loot
-  de-duplicated across their folders.
 - There is no combined "net" figure across pages. The ledger records your own coin purses whole even when you're in a party, so
   adding them to vendor sales would mislead. The Vendors page shows sold, bought and net *from vendors*, which is certain.
 - The Loot page and the small panel still read the game's files directly; they could move onto the saved copy later.

@@ -19,6 +19,15 @@ internal sealed class PanelWindow : Window
     private readonly LootStore _store;
     private readonly Settings _settings;
     private readonly LootPanel _panel;
+    private readonly MapPanel _map;
+    private readonly SessionScope _session;
+    private readonly HistoryData? _history;
+    private readonly Dictionary<string, IMiniPage> _pages = [];
+    private readonly Dictionary<string, RadioButton> _nav = [];
+    private readonly ContentControl _host = new();
+    private readonly TextBlock _status;
+    private string _page = "Loot";
+    private static readonly string[] PageNames = ["Map", "Loot", "Vendor", "Trades", "Items", "Harvest"];
     private readonly TextBlock _who;
     private readonly Button _pin;
     private readonly Button _about;
@@ -32,12 +41,16 @@ internal sealed class PanelWindow : Window
     /// <summary>The player chose "What does sharing include?" in the ⓘ menu.</summary>
     public event Action? ShareRequested;
 
+    /// <summary>A row of the Vendor, Trades, Items or Harvest page was clicked: the History window page ("Vendors", "Trades", "Changes", "Harvest") that shows it in full.</summary>
+    public event Action<string>? HistoryPageRequested;
+
     /// <param name="updates">The update checker; null (a picture-taking run) means no update button or banner.</param>
-    public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null)
+    public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null, HistoryData? history = null)
     {
         _store = store;
         _settings = settings;
         _updates = updates;
+        _history = history;
         Title = "Companion";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResizeWithGrip;
@@ -82,15 +95,29 @@ internal sealed class PanelWindow : Window
         title.Children.Add(_who);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
 
-        _panel = new LootPanel(store, settings.View, view => { settings.View = view; settings.Save(); },
+        _session = new SessionScope(store);
+        _panel = new LootPanel(store, _session, settings.View, view => { settings.View = view; settings.Save(); },
             (day, member, session) => BreakdownRequested?.Invoke(day, member, session));
+        _status = _panel.StatusLine;
+        void OpenInHistory(string key) => HistoryPageRequested?.Invoke(key);
+        _pages["Map"] = _map = new MapPanel(store, _session, settings, _status);
+        _pages["Loot"] = _panel;
+        _pages["Vendor"] = new VendorMini(store, history, _session, _status, OpenInHistory);
+        _pages["Trades"] = new TradesMini(store, history, _session, _status, OpenInHistory);
+        _pages["Items"] = new ItemsMini(store, history, _session, _status, OpenInHistory);
+        _pages["Harvest"] = new HarvestMini(store, history, _session, _status, OpenInHistory);
+        _session.Said += text => Active.Say(text);
+        var bottom = BuildBottomBar();
         var root = new DockPanel();
         DockPanel.SetDock(title, Dock.Top);
         DockPanel.SetDock(_banner, Dock.Top);
+        DockPanel.SetDock(bottom, Dock.Bottom);
         root.Children.Add(title);
         root.Children.Add(_banner);
-        root.Children.Add(_panel);
+        root.Children.Add(bottom);
+        root.Children.Add(_host);
         Content = root;
+        ShowPage(PageNames.Contains(settings.MiniPage) ? settings.MiniPage : "Loot", save: false);
         ShowPin();
         ShowSelection();
         if (updates is not null)
@@ -104,6 +131,7 @@ internal sealed class PanelWindow : Window
         Closed += (_, _) =>
         {
             _timer?.Stop();
+            _map.Dispose();
             if (_updates is not null) _updates.Changed -= ShowBanner;
         };
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -111,16 +139,84 @@ internal sealed class PanelWindow : Window
         {
             await FollowAsync();
             await RefreshAsync();
+            Active.Tick();
+            if (Active.NeedsHistory && _history is not null) _ = _history.RefreshAsync();
         };
         Loaded += async (_, _) =>
         {
             _panel.Refresh();
             await RefreshAsync(force: true);
+            Active.Refresh();
             _timer.Start();
         };
     }
 
     public LootPanel Panel => _panel;
+
+    private IMiniPage Active => _pages[_page];
+
+    /// <summary>Draws the page on show now, on this thread (for a picture).</summary>
+    public void DrawPageNow() => Active.RefreshNow();
+
+    private void ShowPage(string key, bool save = true)
+    {
+        if (!_pages.TryGetValue(key, out var page)) return;
+        _page = key;
+        _host.Content = page.Element;
+        _status.Text = "";
+        if (_nav.TryGetValue(key, out var rb) && rb.IsChecked != true) rb.IsChecked = true;
+        if (save) { _settings.MiniPage = key; _settings.Save(); }
+        page.Refresh();
+        if (page.NeedsHistory && _history is not null) _ = _history.RefreshAsync();
+    }
+
+    /// <summary>
+    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest), and under them the actions (History, New
+    /// session, Copy, the ledger folder) with the status line beside them. Every page shows the same day and session.
+    /// </summary>
+    private FrameworkElement BuildBottomBar()
+    {
+        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = PageNames.Length };
+        foreach (var name in PageNames)
+        {
+            var key = name;
+            var rb = new RadioButton { Content = new TextBlock { Text = key }, Style = (Style)Ui.Theme["Segment"], GroupName = "MiniPage", IsChecked = key == _page, Focusable = false };
+            rb.Checked += (_, _) => { if (key != _page) ShowPage(key); };
+            _nav[key] = rb;
+            grid.Children.Add(rb);
+        }
+        var pages = new Border { CornerRadius = new CornerRadius(8), Background = (Brush)Ui.Theme["Subtle"], Padding = new Thickness(2), Child = grid };
+
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        tools.Children.Add(LootPanel.Tool("\uE81C", "History", "Open the full History window: every day, every page, for this character or for everyone.",
+            () => BreakdownRequested?.Invoke(_session.Day, null, _session.ActiveSession())));
+        tools.Children.Add(LootPanel.Tool("\uE72C", "New session", "Archive what has happened so far (its loot breakdown is saved as a text file) and start every page again from nothing. Nothing is deleted, and it can be undone.", NewSession));
+        tools.Children.Add(LootPanel.Tool("\uE8C8", "Copy summary", "Copy the page on show to the clipboard as text.", () =>
+        {
+            LootPanel.Copy(Active.SummaryText());
+            Active.Say("Copied to the clipboard.");
+        }));
+        tools.Children.Add(LootPanel.Tool("\uE838", "Open ledger folder", "Open the folder where the game keeps this character's ledger files (one a day for the character, one for the party).", _panel.OpenFolder));
+        ((FrameworkElement)tools.Children[0]).Margin = new Thickness(0);
+
+        _status.Margin = new Thickness(10, 0, 0, 0);
+        var row = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+        DockPanel.SetDock(tools, Dock.Left);
+        row.Children.Add(tools);
+        row.Children.Add(_status);
+
+        var stack = new StackPanel();
+        stack.Children.Add(pages);
+        stack.Children.Add(row);
+        return new Border { Background = (Brush)Ui.Theme["Panel"], BorderBrush = (Brush)Ui.Theme["Stroke"], BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(12, 8, 12, 8), Child = stack };
+    }
+
+    private void NewSession()
+    {
+        var ask = MessageBox.Show(this, "Start a new session?\n\nWhat has happened so far is archived and every page starts again from nothing. Nothing is deleted, and \"Undo the last new session\" in the session menu takes it back.",
+            "New session", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        if (ask == MessageBoxResult.Yes) _session.StartSession();
+    }
 
     private static Button TitleButton(string glyph, string tip, Action click)
     {
@@ -154,7 +250,11 @@ internal sealed class PanelWindow : Window
         try
         {
             bool changed = await Task.Run(_store.Refresh);
-            if (changed || force) _panel.Refresh();
+            if (changed || force)
+            {
+                _panel.Refresh();
+                if (_page != "Loot") Active.Refresh();
+            }
         }
         catch (Exception ex)
         {
@@ -186,6 +286,13 @@ internal sealed class PanelWindow : Window
         var what = new MenuItem { Header = "What does sharing include?…", ToolTip = "Shows exactly what is shared, and what never is" };
         what.Click += (_, _) => ShareRequested?.Invoke();
         menu.Items.Add(what);
+        var maps = new MenuItem
+        {
+            Header = "Show the live map of my zone (uses mnmatlas.com)", IsCheckable = true, IsChecked = _settings.MapsOnline,
+            ToolTip = "The Map page shows the community atlas's map of the zone you are in. That loads the atlas's website, so it sees your zone and your internet address. Off by default.",
+        };
+        maps.Click += (_, _) => { _settings.MapsOnline = maps.IsChecked; _settings.Save(); _map.Refresh(); };
+        menu.Items.Add(maps);
         var folder = new MenuItem { Header = "Choose the game's data folder…", ToolTip = $"Where the game keeps its data. Now: {_store.LedgerRoot}" };
         folder.Click += async (_, _) => await ChooseRoot();
         menu.Items.Add(folder);
@@ -271,6 +378,7 @@ internal sealed class PanelWindow : Window
     private async Task Follow(LedgerSource source)
     {
         _store.Select(source);
+        _session.Reset();
         _settings.Server = source.Server;
         _settings.Character = source.Character;
         _settings.Save();

@@ -19,7 +19,7 @@ namespace MnMCompanion;
 /// breakdown on that player. <see cref="Refresh"/> rebuilds it (the window calls it when the ledger changed), which is cheap:
 /// a day is a few thousand events at most.
 /// </summary>
-internal sealed class LootPanel : Border
+internal sealed class LootPanel : Border, IMiniPage
 {
     private const int FeedRows = 200;
     private static readonly string[] Views = ["Value", "Items", "Mobs", "Feed"];
@@ -37,48 +37,27 @@ internal sealed class LootPanel : Border
     private readonly StackPanel _body = new() { Margin = new Thickness(0, 6, 0, 0) };
     private readonly TextBlock _status = new() { FontSize = 10, Foreground = Palette.Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 8, 0), TextTrimming = TextTrimming.CharacterEllipsis };
 
-    private DateOnly? _picked;   // null = follow today
-    private DateTime? _scopeStart;   // a session picked from the menu (by its start), when _wholeDay is false
-    private bool _wholeDay;
+    private readonly SessionScope _session;
     private string _view;
     private string _note = "";
 
-    public LootPanel(LootStore store, string view, Action<string> viewChanged, Action<DateOnly, string?, LootSession?> openBreakdown)
+    public LootPanel(LootStore store, SessionScope session, string view, Action<string> viewChanged, Action<DateOnly, string?, LootSession?> openBreakdown)
     {
         _store = store;
+        _session = session;
+        _session.Changed += Refresh;
         _viewChanged = viewChanged;
         _openBreakdown = openBreakdown;
         _view = Views.Contains(view) ? view : Views[0];
         Background = new SolidColorBrush(Color.FromRgb(0x0F, 0x11, 0x15));
         Padding = new Thickness(12, 10, 12, 8);
 
-        var prev = Icon("", "Previous day", "Show the day before with loot.", () => Step(-1), size: 30);
-        var next = Icon("", "Next day", "Show the day after (back to today).", () => Step(+1), size: 30);
-        var nav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
-        nav.Children.Add(prev);
-        nav.Children.Add(next);
-
-        var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        titles.Children.Add(_title);
-        titles.Children.Add(_sub);
-        var bigs = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-        bigs.Children.Add(_big);
-        bigs.Children.Add(_caption);
-        var head = new DockPanel();
-        DockPanel.SetDock(nav, Dock.Left);
-        DockPanel.SetDock(bigs, Dock.Right);
-        head.Children.Add(nav);
-        head.Children.Add(bigs);
-        head.Children.Add(titles);
-
-        _scope.Click += (_, _) => OpenScopeMenu();
-
         var tabBar = new Border { CornerRadius = new CornerRadius(8), Background = (Brush)Ui.Theme["Subtle"], Padding = new Thickness(2), Margin = new Thickness(0, 8, 0, 0) };
         var grid = new UniformGrid { Columns = Views.Length };
         foreach (var v in Views)
         {
             var view_ = v;
-            var rb = new RadioButton { Content = new TextBlock { Text = v }, Style = (Style)Ui.Theme["Segment"], GroupName = "LootView", IsChecked = v == _view };
+            var rb = new RadioButton { Content = new TextBlock { Text = v }, Style = (Style)Ui.Theme["Segment"], GroupName = "LootView", IsChecked = v == _view, Focusable = false };
             rb.Checked += (_, _) => { _view = view_; _viewChanged(view_); Refresh(); };
             grid.Children.Add(rb);
         }
@@ -86,48 +65,21 @@ internal sealed class LootPanel : Border
 
         _filter.TextChanged += (_, _) => Refresh();
 
-        // The actions, as a row of buttons at the right of the session chip; each says what it does when the pointer rests on it
-        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        toolbar.Children.Add(Tool("", "History", "Open the full breakdown: every day with loot, the group's coin and items, and a click on a name for that player's items and mobs.",
-            () => _openBreakdown(Day, null, ActiveSession())));
-        toolbar.Children.Add(Tool("", "New session", "Archive what has been looted so far (its breakdown is saved as a text file) and start again from nothing. Nothing is deleted, and it can be undone.",
-            () =>
-            {
-                var ask = MessageBox.Show(Window.GetWindow(this), "Start a new session?\n\nWhat has been looted so far is archived and this panel starts again from nothing. Nothing is deleted, and \"Undo new session\" brings it back.",
-                    "New session", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-                if (ask == MessageBoxResult.Yes) StartSession();
-            }));
-        toolbar.Children.Add(Tool("", "Copy summary", "Copy the breakdown of what is shown to the clipboard as text.",
-            () => Copy(LootSummary.Breakdown(Day, Events(), values: _store.Values))));
-        toolbar.Children.Add(Tool("", "Open ledger folder", "Open the folder where the game keeps this character's ledger files (one a day for the character, one for the party).", OpenFolder));
-
-        var foot = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-        foot.Children.Add(_status);
-
-        // One row holds the session chip and the buttons; the tabs and the rows run the whole width beneath, so nothing hangs below
-        // anything and no part of the panel is left empty
-        _scope.Margin = new Thickness(0);
-        var scopeRow = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-        DockPanel.SetDock(toolbar, Dock.Right);
-        scopeRow.Children.Add(toolbar);
-        scopeRow.Children.Add(_scope);
+        var header = SessionHeader.Build(_session, _title, _sub, _big, _caption, _scope);
 
         var stack = new StackPanel();
-        stack.Children.Add(head);
-        stack.Children.Add(scopeRow);
+        stack.Children.Add(header);
         stack.Children.Add(tabBar);
         stack.Children.Add(_filter);
         var root = new DockPanel();
         DockPanel.SetDock(stack, Dock.Top);
-        DockPanel.SetDock(foot, Dock.Bottom);
         root.Children.Add(stack);
-        root.Children.Add(foot);
         root.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _body });
         Child = root;
     }
 
     /// <summary>An icon button whose tooltip, in the app's dark style, names the action in bold and says what it does under it.</summary>
-    private static Button Icon(string glyph, string title, string tip, Action click, double size = 26, double fontSize = 12)
+    internal static Button Icon(string glyph, string title, string tip, Action click, double size = 26, double fontSize = 12)
     {
         var b = new Button { Content = glyph, Style = (Style)Ui.Theme["IconButton"], Width = size, Height = size, FontSize = fontSize };
         var text = new StackPanel { MaxWidth = 300 };
@@ -141,27 +93,35 @@ internal sealed class LootPanel : Border
     }
 
     /// <summary>A toolbar button: a larger <see cref="Icon"/> in a lighter pill, so it reads as a button.</summary>
-    private static FrameworkElement Tool(string glyph, string title, string tip, Action click)
+    internal static FrameworkElement Tool(string glyph, string title, string tip, Action click)
     {
         var b = Icon(glyph, title, tip, click, size: 32, fontSize: 15);
         b.Foreground = Palette.Text;
         return new Border { CornerRadius = new CornerRadius(8), Background = (Brush)Ui.Theme["Subtle"], Margin = new Thickness(6, 0, 0, 0), Child = b };
     }
 
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
-    private DateOnly Day => _picked ?? Today;
+    public FrameworkElement Element => this;
+
+    public bool NeedsHistory => false;
+
+    public void RefreshNow() => Refresh();
+
+    public void Tick() { }
+
+    /// <summary>The status line (what was copied, what's unpriced). The window puts it in its bottom bar.</summary>
+    public TextBlock StatusLine => _status;
+
+    /// <summary>The breakdown of what is shown, as text, for the Copy button.</summary>
+    public string SummaryText() => LootSummary.Breakdown(Day, Events(), values: _store.Values);
+
+    private static DateOnly Today => SessionScope.Today;
+    private DateOnly Day => _session.Day;
 
     /// <summary>Which tab is showing.</summary>
     public string View => _view;
 
     /// <summary>Shows a day (today follows the clock) and redraws.</summary>
-    public void ShowDay(DateOnly day)
-    {
-        _picked = day >= Today ? null : day;
-        _wholeDay = false;
-        _scopeStart = null;
-        Refresh();
-    }
+    public void ShowDay(DateOnly day) => _session.ShowDay(day);
 
     /// <summary>Shows a line in the status bar until the next refresh.</summary>
     public void Say(string text)
@@ -170,77 +130,9 @@ internal sealed class LootPanel : Border
         Refresh();
     }
 
-    private void Step(int direction)
-    {
-        var days = _store.Days();
-        var day = Day;
-        DateOnly? target = direction < 0
-            ? days.Where(d => d < day).Select(d => (DateOnly?)d).FirstOrDefault()
-            : days.Where(d => d > day).Select(d => (DateOnly?)d).LastOrDefault();
-        if (target is null && direction > 0 && day < Today) target = Today; // today, though it has nothing yet
-        if (target is null) return;
-        _picked = target >= Today ? null : target;
-        _wholeDay = false;
-        _scopeStart = null;
-        Refresh();
-    }
-
-    // ------------------------------------------------------------------ sessions
-
-    /// <summary>The session being shown: null for the whole day. By default today's current session, and a whole day for an earlier one.</summary>
-    private LootSession? ActiveSession()
-    {
-        var sessions = _store.Sessions;
-        if (sessions.Marks.Count == 0 || _wholeDay) return null;
-        if (_scopeStart is { } start) return sessions.All.FirstOrDefault(s => s.Start == start);
-        return Day == Today ? sessions.Current : null;
-    }
+    private LootSession? ActiveSession() => _session.ActiveSession();
 
     private IReadOnlyList<LootEvent> Events() => _store.Events(Day, ActiveSession());
-
-    private void OpenScopeMenu()
-    {
-        var menu = new ContextMenu { PlacementTarget = _scope, Placement = PlacementMode.Bottom };
-        var active = ActiveSession();
-        var dayEvents = _store.Events(Day);
-        MenuItem Item(string header, Action click, bool check = false, bool enabled = true)
-        {
-            var mi = new MenuItem { Header = header, IsCheckable = false, IsChecked = check, IsEnabled = enabled };
-            mi.Click += (_, _) => click();
-            return mi;
-        }
-        foreach (var s in _store.Sessions.All.Reverse())
-        {
-            var inside = dayEvents.Where(e => s.Contains(e.Time)).ToList();
-            if (inside.Count == 0 && !(s.Open && Day == Today)) continue;
-            var label = s.Label(inside.Count > 0 ? inside.Min(e => e.Time) : null) + (inside.Count > 0 ? $"  ·  {LootSummary.Totals(inside).Mobs} mobs" : "");
-            var start = s.Start;
-            menu.Items.Add(Item(s.Open ? "This session: " + label : "Session " + label, () => { _wholeDay = false; _scopeStart = start; Refresh(); }, check: active is not null && active.Start == s.Start));
-        }
-        menu.Items.Add(Item("Whole day", () => { _wholeDay = true; _scopeStart = null; Refresh(); }, check: active is null));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("New session: archive this one and start again", StartSession));
-        menu.Items.Add(Item("Undo the last new session (merge it back)", UndoSession, enabled: _store.Sessions.Marks.Count > 0));
-        menu.IsOpen = true;
-    }
-
-    private void StartSession()
-    {
-        var closed = _store.NewSession("manual");
-        _note = closed is null ? "Nothing looted in this session yet: nothing to archive." : "Session archived (a text file in the sessions folder). Starting from nothing.";
-        _picked = null;
-        _wholeDay = false;
-        _scopeStart = null;
-        Refresh();
-    }
-
-    private void UndoSession()
-    {
-        if (_store.Sessions.RemoveLast()) _note = "The last session is merged back into the one before.";
-        _wholeDay = false;
-        _scopeStart = null;
-        Refresh();
-    }
 
     // ------------------------------------------------------------------ showing a day
 
@@ -263,7 +155,7 @@ internal sealed class LootPanel : Border
         _scope.Content = (session is null ? "Whole day" : session.Open ? "This session: " + session.Label(first) : "Session " + session.Label(first)) + "  ▾";
         _scope.ToolTip = "Which part of the day to show: this session, an earlier one, or the whole day. A new session archives what has been looted so far.";
 
-        _status.Text = _store.Selected is null ? ""
+        if (IsVisible) _status.Text = _store.Selected is null ? ""
             : _store.Error is { } error ? $"Can't read the ledger: {error}"
             : _note.Length > 0 ? _note
             : d.Unpriced > 0 ? $"{Plural(d.Unpriced, "item")} unpriced (+): sell one to price it"
@@ -293,8 +185,8 @@ internal sealed class LootPanel : Border
                 // A new session starts from nothing, which looks like the loot is gone: say where it is
                 _body.Children.Add(Line($"Earlier {(day == Today ? "today" : "that day")} there were {Plural(LootSummary.Totals(earlier).Mobs, "mob")} looted. They are in an earlier session.", Palette.Muted));
                 var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
-                actions.Children.Add(TextAction("Show the whole day", () => { _wholeDay = true; _scopeStart = null; Refresh(); }));
-                if (_store.Sessions.Marks.Count > 0) actions.Children.Add(TextAction("Undo new session", UndoSession));
+                actions.Children.Add(TextAction("Show the whole day", () => _session.ShowWholeDay()));
+                if (_store.Sessions.Marks.Count > 0) actions.Children.Add(TextAction("Undo new session", () => _session.UndoSession()));
                 _body.Children.Add(actions);
             }
             return;
@@ -308,7 +200,7 @@ internal sealed class LootPanel : Border
         }
     }
 
-    private static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n:N0} {word}s";
+    internal static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n:N0} {word}s";
 
     private static Brush BrushOf(LootMember m) => Palette.For(m.Name, m.Class.Length > 0 ? m.Class : null);
 
@@ -406,7 +298,7 @@ internal sealed class LootPanel : Border
         }.Where(s => s.Length > 0));
 
     /// <summary>One ranked row in the meter's style: a bar behind it sized to its value, a stripe in the row's colour, rank, name, a muted note and the value.</summary>
-    private static FrameworkElement Row(int rank, string name, string sub, string value, Brush brush, double fraction, string tip, Action click, Func<string>? copy = null)
+    internal static FrameworkElement Row(int rank, string name, string sub, string value, Brush brush, double fraction, string tip, Action click, Func<string>? copy = null)
     {
         var grid = new Grid { Height = 28, Margin = new Thickness(0, 2, 0, 2), Background = Brushes.Transparent, Cursor = Cursors.Hand };
         var back = new Border { CornerRadius = new CornerRadius(7), Background = (Brush)Ui.Theme["Subtle"] };
@@ -479,21 +371,22 @@ internal sealed class LootPanel : Border
         return row;
     }
 
-    private static Button TextAction(string label, Action click)
+    internal static Button TextAction(string label, Action click)
     {
-        var b = new Button { Content = label, Style = (Style)Ui.Theme["TextButton"], Margin = new Thickness(3, 0, 3, 0), Padding = new Thickness(11, 6, 11, 6) };
+        var b = new Button { Content = label, Style = (Style)Ui.Theme["TextButton"], Margin = new Thickness(3, 0, 3, 0), Padding = new Thickness(11, 6, 11, 6), Focusable = false };
         b.Click += (_, _) => click();
         return b;
     }
 
-    private static TextBlock Line(string text, Brush brush) =>
+    internal static TextBlock Line(string text, Brush brush) =>
         new() { Text = text, Foreground = brush, FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 8, 2, 2), HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center };
 
     // ------------------------------------------------------------------ buttons
 
-    private static void Copy(string text) => ClipboardText.Copy(text);
+    internal static void Copy(string text) => ClipboardText.Copy(text);
 
-    private void OpenFolder()
+    /// <summary>Opens the folder the game keeps this character's ledger files in.</summary>
+    public void OpenFolder()
     {
         try
         {

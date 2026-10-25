@@ -65,6 +65,13 @@ public sealed class LootStore
     /// <summary>The folder this app keeps the selected character's sessions in.</summary>
     public string? StateFolder => Selected is null ? null : Path.Combine(_stateRoot, Safe($"{Selected.Server}-{Selected.Character}"));
 
+    /// <summary>
+    /// The zone the selected character is in, as far as the ledger says: the zone on its newest row (its own rows when it has any, the
+    /// party's otherwise) and when that row was written. Null before anything was read. The ledger has no row for zoning itself, so
+    /// this moves on the first thing written in the new zone.
+    /// </summary>
+    public ZoneSighting? CurrentZone { get; private set; }
+
     /// <summary>What went wrong reading the ledger on the last <see cref="Refresh"/>, or null.</summary>
     public string? Error { get; private set; }
 
@@ -166,6 +173,7 @@ public sealed class LootStore
                 if (_prices.Count == 0) _prices = Sources.Select(s => new LedgerFolder(s.Directory, characterFilesOnly: true)).ToList();
                 foreach (var p in _prices) _pricesChanged |= p.Refresh();
             }
+            CurrentZone = ZoneOf(_folders.Count == 1 ? _folders[0].Rows : []);
             Error = _folders.Select(f => f.Error).FirstOrDefault(e => e is not null);
             FileCount = _folders.Sum(f => f.FileCount);
             if (!changed && !_pricesChanged) return false;
@@ -183,6 +191,16 @@ public sealed class LootStore
             _snap = new Snapshot(++_version, byDay.Keys.OrderByDescending(d => d).ToList(), byDay, values);
             return true;
         }
+    }
+
+    private static ZoneSighting? ZoneOf(IReadOnlyList<LedgerRow> rows)
+    {
+        // Rows are oldest first. Own rows (the Character files) say where this character is; fall back to anything with a zone
+        for (int i = rows.Count - 1; i >= 0; i--)
+            if (rows[i].Zone.Length > 0 && rows[i].File == LedgerFileKind.Character) return new ZoneSighting(rows[i].Zone, rows[i].Time);
+        for (int i = rows.Count - 1; i >= 0; i--)
+            if (rows[i].Zone.Length > 0) return new ZoneSighting(rows[i].Zone, rows[i].Time);
+        return null;
     }
 
     /// <summary>The days with loot, newest first.</summary>
