@@ -136,7 +136,7 @@ internal sealed class LootPanel : Border, IMiniPage
         _title.Text = day == Today ? $"Today · {day.ToString("ddd d MMM", CultureInfo.CurrentCulture)}" : day.ToString("ddd d MMM yyyy", CultureInfo.CurrentCulture);
         _sub.Text = $"{Plural(totals.Mobs, "mob")} · {Plural(totals.Items, "item")} · {Plural(d.Members.Count, "looter")}";
         _big.Text = LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0);
-        _big.ToolTip = $"Coin {LootSummary.Coin(totals.Copper)} plus what a vendor would pay for the items: {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0)}" + Environment.NewLine +
+        _big.ToolTip = $"Coin {LootSummary.Coin(totals.Copper)} (every purse counted once, whole) plus what a vendor would pay for the items: {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0)}" + Environment.NewLine +
                        $"{d.Priced:N0} items priced from your vendor sales, {d.Estimated:N0} valued by their family (~), {d.Unpriced:N0} with no known price (not counted, +)" +
                        (totals.Share > 0 ? Environment.NewLine + $"{LootSummary.Coin(totals.Share)} of the purses reached you as splits" : "");
         _caption.Text = $"coin {LootSummary.Coin(totals.Copper)} + items {LootSummary.Worth(d.ItemValue, d.Approximate, false)}";
@@ -211,7 +211,10 @@ internal sealed class LootPanel : Border, IMiniPage
                 m.Unpriced > 0 ? $"{Plural(m.Unpriced, "item")} with no known price are not counted" : "",
                 m.Estimated > 0 ? $"{Plural(m.Estimated, "item")} valued by their family (~)" : "",
                 m.Mobs > 0 ? $"{LootSummary.Coin((long)m.CopperPerMob)} coin a mob, {m.ItemsPerMob:0.0} items a mob" : "",
-                m.Split > 0 ? $"{LootSummary.Coin(m.Split)} of their purses reached you" : "", "Click for their items and mobs",
+                m.Split > 0 ? $"{LootSummary.Coin(m.Split)} of their purses reached you" : "",
+                m.Received > 0 ? $"{LootSummary.Coin(m.Received)} reached you as splits (counted for you)" : "",
+                m.SplitPurses > 0 ? $"{Plural(m.SplitPurses, "purse")} they looted {(m.SplitPurses == 1 ? "was" : "were")} split: what each member got isn't in the ledger, so that coin isn't counted for them" : "",
+                "Click for their items and mobs",
             }.Where(s => s.Length > 0));
             _body.Children.Add(Row(++rank, m.Name, $"{m.Mobs} mobs · {m.Items} items", LootSummary.Worth(m.Total, m.Estimated > 0, m.Unpriced > 0), BrushOf(m),
                 (valueless ? m.Mobs : m.Total) / top, tip, () => _openBreakdown(Day, member.Name, ActiveSession())));
@@ -273,7 +276,7 @@ internal sealed class LootPanel : Border, IMiniPage
             if (e.Kind == LootKind.Item) row.Inlines.Add(new Run($"[{e.Item}]" + (e.Count > 1 ? $" ×{e.Count}" : "")) { Foreground = Palette.Gold });
             else row.Inlines.Add(new Run(LootSummary.Coin(e.Copper)) { Foreground = Palette.Heal });
             row.Inlines.Add(new Run($"  ← {e.Source}") { Foreground = Palette.Muted });
-            if (e.Kind == LootKind.Coin && e.Split > 0) row.Inlines.Add(new Run($"  (your split {LootSummary.Coin(e.Split)})") { Foreground = Palette.Muted });
+            if (e.Kind == LootKind.Coin && e.Shared) row.Inlines.Add(new Run(e.Split > 0 ? $"  (split · your share {LootSummary.Coin(e.Split)})" : "  (split)") { Foreground = Palette.Muted });
             _body.Children.Add(row);
         }
         if (events.Count > FeedRows) _body.Children.Add(Line($"{events.Count - FeedRows} older lines are in the ledger.", Palette.Muted));

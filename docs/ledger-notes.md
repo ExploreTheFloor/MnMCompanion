@@ -60,6 +60,11 @@ of a split. There is no combat, damage or chat.
   (`actor = owner`). Count the Character copy and skip the Social twin. The database keeps both; filter on `kind` / `actor <> owner`.
 - **Own purses carry no split.** The owner's own purses in a party are always `npc_corpse` with the whole amount. The owner's share of
   *other players'* purses is in their `party_split` rows' `d15`.
+- **Splits are in the purse row, not a row after it.** A purse is one row: `d12` the whole purse, `d14` `npc_corpse` (the looter kept it) or
+  `party_split` (the looter's autosplit divided it), and for a split one `d15` this ledger's owner's share (checked on 3,703 split purses: no
+  separate line follows). The share is not total ÷ party size (the copper seems to be divided and whole silver coins are not), and nobody
+  else's share is ever shown. So: group coin = every `d12` once; a kept purse counts whole for its looter; a split one counts for no looter,
+  and its `d15` counts for the ledger's owner.
 - **Archive and dated files can overlap.** On 2026-10-24 they did not (zero repeated rows), but an earlier check found overlap, so
   anything built on the table should count a row once. The database already does (one row per server, character, file kind and exact row).
 - **A corpse is inferred.** One looter's rows from one mob name, each within six seconds of the last, a second purse starting another

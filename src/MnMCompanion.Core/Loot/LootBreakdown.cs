@@ -39,17 +39,21 @@ public sealed record ItemWorth(string Item, int Count, ItemValue Value, IReadOnl
 }
 
 /// <summary>
-/// One looter on a day: <see cref="Mobs"/> corpses, <see cref="Items"/> taken, the <see cref="Copper"/> in the purses they
-/// looted, and the share of those purses that reached the ledger's owner (<see cref="Split"/>). <see cref="Class"/> and
-/// <see cref="Level"/> come from the ledger (empty / 0 when it never named them).
+/// One person on a day: <see cref="Mobs"/> corpses, <see cref="Items"/> taken, and the coin counted for them, <see cref="Copper"/>: the purses they
+/// looted that were not divided, whole, plus (for a ledger's owner) the shares that reached them (<see cref="Received"/>). A divided purse is
+/// not counted for its looter: they kept only part and the ledger doesn't say how much (<see cref="SplitPurses"/> of them looted).
+/// <see cref="Purses"/> is the whole of every purse they looted, and <see cref="Split"/> the part of those that reached the ledger's owner.
+/// <see cref="Class"/> and <see cref="Level"/> come from the ledger (empty / 0 when it never named them).
 /// </summary>
 public sealed record LootMember(string Name, bool You, string Class, int Level, int Mobs, int Items, long Copper, long Split,
     IReadOnlyList<MemberItem> Taken, IReadOnlyList<MemberMob> MobList, DateTime First, DateTime Last,
-    long ItemValue = 0, int Priced = 0, int Estimated = 0, int Unpriced = 0)
+    long ItemValue = 0, int Priced = 0, int Estimated = 0, int Unpriced = 0, long Purses = 0, long Received = 0, int SplitPurses = 0)
 {
-    /// <summary>The purses they looted plus what a vendor would pay for the items (the priced and the estimated ones; <see cref="Unpriced"/> add nothing).</summary>
+    /// <summary>The coin counted for them plus what a vendor would pay for the items (the priced and the estimated ones; <see cref="Unpriced"/> add nothing).</summary>
     public long Total => Copper + ItemValue;
-    public double CopperPerMob => Mobs > 0 ? (double)Copper / Mobs : 0;
+
+    /// <summary>What the purses they looted held, a mob's worth on average (the whole purse, whoever kept it).</summary>
+    public double CopperPerMob => Mobs > 0 ? (double)Purses / Mobs : 0;
     public double ItemsPerMob => Mobs > 0 ? (double)Items / Mobs : 0;
 
     /// <summary>"Fighter 28", "lvl 28", "Fighter" or "".</summary>
@@ -122,7 +126,8 @@ public sealed record LootDay(DateOnly Day, LootTotals Totals, IReadOnlyList<Loot
             int unpriced = taken.Where(t => !t.Value.Known).Sum(t => t.Count);
             members.Add(new LootMember(p.Who, p.You, named is null || named.Class.Length == 0 ? "" : GameClasses.NameOf(named.Class), named?.Level ?? 0,
                 p.Mobs, p.Items, p.Copper, mine.Where(e => e.Kind == LootKind.Coin).Sum(e => e.Split), taken, mobList,
-                mine.Count == 0 ? default : mine.Min(e => e.Time), mine.Count == 0 ? default : mine.Max(e => e.Time), itemValue, priced, estimated, unpriced));
+                mine.Count == 0 ? default : mine.Min(e => e.Time), mine.Count == 0 ? default : mine.Max(e => e.Time), itemValue, priced, estimated, unpriced,
+                p.Purses, p.Received, p.SplitPurses));
         }
         members = members.OrderByDescending(m => m.Total).ThenByDescending(m => m.Copper).ThenByDescending(m => m.Mobs).ThenBy(m => m.Name, comparer).ToList();
 

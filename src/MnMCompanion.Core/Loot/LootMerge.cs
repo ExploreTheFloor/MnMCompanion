@@ -35,7 +35,7 @@ public static class LootMerge
 
     /// <summary>
     /// The same event as several characters saw it. The looter's own ledger calls the class "None" and the others give the real one, so the
-    /// real one is kept; it is "you" if it was any of theirs; and the purse shares add up, since each character was handed its own.
+    /// real one is kept; it is "you" if it was any of theirs; and the purse shares add up (each character is handed its own, and each is kept as its own's).
     /// </summary>
     private static LootEvent One(List<LootEvent> seen)
     {
@@ -44,6 +44,8 @@ public static class LootMerge
         {
             You = seen.Any(e => e.You),
             Split = seen.Sum(e => e.Split),
+            Shared = seen.Any(e => e.Shared),
+            Shares = seen.SelectMany(e => e.Shares ?? Array.Empty<ShareTo>()).GroupBy(s => s.Owner, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList() is { Count: > 0 } shares ? shares : null,
             Zone = seen.Select(e => e.Zone).FirstOrDefault(z => z.Length > 0) ?? "",
             Level = seen.Max(e => e.Level),
             ItemId = seen.Select(e => e.ItemId).FirstOrDefault(z => z.Length > 0) ?? "",

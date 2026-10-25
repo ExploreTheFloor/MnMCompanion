@@ -466,7 +466,7 @@ public partial class LootHistoryPage : UserControl
             new("Player", 0, m => m.ClassLevel.Length > 0 ? $"{m.Name} · {m.ClassLevel}" : m.Name, m => m.Name, Right: false),
             new("Mobs", 56, m => $"{m.Mobs:N0}", m => m.Mobs, Tip: "Corpses they took loot from"),
             new("Items", 56, m => $"{m.Items:N0}", m => m.Items),
-            new("Coin", 100, m => LootSummary.Coin(m.Copper), m => m.Copper, Tip: "In the purses they looted"),
+            new("Coin", 100, m => LootSummary.Coin(m.Copper), m => m.Copper, Tip: "Coin counted for them: the purses they looted that weren't split, whole, plus (for you) your share of split purses"),
             new("Items worth", 106, m => m.ItemValue > 0 || m.Unpriced > 0 ? LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0) : "—", m => m.ItemValue,
                 Tip: "What a vendor would pay for their items. ~ = some valued by their family, + = some with no known price (not counted)"),
             new("Total", 106, m => LootSummary.Worth(m.Total, m.Estimated > 0, m.Unpriced > 0), m => m.Total, Tip: "Coin plus items worth"),
@@ -530,7 +530,7 @@ public partial class LootHistoryPage : UserControl
     {
         var all = events.OrderByDescending(e => e.Time).ToList();
         var rows = all.Take(LogRows).Select(e => new LogRow(e.Time, e.Who,
-            e.Kind == LootKind.Item ? $"[{e.Item}]" + (e.Count > 1 ? $" ×{e.Count}" : "") : LootSummary.Coin(e.Copper) + (e.Split > 0 ? $"  (your split {LootSummary.Coin(e.Split)})" : ""),
+            e.Kind == LootKind.Item ? $"[{e.Item}]" + (e.Count > 1 ? $" ×{e.Count}" : "") : LootSummary.Coin(e.Copper) + (e.Shared ? (e.Split > 0 ? $"  (split · your share {LootSummary.Coin(e.Split)})" : "  (split)") : ""),
             e.Source, e.Kind == LootKind.Item ? Palette.Text : Palette.Heal)).ToList();
         var table = Table.Build("loot-log", rows, new Col<LogRow>[]
         {

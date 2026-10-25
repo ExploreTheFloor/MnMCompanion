@@ -2,6 +2,9 @@ using MnMCompanion.Ledger;
 
 namespace MnMCompanion.Loot;
 
+/// <summary>The part of a divided purse that reached one ledger owner (a character of the player's), as that owner's ledger shows it.</summary>
+public sealed record ShareTo(string Owner, long Copper);
+
 /// <summary>Item = one item taken off a corpse; Coin = a purse.</summary>
 public enum LootKind : byte { Item, Coin }
 
@@ -10,11 +13,13 @@ public enum LootKind : byte { Item, Coin }
 /// this is); <see cref="Source"/> what was looted ("a Dustrend legionary", "your corpse"). For an item <see cref="Item"/> and
 /// <see cref="Count"/> say what; for coin <see cref="Copper"/> is the whole purse and <see cref="Split"/> the share the
 /// ledger's owner received of it (0 when there was none). <see cref="Class"/> is the looter's class code ("ftr") and
-/// <see cref="Level"/> their level, as the ledger gives them.
+/// <see cref="Level"/> their level, as the ledger gives them. For a purse, <see cref="Copper"/> is the whole purse (what the group earned from it) and
+/// <see cref="Shared"/> says the looter's autosplit divided it among the group, so the looter did not keep it all; <see cref="Shares"/> is what the
+/// ledger shows of the division: the share of each ledger owner who saw it. What the other members got is never in a ledger.
 /// </summary>
 public sealed record LootEvent(
     DateTime Time, LootKind Kind, string Who, bool You, string Source, string Item, int Count, long Copper, long Split,
-    string Zone = "", string Class = "", int Level = 0, string ItemId = "")
+    string Zone = "", string Class = "", int Level = 0, string ItemId = "", bool Shared = false, IReadOnlyList<ShareTo>? Shares = null)
 {
     public DateOnly Day => DateOnly.FromDateTime(Time);
 }
@@ -65,6 +70,11 @@ public static class LootExtractor
         // d11 counts ten copper to a silver and is wrong; d12 is the coin as digits, a hundred to the next coin
         long purse = LedgerText.Packed(r.Text("d12"));
         var source = r.Text("d13") is { Length: > 0 } s ? s : r.Name;
-        return purse <= 0 ? null : new LootEvent(r.Time, LootKind.Coin, r.Actor, r.ByOwner, source, "", 0, purse, LedgerText.Packed(r.Text("d15")), r.Zone, r.Class, r.Level);
+        // d14 says whether the looter's autosplit divided the purse among the group ("party_split") or the looter kept it whole ("npc_corpse");
+        // d15 is the ledger owner's share of a divided one. What the others got is not in the ledger.
+        long share = LedgerText.Packed(r.Text("d15"));
+        bool shared = r.Text("d14").Equals("party_split", StringComparison.OrdinalIgnoreCase);
+        return purse <= 0 ? null : new LootEvent(r.Time, LootKind.Coin, r.Actor, r.ByOwner, source, "", 0, purse, share, r.Zone, r.Class, r.Level, "",
+            shared, share > 0 ? new[] { new ShareTo(r.Owner, share) } : null);
     }
 }

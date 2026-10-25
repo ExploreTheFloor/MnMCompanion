@@ -6,15 +6,21 @@ namespace MnMCompanion.Loot;
 /// <summary>An item and how many of it.</summary>
 public sealed record ItemCount(string Item, int Count);
 
-/// <summary>What one looter took: <see cref="Items"/> items, the <see cref="Copper"/> in the purses they looted, and from how many mobs.</summary>
-public sealed record PlayerLoot(string Who, bool You, int Mobs, int Items, long Copper, IReadOnlyList<ItemCount> Taken);
+/// <summary>
+/// What one person took: <see cref="Items"/> items from how many mobs, and the coin counted for them, <see cref="Copper"/>: the purses they looted that
+/// were not divided (whole), plus, for a ledger's owner, the shares of divided purses that reached them (<see cref="Received"/>). A divided purse is not
+/// counted for whoever looted it, since they kept only part and the ledger never says how much. <see cref="Purses"/> is the whole of every purse they
+/// looted and <see cref="SplitPurses"/> how many of those were divided.
+/// </summary>
+public sealed record PlayerLoot(string Who, bool You, int Mobs, int Items, long Copper, IReadOnlyList<ItemCount> Taken,
+    long Purses = 0, long Received = 0, int SplitPurses = 0);
 
 /// <summary>
 /// One corpse one looter took from: the coin and the items, which the ledger gives in separate rows. <see cref="Source"/> is as
 /// the ledger names it ("a Dustrend legionary", "your corpse"); <see cref="Mob"/> is false for a player's corpse.
 /// </summary>
 public sealed record LootedCorpse(string Who, bool You, string Source, bool Mob, DateTime Start, int Items, long Copper, long Split,
-    IReadOnlyList<ItemCount>? Taken = null, string Zone = "");
+    IReadOnlyList<ItemCount>? Taken = null, string Zone = "", bool Shared = false);
 
 /// <summary>One item and who took how many of it.</summary>
 public sealed record ItemTakers(string Item, int Count, IReadOnlyList<(string Who, int Count)> By);
@@ -51,10 +57,10 @@ public static class LootSummary
             v.Last = e.Time;
             v.You |= e.You;
             if (e.Kind == LootKind.Item) { v.Items += e.Count; v.Taken[e.Item] = v.Taken.GetValueOrDefault(e.Item) + e.Count; }
-            else { v.HasPurse = true; v.Copper += e.Copper; v.Split += e.Split; }
+            else { v.HasPurse = true; v.Copper += e.Copper; v.Split += e.Split; v.Shared |= e.Shared; }
         }
         return visits.Select(v => new LootedCorpse(v.Who, v.You, v.Source, IsMob(v.Source), v.Start, v.Items, v.Copper, v.Split,
-            v.Taken.Select(t => new ItemCount(t.Key, t.Value)).ToList(), v.Zone)).ToList();
+            v.Taken.Select(t => new ItemCount(t.Key, t.Value)).ToList(), v.Zone, v.Shared)).ToList();
     }
 
     /// <summary>Your own corpse and other players' ("Brom's corpse") aren't mobs.</summary>
@@ -64,7 +70,7 @@ public static class LootSummary
     private sealed class Visit
     {
         public string Who = "", Source = "", Zone = "";
-        public bool You, HasPurse;
+        public bool You, HasPurse, Shared;
         public DateTime Start, Last;
         public int Items;
         public long Copper, Split;
@@ -106,18 +112,32 @@ public static class LootSummary
                 p.Items += e.Count;
                 p.Taken[e.Item] = p.Taken.GetValueOrDefault(e.Item) + e.Count;
             }
-            else p.Copper += e.Copper;
+            else
+            {
+                // A purse the looter's autosplit divided isn't theirs whole: it counts for the group, not for them
+                p.Purses += e.Copper;
+                if (e.Shared) p.SplitPurses++;
+                else p.Kept += e.Copper;
+            }
+            // The only share of a divided purse a ledger shows is its owner's own: that is what they were handed
+            foreach (var share in e.Shares ?? Array.Empty<ShareTo>())
+            {
+                if (!map.TryGetValue(share.Owner, out var owner)) map[share.Owner] = owner = new Looter();
+                owner.You = true;
+                owner.Received += share.Copper;
+            }
         }
-        return map.Select(kv => new PlayerLoot(kv.Key, kv.Value.You, kv.Value.Mobs, kv.Value.Items, kv.Value.Copper,
-                kv.Value.Taken.OrderByDescending(t => t.Value).ThenBy(t => t.Key, StringComparer.OrdinalIgnoreCase).Select(t => new ItemCount(t.Key, t.Value)).ToList()))
+        return map.Select(kv => new PlayerLoot(kv.Key, kv.Value.You, kv.Value.Mobs, kv.Value.Items, kv.Value.Kept + kv.Value.Received,
+                kv.Value.Taken.OrderByDescending(t => t.Value).ThenBy(t => t.Key, StringComparer.OrdinalIgnoreCase).Select(t => new ItemCount(t.Key, t.Value)).ToList(),
+                kv.Value.Purses, kv.Value.Received, kv.Value.SplitPurses))
             .OrderByDescending(p => p.Mobs).ThenByDescending(p => p.Items).ThenByDescending(p => p.Copper).ThenBy(p => p.Who, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private sealed class Looter
     {
         public bool You;
-        public int Mobs, Items;
-        public long Copper;
+        public int Mobs, Items, SplitPurses;
+        public long Kept, Purses, Received;
         public readonly Dictionary<string, int> Taken = new(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -155,7 +175,7 @@ public static class LootSummary
     public static string Describe(LootEvent e) => e.Kind switch
     {
         LootKind.Item => $"[{e.Item}]{(e.Count > 1 ? $" x{e.Count}" : "")}  from {e.Source}",
-        _ => $"{Coin(e.Copper)}  from {e.Source}{(e.Split > 0 ? $"  (split {Coin(e.Split)})" : "")}",
+        _ => $"{Coin(e.Copper)}  from {e.Source}{(e.Shared ? (e.Split > 0 ? $"  (split; your share {Coin(e.Split)})" : "  (split)") : "")}",
     };
 
     /// <summary>One item as a single line for the clipboard: "Rusty Iron Mace ×3  ·  looted by 2 people (Fenwick 2, Aldric)  ·  ~1sp each  ·  ~3sp".</summary>

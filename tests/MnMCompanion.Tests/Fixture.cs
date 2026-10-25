@@ -27,7 +27,10 @@ internal static class Fixture
 
     /// <summary>A purse looted (act_14); <paramref name="coin"/> as "pp,gp,sp,cp", <paramref name="split"/> the owner's share the same way.</summary>
     public static string Purse(DateTime when, string looter, string owner, string mob, string coin, string split = "0,0,0,0", string cls = "ftr", int level = 30)
-        => Row("act_14", "name_" + B64(mob), new { d11 = 1, d12 = B64(coin), d13 = B64(mob), d14 = B64("party_split"), d15 = B64(split) }, when, looter, owner, cls, level);
+        => Row("act_14", "name_" + B64(mob), split == "0,0,0,0"
+            ? new { d11 = 1, d12 = B64(coin), d13 = B64(mob), d14 = B64("npc_corpse"), d15 = "" }      // kept whole by whoever looted it
+            : new { d11 = 1, d12 = B64(coin), d13 = B64(mob), d14 = B64("party_split"), d15 = B64(split) },   // divided; the owner's share
+            when, looter, owner, cls, level);
 
     /// <summary>An item sold to a vendor (act_24); <paramref name="coin"/> is the words the game writes for the whole stack.</summary>
     public static string Sale(DateTime when, string owner, string item, int count, string coin)

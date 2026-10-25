@@ -322,8 +322,17 @@ purse from one kind of monster, looted within six seconds of each other, as one 
 
 ### What coin is worth
 
-100 copper make 1 silver, 100 silver make 1 gold, 100 gold make 1 platinum. A coin purse is split between group members by the game; the
-ledger only records *your* share of other players' purses, so Companion shows exactly that as "your splits."
+100 copper make 1 silver, 100 silver make 1 gold, 100 gold make 1 platinum.
+
+**Who a coin purse counts for.** When someone loots coin, the game may *split* it between the group (their autosplit). Each purse line in the
+ledger says which: a purse the looter kept has no split, and one that was divided is marked as split and carries **your** share of it.
+
+- **The group's coin** is every purse counted once, at its whole value. That's the "coin" figure at the top, and the monster's coin on the Mobs tab.
+- **A purse that wasn't split** counts, whole, for whoever looted it.
+- **A purse that was split** does **not** count for whoever looted it: they kept only part, and the ledger never says how much. Instead
+  *your* share counts for **you** (it's the only share a ledger ever shows), even if you looted nothing. What the other members got is unknown, so
+  none of it is counted for them. The row's tooltip says how many split purses a player looted.
+- The *Value* ranking, the *Coin* column and "coin per player" use those counted amounts. "Your splits" is your shares added up.
 
 ### What an item is worth
 
