@@ -96,7 +96,7 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 From left to right: the **name** of the program, the **server**, your **character** (click either to switch), then on the right an **ⓘ** button
 (about, and updates), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
 Pick the **server** first, then the **character** to follow. Both lists come from the folders the game keeps on your PC (one folder per
-server, one per character inside it), so they're always whatever you've actually played. Choosing a server follows its most recently played
+server, one per character inside it), so they're always whatever the game has on your PC. Choosing a server follows its most recently played
 character; the character list then shows only that server's characters.
 Drag the title bar to move the window; drag any edge or the corner grip to resize it. It remembers where you left it.
 
@@ -377,9 +377,8 @@ If you run Companion from somewhere it can't replace itself (a read-only folder,
 
 **The window says it can't find a ledger, or my character isn't in the list.**
 Companion looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click the server name, then
-**Choose the game's data folder…** and point it at that folder (or wherever your game keeps its data). A character only appears once
-the game has written a ledger file for it (it does that as you loot, sell, level up and so on), so a brand-new character with no
-activity yet won't be listed.
+**Choose the game's data folder…** and point it at that folder (or wherever your game keeps its data). A character with no ledger yet
+is still listed (marked *no ledger yet*): the game writes the file as you loot, sell, level up and so on, and the window picks it up by itself.
 
 **"I don't see my old loot!"**
 You probably pressed **New session**. The window then shows only the *current* session. Open the **This session** menu and pick

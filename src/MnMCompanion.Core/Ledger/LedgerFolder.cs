@@ -3,11 +3,17 @@ using System.Text.Json;
 
 namespace MnMCompanion.Ledger;
 
-/// <summary>A character whose ledger is on this PC: <c>…\Monsters and Memories\&lt;server&gt;\&lt;character&gt;</c>.</summary>
-public sealed record LedgerSource(string Server, string Character, string Directory, DateTime LastActive)
+/// <summary>
+/// A character the game has a folder for on this PC: <c>…\Monsters and Memories\&lt;server&gt;\&lt;character&gt;</c>.
+/// <paramref name="HasLedger"/> is false for one that hasn't written a ledger file yet (a new character, or one that hasn't looted or sold).
+/// </summary>
+public sealed record LedgerSource(string Server, string Character, string Directory, DateTime LastActive, bool HasLedger = true)
 {
     public string LedgerDirectory => Path.Combine(Directory, "Ledger");
-    public string Label => $"{Character} · {Server}";
+    /// <summary>The server as shown to a person: the folder's name with a capital first letter.</summary>
+    public string ServerName => LedgerLocator.Capitalize(Server);
+
+    public string Label => $"{Character} · {ServerName}";
 }
 
 public static class LedgerLocator
@@ -16,7 +22,11 @@ public static class LedgerLocator
     public static string DefaultRoot() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AppData", "LocalLow", "Niche Worlds Cult", "Monsters and Memories");
 
-    /// <summary>Every <c>&lt;server&gt;\&lt;character&gt;</c> under <paramref name="root"/> that has a ledger, the one played most recently first.</summary>
+    /// <summary>
+    /// Every <c>&lt;server&gt;\&lt;character&gt;</c> folder under <paramref name="root"/>, the one played most recently first and those with no
+    /// ledger yet after them. A character folder is one that has a <c>Ledger</c> folder or the <c>chats.json</c> / <c>windows.json</c>
+    /// the game puts in every character's folder, so other folders in there are left out.
+    /// </summary>
     public static IReadOnlyList<LedgerSource> Find(string? root = null)
     {
         root ??= DefaultRoot();
@@ -28,15 +38,18 @@ public static class LedgerLocator
                 foreach (var character in Directory.EnumerateDirectories(server))
                 {
                     var ledger = Path.Combine(character, "Ledger");
-                    if (!Directory.Exists(ledger)) continue;
-                    var files = new DirectoryInfo(ledger).EnumerateFiles("*.json").ToList();
-                    if (files.Count == 0) continue;
-                    found.Add(new LedgerSource(Path.GetFileName(server), Path.GetFileName(character), character, files.Max(f => f.LastWriteTime)));
+                    var files = Directory.Exists(ledger) ? new DirectoryInfo(ledger).EnumerateFiles("*.json").ToList() : [];
+                    if (files.Count == 0 && !Directory.Exists(ledger) && !File.Exists(Path.Combine(character, "chats.json")) && !File.Exists(Path.Combine(character, "windows.json"))) continue;
+                    found.Add(new LedgerSource(Path.GetFileName(server), Path.GetFileName(character), character,
+                        files.Count == 0 ? DateTime.MinValue : files.Max(f => f.LastWriteTime), files.Count > 0));
                 }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return found.OrderByDescending(s => s.LastActive).ThenBy(s => s.Character, StringComparer.OrdinalIgnoreCase).ToList();
     }
+
+    /// <summary>A folder's name for showing ("alpha" → "Alpha"): the first letter in capitals, the rest as the game spelled it.</summary>
+    public static string Capitalize(string name) => name.Length == 0 ? name : char.ToUpperInvariant(name[0]) + name[1..];
 
     /// <summary>The servers among <paramref name="sources"/> (the game's server folders), the one played most recently first.</summary>
     public static IReadOnlyList<string> Servers(IEnumerable<LedgerSource> sources) =>

@@ -201,6 +201,37 @@ public class LedgerFolderTests
     }
 
     [Fact]
+    public void Characters_without_a_ledger_yet_are_listed_after_those_with_one_and_other_folders_are_not()
+    {
+        using var s = new Scratch();
+        s.Write(Character("Played", "2026-10-24"), File(Sale(T, "Played", "Rat Ear", 1, "0 platinum 0 gold 0 silver 3 copper")));
+        s.Write("srv\\Fresh\\chats.json", "{}");                 // a character the game has made a folder for, nothing looted yet
+        s.Write("quiet\\Alone\\windows.json", "{}");             // the only character on a server with no ledger at all
+        Directory.CreateDirectory(Path.Combine(s.Path, "srv", "Ledger"));   // not a character: a ledger folder is only meaningful inside one
+        Directory.CreateDirectory(Path.Combine(s.Path, "srv", "NotACharacter"));
+        Directory.CreateDirectory(Path.Combine(s.Path, "Crashes", "2026"));  // some other folder beside the servers
+
+        var found = LedgerLocator.Find(s.Path);
+
+        Assert.Equal(["Played", "Alone", "Fresh"], found.Select(f => f.Character));   // the one with a ledger first, then by name
+        Assert.Equal([true, false, false], found.Select(f => f.HasLedger));
+        Assert.Equal(["srv", "quiet"], LedgerLocator.Servers(found));
+    }
+
+    [Fact]
+    public void Server_names_are_shown_with_a_capital_first_letter_and_the_folder_name_is_left_alone()
+    {
+        Assert.Equal("Alpha", LedgerLocator.Capitalize("alpha"));
+        Assert.Equal("Alpha", LedgerLocator.Capitalize("Alpha"));
+        Assert.Equal("BeTa", LedgerLocator.Capitalize("beTa"));   // only the first letter is touched
+        Assert.Equal("", LedgerLocator.Capitalize(""));
+        var source = new LedgerSource("alpha", "Aldric", @"c:\game\alpha\Aldric", DateTime.Now);
+        Assert.Equal("alpha", source.Server);
+        Assert.Equal("Alpha", source.ServerName);
+        Assert.Equal("Aldric · Alpha", source.Label);
+    }
+
+    [Fact]
     public void Servers_and_the_characters_on_one_are_listed_most_recently_played_first()
     {
         var at = new DateTime(2026, 10, 24, 12, 0, 0);

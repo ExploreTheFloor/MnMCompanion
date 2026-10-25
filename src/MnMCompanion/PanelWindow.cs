@@ -151,7 +151,7 @@ internal sealed class PanelWindow : Window
 
     private void ShowSelection()
     {
-        _server.Content = (_store.Selected is { } s ? s.Server : "No server") + "  ▾";
+        _server.Content = (_store.Selected is { } s ? s.ServerName : "No server") + "  ▾";
         _character.Content = (_store.Selected is { } c ? c.Character : "No ledger") + "  ▾";
     }
 
@@ -180,11 +180,12 @@ internal sealed class PanelWindow : Window
         foreach (var name in LedgerLocator.Servers(_store.Sources))
         {
             var server = name;
-            var mi = new MenuItem { Header = server, IsChecked = string.Equals(_store.Selected?.Server, server, StringComparison.OrdinalIgnoreCase), ToolTip = "Reads this server's most recently played character" };
+            var played = LedgerLocator.On(_store.Sources, server).Any(s => s.HasLedger);
+            var mi = new MenuItem { Header = played ? LedgerLocator.Capitalize(server) : LedgerLocator.Capitalize(server) + "  ·  no ledger yet", IsChecked = string.Equals(_store.Selected?.Server, server, StringComparison.OrdinalIgnoreCase), ToolTip = "Reads this server's most recently played character" };
             mi.Click += async (_, _) => await Choose(LedgerLocator.On(_store.Sources, server)[0]);
             menu.Items.Add(mi);
         }
-        if (_store.Sources.Count == 0) menu.Items.Add(new MenuItem { Header = "No ledgers found", IsEnabled = false });
+        if (_store.Sources.Count == 0) menu.Items.Add(new MenuItem { Header = "No servers found", IsEnabled = false });
         menu.Items.Add(new Separator());
         var folder = new MenuItem { Header = "Choose the game's data folder…", ToolTip = $"Now: {_store.LedgerRoot}" };
         folder.Click += async (_, _) => await ChooseRoot();
@@ -201,11 +202,11 @@ internal sealed class PanelWindow : Window
         foreach (var source in here)
         {
             var s = source;
-            var mi = new MenuItem { Header = s.Character, IsChecked = _store.Selected?.Directory == s.Directory };
+            var mi = new MenuItem { Header = s.HasLedger ? s.Character : s.Character + "  ·  no ledger yet", IsChecked = _store.Selected?.Directory == s.Directory };
             mi.Click += async (_, _) => await Choose(s);
             menu.Items.Add(mi);
         }
-        if (here.Count == 0) menu.Items.Add(new MenuItem { Header = "No ledgers found", IsEnabled = false });
+        if (here.Count == 0) menu.Items.Add(new MenuItem { Header = "No characters found", IsEnabled = false });
         menu.IsOpen = true;
     }
 
