@@ -92,14 +92,6 @@ internal sealed class LootPanel : Border, IMiniPage
         return b;
     }
 
-    /// <summary>A toolbar button: a larger <see cref="Icon"/> in a lighter pill, so it reads as a button.</summary>
-    internal static FrameworkElement Tool(string glyph, string title, string tip, Action click)
-    {
-        var b = Icon(glyph, title, tip, click, size: 32, fontSize: 15);
-        b.Foreground = Palette.Text;
-        return new Border { CornerRadius = new CornerRadius(8), Background = (Brush)Ui.Theme["Subtle"], Margin = new Thickness(6, 0, 0, 0), Child = b };
-    }
-
     public FrameworkElement Element => this;
 
     public bool NeedsHistory => false;
@@ -110,9 +102,6 @@ internal sealed class LootPanel : Border, IMiniPage
 
     /// <summary>The status line (what was copied, what's unpriced). The window puts it in its bottom bar.</summary>
     public TextBlock StatusLine => _status;
-
-    /// <summary>The breakdown of what is shown, as text, for the Copy button.</summary>
-    public string SummaryText() => LootSummary.Breakdown(Day, Events(), values: _store.Values);
 
     private static DateOnly Today => SessionScope.Today;
     private DateOnly Day => _session.Day;

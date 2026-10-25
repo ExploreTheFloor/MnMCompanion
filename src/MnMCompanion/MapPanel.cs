@@ -85,8 +85,6 @@ internal sealed class MapPanel : Border, IMiniPage, IDisposable
 
     public void Say(string text) => _status.Text = text;
 
-    public string SummaryText() => _store.CurrentZone is { } z ? ZoneMaps.DisplayName(z.Zone) + (Atlas.UrlFor(z.Zone) is { } url ? " " + url : "") : "";
-
     private string Signature() => $"{_store.CurrentZone?.Zone}|{_store.SelectionKey}|{_session.Key}|{_store.Version}|{_settings.MapsOnline}";
 
     public void Tick()

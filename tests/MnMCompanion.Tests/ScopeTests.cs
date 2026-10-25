@@ -146,7 +146,7 @@ public class ScopeTests
         Assert.Equal(2, store.Harvests("alpha", "Aldric").Count);
         Assert.Equal(3, store.Harvests("alpha", null).Count);                       // everyone on one server
         Assert.Equal(4, store.Harvests(null, null).Count);                         // everyone on the PC
-        Assert.Equal(1, store.Harvests("beta", "Aldric").Count);               // the same name on another server is another character
+        Assert.Single(store.Harvests("beta", "Aldric"));                       // the same name on another server is another character
         Assert.Equal(["Aldric", "Aldric", "Wendell"], store.Harvests("alpha", null).Select(h => h.Character));
         Assert.Equal(3, store.Counts("alpha", null).Harvest);
         Assert.Equal(4, store.Counts(null, null).Harvest);

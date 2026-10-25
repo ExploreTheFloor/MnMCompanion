@@ -27,9 +27,6 @@ internal interface IMiniPage
     void Tick();
 
     void Say(string text);
-
-    /// <summary>What the Copy button puts on the clipboard.</summary>
-    string SummaryText();
 }
 
 /// <summary>
@@ -105,8 +102,6 @@ internal abstract class StatsPanel<T> : Border, IMiniPage where T : class
     protected abstract T Query(HistoryStore store, string server, string character, Period period);
 
     protected abstract void Render(T data, string tab);
-
-    public abstract string SummaryText();
 
     // ------------------------------------------------------------------ reading
 
@@ -252,8 +247,6 @@ internal sealed class VendorMini(LootStore store, HistoryData? data, SessionScop
                 (r.Direction == VendorDirection.Sold ? "Sold  " : "Bought  ", r.Direction == VendorDirection.Sold ? Palette.Heal : Palette.Taken, true),
                 ($"[{r.Item}]" + (r.Qty > 1 ? $" ×{r.Qty}" : ""), Palette.Gold, false), (r.TotalCopper > 0 ? "  " + Coin(r.TotalCopper) : "", Palette.Text, false)));
     }
-
-    public override string SummaryText() => "Vendors: open the Vendor page for the figures.";
 }
 
 // ======================================================================================================================== Trades
@@ -278,8 +271,6 @@ internal sealed class TradesMini(LootStore store, HistoryData? data, SessionScop
                 ("  gave ", Palette.Muted, false), (TradeSummary.Describe(t.GaveCoin, t.GaveItems), Palette.Taken, false),
                 ("  got ", Palette.Muted, false), (TradeSummary.Describe(t.ReceivedCoin, t.ReceivedItems), Palette.Heal, false)));
     }
-
-    public override string SummaryText() => "Trades: open the Trades page for the figures.";
 }
 
 // ======================================================================================================================== Items (dropped, picked up, destroyed)
@@ -321,8 +312,6 @@ internal sealed class ItemsMini(LootStore store, HistoryData? data, SessionScope
             Body.Children.Add(RankRow(++rank, i.Item, $"{i.Dropped:N0} dropped · {i.Destroyed:N0} destroyed", "−" + i.Lost.ToString("N0"), Palette.Taken, i.Lost / top,
                 $"{i.PickedUp:N0} picked up again"));
     }
-
-    public override string SummaryText() => "Items: open the Drops / Pickups / Destroys page for the figures.";
 }
 
 // ======================================================================================================================== Harvest
@@ -364,6 +353,4 @@ internal sealed class HarvestMini(LootStore store, HistoryData? data, SessionSco
             Body.Children.Add(LogLine((Time(r.Time), Palette.Muted, false), ($"[{r.Item}]" + (r.Qty > 1 ? $" ×{r.Qty}" : ""), Palette.Gold, false),
                 (r.Zone.Length > 0 ? "  " + ZoneMaps.DisplayName(r.Zone) : "", Palette.Muted, false)));
     }
-
-    public override string SummaryText() => "Harvest: open the Harvest page for the figures.";
 }

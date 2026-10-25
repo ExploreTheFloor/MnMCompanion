@@ -93,8 +93,8 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 
 <img src="docs/images/window-update.png" alt="The window with an update banner under the title bar" width="300" align="right">
 
-From left to right: the **name** of the program, the **character and server** it is showing, then on the right an **ⓘ** button
-(about, updates, and where the game keeps its data), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
+From left to right: the **name** of the program, the **character and server** it is showing, then on the right a **History** button (a clock), an **ⓘ** button
+(about, updates, the ledger folder, and where the game keeps its data), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
 
 There is nothing to pick: this window **follows the character you're playing**. The game rewrites the ledger of whoever is logged in, so when it
 starts writing a different character's ledger the window switches to them (and says so in the status line), and when it starts it opens on
@@ -112,7 +112,7 @@ of everything looted, and a smaller line breaking it into **coin** and **items**
 
 ### The bottom bar: six pages
 
-The bottom of the window has a button for each **page**, and under them four action buttons.
+The bottom of the window has a button for each **page**.
 
 <p align="center">
   <img src="docs/images/window-vendor.png" alt="The Vendor page" width="200">
@@ -133,17 +133,10 @@ The bottom of the window has a button for each **page**, and under them four act
 follow, so "what did this one run give me?" is the same question on every page. A click on a row of Vendor, Trades, Items or Harvest opens that
 page of the History window for the same character.
 
-The four buttons under the pages are:
-
-| Button | What it does |
-|---|---|
-| **History** (clock) | Opens the big window with every day, every player, every item. |
-| **New session** (circle arrow) | Saves what's happened so far and starts every page again from nothing. It asks first, and it can be undone. |
-| **Copy summary** (pages) | Copies the page you're looking at to the clipboard as plain text, ready to paste. |
-| **Open ledger folder** (folder) | Opens the folder where the game keeps your ledger files. |
-
-Hover over any button and a tooltip tells you what it does. The line beside them says what just happened (what was copied, how many items are
-unpriced).
+The **History** button (a clock) is in the title bar, next to ⓘ and the pin: it opens the big window with every day, every page, for this
+character or for everyone. **New session** is in the session menu (the *Whole day / This session* chip under the day) and starts every page again
+from nothing; the *Copy* buttons are on the Loot page's tabs; **Open the ledger folder** is in the ⓘ menu. The line above the page buttons says what
+just happened (a session archived, how many items are unpriced).
 
 ### The Loot page's four tabs
 

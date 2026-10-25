@@ -82,15 +82,18 @@ internal sealed class PanelWindow : Window
         _pin = TitleButton("", "Keep on top of other windows", () => SetOnTop(!Topmost));
         var close = TitleButton("", "Close", Close);
         _about = TitleButton("", "About Companion, and updates", OpenAboutMenu);
+        var historyButton = TitleButton("\uE81C", "History: every day and every page, for this character or for everyone", OpenHistory);
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 24, Cursor = Cursors.SizeAll, LastChildFill = false };
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(_pin, Dock.Right);
         DockPanel.SetDock(_about, Dock.Right);
+        DockPanel.SetDock(historyButton, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         DockPanel.SetDock(_who, Dock.Left);
         title.Children.Add(close);
         title.Children.Add(_pin);
         if (updates is not null) title.Children.Add(_about);
+        title.Children.Add(historyButton);
         title.Children.Add(caption);
         title.Children.Add(_who);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
@@ -155,6 +158,9 @@ internal sealed class PanelWindow : Window
 
     private IMiniPage Active => _pages[_page];
 
+    /// <summary>Opens the History window on the day and session on show.</summary>
+    private void OpenHistory() => BreakdownRequested?.Invoke(_session.Day, null, _session.ActiveSession());
+
     /// <summary>Draws the page on show now, on this thread (for a picture).</summary>
     public void DrawPageNow() => Active.RefreshNow();
 
@@ -171,8 +177,8 @@ internal sealed class PanelWindow : Window
     }
 
     /// <summary>
-    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest), and under them the actions (History, New
-    /// session, Copy, the ledger folder) with the status line beside them. Every page shows the same day and session.
+    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest) with the status line above them. Every page shows
+    /// the same day and session; History is a button in the title bar, New session is in the session menu and the ledger folder in the ⓘ menu.
     /// </summary>
     private FrameworkElement BuildBottomBar()
     {
@@ -187,35 +193,11 @@ internal sealed class PanelWindow : Window
         }
         var pages = new Border { CornerRadius = new CornerRadius(8), Background = (Brush)Ui.Theme["Subtle"], Padding = new Thickness(2), Child = grid };
 
-        var tools = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        tools.Children.Add(LootPanel.Tool("\uE81C", "History", "Open the full History window: every day, every page, for this character or for everyone.",
-            () => BreakdownRequested?.Invoke(_session.Day, null, _session.ActiveSession())));
-        tools.Children.Add(LootPanel.Tool("\uE72C", "New session", "Archive what has happened so far (its loot breakdown is saved as a text file) and start every page again from nothing. Nothing is deleted, and it can be undone.", NewSession));
-        tools.Children.Add(LootPanel.Tool("\uE8C8", "Copy summary", "Copy the page on show to the clipboard as text.", () =>
-        {
-            LootPanel.Copy(Active.SummaryText());
-            Active.Say("Copied to the clipboard.");
-        }));
-        tools.Children.Add(LootPanel.Tool("\uE838", "Open ledger folder", "Open the folder where the game keeps this character's ledger files (one a day for the character, one for the party).", _panel.OpenFolder));
-        ((FrameworkElement)tools.Children[0]).Margin = new Thickness(0);
-
-        _status.Margin = new Thickness(10, 0, 0, 0);
-        var row = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-        DockPanel.SetDock(tools, Dock.Left);
-        row.Children.Add(tools);
-        row.Children.Add(_status);
-
+        _status.Margin = new Thickness(2, 0, 2, 6);
         var stack = new StackPanel();
+        stack.Children.Add(_status);
         stack.Children.Add(pages);
-        stack.Children.Add(row);
         return new Border { Background = (Brush)Ui.Theme["Panel"], BorderBrush = (Brush)Ui.Theme["Stroke"], BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(12, 8, 12, 8), Child = stack };
-    }
-
-    private void NewSession()
-    {
-        var ask = MessageBox.Show(this, "Start a new session?\n\nWhat has happened so far is archived and every page starts again from nothing. Nothing is deleted, and \"Undo the last new session\" in the session menu takes it back.",
-            "New session", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-        if (ask == MessageBoxResult.Yes) _session.StartSession();
     }
 
     private static Button TitleButton(string glyph, string tip, Action click)
@@ -293,6 +275,9 @@ internal sealed class PanelWindow : Window
         };
         maps.Click += (_, _) => { _settings.MapsOnline = maps.IsChecked; _settings.Save(); _map.Refresh(); };
         menu.Items.Add(maps);
+        var ledgerFolder = new MenuItem { Header = "Open the ledger folder", ToolTip = "Opens the folder where the game keeps this character's ledger files (one a day for the character, one for the party)." };
+        ledgerFolder.Click += (_, _) => _panel.OpenFolder();
+        menu.Items.Add(ledgerFolder);
         var folder = new MenuItem { Header = "Choose the game's data folder…", ToolTip = $"Where the game keeps its data. Now: {_store.LedgerRoot}" };
         folder.Click += async (_, _) => await ChooseRoot();
         menu.Items.Add(folder);
