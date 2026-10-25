@@ -126,7 +126,8 @@ public partial class App : Application
     /// <summary>The "share your data with the community?" question: Yes turns sharing on and it stops asking; No, or closing it, asks again next start.</summary>
     private void AskToShare()
     {
-        var prompt = new SharePrompt(() => { _settings.ShareWithCommunity = true; _settings.Save(); }, OpenShare) { Owner = _panel };
+        var prompt = new ShareWindow(_history!, _settings, "LootGoblin " + AppVersion.Show(AppVersion.Current()), ShareMode.Ask,
+            yes: () => { _settings.ShareWithCommunity = true; _settings.Save(); }) { Owner = _panel };
         prompt.Show();
         prompt.Activate();
     }
@@ -135,7 +136,7 @@ public partial class App : Application
     private void OpenShare()
     {
         if (_history is null) return;
-        var window = new ShareWindow(_history, _settings, "LootGoblin " + AppVersion.Show(AppVersion.Current())) { Owner = _panel };
+        var window = new ShareWindow(_history, _settings, "LootGoblin " + AppVersion.Show(AppVersion.Current()), ShareMode.Settings) { Owner = _panel };
         window.Show();
     }
 

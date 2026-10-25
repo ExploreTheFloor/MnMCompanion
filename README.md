@@ -329,7 +329,7 @@ The game's diary tells each player only a little about how the world works. Pool
 
 The first time you start the app (and every time after, while the answer is No) a small window asks. **Yes** turns sharing on and it stops asking. **No**, or closing the window, keeps everything private and asks again next time. You can change your answer at any time: click the **ⓘ** in the title bar and tick or untick **Share my data with the community**.
 
-**What gets shared is only totals of your own play**, shown to you in full before you decide (**ⓘ → What does sharing include?**, or the **What is shared?** button on the question):
+**What gets shared is only totals of your own play**, shown to you in full before you decide (**ⓘ → What does sharing include?**, or the **What is shared** fold-out on the question):
 
 - how often each kind of monster you looted dropped each item, and the coin in its purses;
 - what vendors paid and charged you, per item and zone (the game doesn't record which vendor);

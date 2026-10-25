@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Media;
 using LootWindow.Community;
@@ -10,96 +11,147 @@ using LootWindow.Update;
 
 namespace LootWindow;
 
+internal enum ShareMode
+{
+    /// <summary>The start-up question: Yes or No. Closing it is a No.</summary>
+    Ask,
+    /// <summary>From the ⓘ menu: shows the current answer as a Yes | No switch, and what sharing includes.</summary>
+    Settings,
+}
+
 /// <summary>
-/// "Share my data with the community": the Yes / No switch, what saying Yes shares (and what never is), the player's own totals
-/// previewed, and a way to save a copy of the file. No is the default; while it is No nothing leaves the PC and community data isn't
-/// used. This window is also where the choice can be changed at any time.
+/// The one window about sharing with the community. In <see cref="ShareMode.Ask"/> it is a short question (Yes / No) with "What is
+/// shared" unfolding inline, so there is never a second window on top of it. In <see cref="ShareMode.Settings"/> it shows the answer as a
+/// Yes | No switch, what is shared, what never is, and can save a copy of the file. No is the default; while it is No nothing leaves
+/// the PC and community data isn't used.
 /// </summary>
 internal sealed class ShareWindow : Window
 {
     private readonly HistoryData _history;
     private readonly Settings _settings;
     private readonly string _app;
+    private readonly ShareMode _mode;
     private readonly StackPanel _stack = new() { Margin = new Thickness(26, 22, 26, 22) };
+    private readonly StackPanel _details = new();
     private readonly StackPanel _preview = new();
-    private readonly TextBlock _status = new() { FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(26, 4, 0, 0) };
-    private readonly TextBlock _id = new() { FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
-    private readonly TextBlock _saved = new() { FontSize = 12, Foreground = Palette.Heal, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0), Visibility = Visibility.Collapsed };
-    private readonly CheckBox _share;
+    private readonly TextBlock _status = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
+    private readonly TextBlock _id = new() { FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0) };
+    private readonly TextBlock _saved = new() { FontSize = 12, Foreground = Palette.Heal, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0), Visibility = Visibility.Collapsed };
     private readonly Button _save;
     private Contribution? _contribution;
+    private bool _loading = true;
 
-    public ShareWindow(HistoryData history, Settings settings, string app)
+    /// <param name="yes">Ask mode only: called when the player presses Yes.</param>
+    public ShareWindow(HistoryData history, Settings settings, string app, ShareMode mode, Action? yes = null)
     {
         _history = history;
         _settings = settings;
         _app = app;
+        _mode = mode;
         Resources.MergedDictionaries.Add(Ui.Theme);
-        Title = "Share my data with the community";
-        Width = 600;
+        Title = mode == ShareMode.Ask ? "Share your data with the community?" : "Sharing with the community";
+        Width = 520;
         SizeToContent = SizeToContent.Height;
-        MaxHeight = 940;
+        MaxHeight = 900;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        ShowInTaskbar = true;
+        Topmost = mode == ShareMode.Ask;
         Background = (Brush)Ui.Theme["Window"];
         Foreground = Palette.Text;
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
         SourceInitialized += (_, _) => DarkTitleBar();
 
-        _stack.Children.Add(new TextBlock { Text = "Share my data with the community", FontSize = 20, FontWeight = FontWeights.SemiBold, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") });
-        _stack.Children.Add(Paragraph(
-            "The community data is an open database that everyone can add to and use: how often each monster drops each item, what vendors pay and charge, and what gathering yields. " +
-            "It's built from the totals of players who choose to share.", 8, 0));
-        _stack.Children.Add(Paragraph(
-            "**Yes:** Loot Goblin shares your own totals for you, automatically, and keeps them up to date, and you can use the community data. " +
-            "**No (the default):** nothing leaves your PC, and the community data isn't used.", 8, 0));
+        _stack.Children.Add(new TextBlock
+        {
+            Text = mode == ShareMode.Ask ? "Share your data with the community?" : "Sharing with the community",
+            FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap,
+            FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"),
+        });
+        _stack.Children.Add(Text("Players pool their own totals into an open database of drop rates, vendor prices and gathering yields. " +
+            "Saying Yes adds yours for you, automatically, and lets you use what everyone has shared.", 10, Palette.Muted));
+        _stack.Children.Add(Bullet("Yes", "your totals are shared for you, and you can use the community data."));
+        _stack.Children.Add(Bullet("No", mode == ShareMode.Ask
+            ? "nothing leaves your PC and the community data stays off. You'll be asked again next time."
+            : "nothing leaves your PC and the community data stays off (the default)."));
 
-        _share = new CheckBox
+        if (mode == ShareMode.Ask)
         {
-            Content = new TextBlock { Text = "Share my data with the community, automatically", FontSize = 13.5, FontWeight = FontWeights.SemiBold },
-            IsChecked = settings.ShareWithCommunity, Margin = new Thickness(0, 16, 0, 0), Cursor = System.Windows.Input.Cursors.Hand,
-        };
-        _share.Click += (_, _) =>
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 20, 0, 0) };
+            buttons.Children.Add(Pill("Yes, share for me", 20, bold: true, tip: "Turns sharing on. You can change it any time from the ⓘ menu.", click: () => { yes?.Invoke(); Close(); }));
+            buttons.Children.Add(Pill("No", 26, margin: 8, tip: "Nothing is shared. You'll be asked again next time.", click: Close));
+            _stack.Children.Add(buttons);
+        }
+        else
         {
-            _settings.ShareWithCommunity = _share.IsChecked == true;
-            _settings.Save();
+            _stack.Children.Add(Switch());
+            _stack.Children.Add(_status);
             ShowStatus();
+        }
+
+        // What is shared: folded away in the question, open in the settings
+        var toggle = new Button
+        {
+            Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(0, 4, 0, 4), Margin = new Thickness(0, 16, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
+            Background = Brushes.Transparent, Foreground = Palette.Muted, Cursor = System.Windows.Input.Cursors.Hand,
         };
-        _stack.Children.Add(_share);
-        _stack.Children.Add(_status);
-        ShowStatus();
+        void Label() => toggle.Content = (_details.Visibility == Visibility.Visible ? "▴  " : "▾  ") + "What is shared";
+        _details.Visibility = mode == ShareMode.Settings ? Visibility.Visible : Visibility.Collapsed;
+        Label();
+        toggle.Click += (_, _) => { _details.Visibility = _details.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; Label(); };
+        if (mode == ShareMode.Ask) _stack.Children.Add(toggle);
 
-        _stack.Children.Add(Heading("What your sharing includes"));
-        _stack.Children.Add(_preview);
+        _details.Children.Add(Heading("Included: only totals of your own play"));
+        _details.Children.Add(_preview);
         _preview.Children.Add(Line("Working out your totals…", Palette.Muted));
-
-        _stack.Children.Add(Heading("What is never included"));
+        _details.Children.Add(Heading("Never included"));
         foreach (var line in new[]
         {
             "Your character names, or any other player's name",
-            "Individual loot lines, trades, or the time anything happened (only the day)",
-            "Anything from other players' ledgers: only what you looted, sold and gathered yourself",
+            "Individual loot lines, trades, or when anything happened (only the day)",
+            "Anything from other players' ledgers: only what you looted, sold and gathered",
         })
-            _stack.Children.Add(Line(line, Palette.Text, "✕  "));
+            _details.Children.Add(Line(line, Palette.Text, "✕  "));
+        _details.Children.Add(_id);
+        _details.Children.Add(Text($"What you share is given under {CommunityData.LicenseName}: free for anyone to use for non-commercial purposes, with credit.", 8, Palette.Muted, 11.5));
+        _details.Children.Add(_saved);
 
-        _stack.Children.Add(_id);
-        _stack.Children.Add(Paragraph($"What you share is given to the community under {CommunityData.LicenseName}: free for anyone to use for non-commercial purposes, with credit.", 10, 0, muted: true));
-        _stack.Children.Add(_saved);
-
-        _save = new Button { Content = "Save a copy of my file…", Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(16, 7, 16, 7), IsEnabled = false, ToolTip = "Saves what would be shared, so you can read it" };
+        _save = Pill("Save a copy of my file…", 16, tip: "Saves what would be shared, so you can read it");
+        _save.IsEnabled = false;
+        _save.Margin = new Thickness(0, 14, 0, 0);
+        _save.HorizontalAlignment = HorizontalAlignment.Left;
         _save.Click += (_, _) => Save();
-        var how = new Button { Content = "How it works", Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(16, 7, 16, 7), Margin = new Thickness(8, 0, 0, 0), ToolTip = "Opens the community project on GitHub" };
-        how.Click += (_, _) => Open(CommunityData.HowToUrl);
-        var close = new Button { Content = "Close", Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(16, 7, 16, 7), Margin = new Thickness(8, 0, 0, 0) };
-        close.Click += (_, _) => Close();
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 18, 0, 0) };
-        buttons.Children.Add(_save);
-        buttons.Children.Add(how);
-        buttons.Children.Add(close);
-        _stack.Children.Add(buttons);
+        if (mode == ShareMode.Settings) _details.Children.Add(_save);
+        _stack.Children.Add(_details);
 
         Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _stack };
-        Loaded += async (_, _) => await Prepare();
+        Loaded += async (_, _) => { _loading = false; await Prepare(); };
+    }
+
+    // ------------------------------------------------------------------ the pieces
+
+    /// <summary>The Yes | No switch, in the same segmented style as the app's tabs.</summary>
+    private FrameworkElement Switch()
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        foreach (var (text, value) in new[] { ("Yes", true), ("No", false) })
+        {
+            var rb = new RadioButton
+            {
+                Content = new TextBlock { Text = text, Margin = new Thickness(30, 0, 30, 0) }, Style = (Style)Ui.Theme["Segment"],
+                GroupName = "ShareChoice", IsChecked = _settings.ShareWithCommunity == value, FontSize = 13,
+            };
+            bool answer = value;
+            rb.Checked += (_, _) =>
+            {
+                if (_loading) return;
+                _settings.ShareWithCommunity = answer;
+                _settings.Save();
+                ShowStatus();
+            };
+            row.Children.Add(rb);
+        }
+        return new Border { CornerRadius = new CornerRadius(8), Background = (Brush)Ui.Theme["Subtle"], Padding = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 16, 0, 0), Child = row };
     }
 
     private void ShowStatus()
@@ -130,7 +182,7 @@ internal sealed class ShareWindow : Window
         foreach (var line in ContributionBuilder.Describe(_contribution)) _preview.Children.Add(Line(line, Palette.Text, "✓  "));
         bool nothing = _contribution.Totals is { Corpses: 0, Sales: 0, Purchases: 0, Harvests: 0 };
         if (nothing) _preview.Children.Add(Line("There is nothing to share yet. Loot, sell and gather a bit first.", Palette.Muted));
-        _id.Text = $"Your random id is {_contribution.Contributor[..8]}…  It isn't linked to your name or your characters. Each time your totals are shared they replace your last ones, so nothing is counted twice.";
+        _id.Text = $"Your random id is {_contribution.Contributor[..8]}…, not linked to your name or characters. Each time your totals are shared they replace your last ones, so nothing is counted twice.";
         _save.IsEnabled = !nothing;
     }
 
@@ -155,32 +207,39 @@ internal sealed class ShareWindow : Window
             MessageBox.Show(this, "The file couldn't be saved: " + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        _saved.Text = $"Saved to {dialog.FileName}. This is only a copy for you to read: sharing is the switch above.";
+        _saved.Text = $"Saved to {dialog.FileName}. It's only a copy to read; sharing is the Yes | No switch above.";
         _saved.Visibility = Visibility.Visible;
     }
 
-    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------ small helpers (every text is given its colour: nothing is left to the system's)
+
+    private static Button Pill(string text, double side, bool bold = false, double margin = 0, string? tip = null, Action? click = null)
+    {
+        var b = new Button
+        {
+            Content = text, Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(side, 9, side, 9), Margin = new Thickness(margin, 0, 0, 0),
+            FontSize = 13, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal, ToolTip = tip,
+        };
+        if (click is not null) b.Click += (_, _) => click();
+        return b;
+    }
 
     private static TextBlock Heading(string text) =>
-        new() { Text = text, FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 16, 0, 6) };
+        new() { Text = text, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, Margin = new Thickness(0, 16, 0, 6) };
 
     private static TextBlock Line(string text, Brush colour, string bullet = "") =>
         new() { Text = bullet + text, FontSize = 12.5, Foreground = colour, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
 
-    /// <summary>A paragraph; text between ** ** is bold.</summary>
-    private static TextBlock Paragraph(string text, double top, double bottom, bool muted = false)
-    {
-        var block = new TextBlock { FontSize = 12.5, Foreground = muted ? Palette.Muted : Palette.Text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, top, 0, bottom) };
-        var parts = text.Split("**");
-        for (int i = 0; i < parts.Length; i++)
-            block.Inlines.Add(new System.Windows.Documents.Run(parts[i]) { FontWeight = i % 2 == 1 ? FontWeights.SemiBold : FontWeights.Normal });
-        return block;
-    }
+    private static TextBlock Text(string text, double top, Brush colour, double size = 12.5) =>
+        new() { Text = text, FontSize = size, Foreground = colour, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, top, 0, 0) };
 
-    private static void Open(string target)
+    /// <summary>"Yes  your totals…": the word in bold, then the rest.</summary>
+    private static TextBlock Bullet(string word, string rest)
     {
-        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { }
+        var block = new TextBlock { FontSize = 12.5, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
+        block.Inlines.Add(new Run(word + "  ") { FontWeight = FontWeights.SemiBold, Foreground = Palette.Text });
+        block.Inlines.Add(new Run(rest) { Foreground = Palette.Muted });
+        return block;
     }
 
     [DllImport("dwmapi.dll")]
