@@ -29,7 +29,7 @@ internal sealed class PanelWindow : Window
 
     public event Action<DateOnly, string?, LootSession?>? BreakdownRequested;
 
-    /// <summary>The player chose "Share data with the community" in the ⓘ menu.</summary>
+    /// <summary>The player chose "What does sharing include?" in the ⓘ menu.</summary>
     public event Action? ShareRequested;
 
     /// <param name="updates">The update checker; null (a picture-taking run) means no update button or banner.</param>
@@ -191,9 +191,16 @@ internal sealed class PanelWindow : Window
         auto.Click += (_, _) => { _settings.CheckForUpdates = auto.IsChecked; _settings.Save(); };
         menu.Items.Add(auto);
         menu.Items.Add(new Separator());
-        var share = new MenuItem { Header = "Share data with the community…", ToolTip = "Saves your own totals as a small file you can add to the community's open data. Nothing is sent by the app." };
-        share.Click += (_, _) => ShareRequested?.Invoke();
+        var share = new MenuItem
+        {
+            Header = "Share my data with the community", IsCheckable = true, IsChecked = _settings.ShareWithCommunity,
+            ToolTip = "Yes: your totals are shared for you, automatically, and you can use the community data. No (the default): nothing is shared and the community data isn't used.",
+        };
+        share.Click += (_, _) => { _settings.ShareWithCommunity = share.IsChecked; _settings.Save(); };
         menu.Items.Add(share);
+        var what = new MenuItem { Header = "What does sharing include?…", ToolTip = "Shows exactly what is shared, and what never is" };
+        what.Click += (_, _) => ShareRequested?.Invoke();
+        menu.Items.Add(what);
         var page = new MenuItem { Header = "Project page" };
         page.Click += (_, _) => _updates.OpenProjectPage();
         menu.Items.Add(page);

@@ -26,6 +26,12 @@ public sealed class Settings
     /// <summary>The page of the History window that was open last ("Loot", "Trades", "Vendors", "Changes" or "Harvest").</summary>
     public string? HistoryPage { get; set; }
 
+    /// <summary>
+    /// The player's answer to "share your data with the community?". No (false) until they say Yes. While it is No nothing is sent, they are
+    /// asked again every time the app starts, and community data isn't used.
+    /// </summary>
+    public bool ShareWithCommunity { get; set; }
+
     /// <summary>Look for a newer version on GitHub when the app starts and every few hours. It only ever offers; nothing installs by itself.</summary>
     public bool CheckForUpdates { get; set; } = true;
 

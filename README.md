@@ -45,7 +45,7 @@ them and turns them into something you can look at:
 - **What you sold and bought**, what vendors pay for each item, and how much you made.
 - **What you gathered**, how fast, and what it's worth.
 - **Your trades**, and what you dropped, picked up or destroyed.
-- **An optional way to add your own numbers to a community-run, open database** of drop rates and prices (see [Sharing](#sharing-with-the-community-data)).
+- **A yes/no choice to add your own numbers to a community-run, open database** of drop rates and prices, and to use it (see [Sharing](#sharing-with-the-community-data)).
 - **A copy button** that turns any of it into text you can paste into chat.
 
 It only *reads*. It never touches the game, never reads the game's memory, and never presses a key for you.
@@ -286,7 +286,7 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 
 - reads the game's ledger files, and nothing else the game writes;
 - **never** touches the running game, its memory, your keyboard or your mouse;
-- **never** sends your loot, your characters, your ledgers or anything about you anywhere by itself (the optional sharing below is a file *you* choose to upload);
+- **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - **never** installs anything by itself. Updates are only ever *offered*.
 
 The one thing it does over the internet is ask GitHub *"is there a newer version of Loot Goblin?"* (see [Updates](#updates)). That's a plain
@@ -317,20 +317,30 @@ how to look inside the file, is written up in [docs/ledger-notes.md](docs/ledger
 
 ## Sharing with the community data
 
-The game's diary tells each player only a little about how the world works. Pooled across many players it tells a lot: how often each monster drops each item, what vendors really pay, what gathering yields. That is what the **community data** is: an open database, kept in a public project on GitHub, that anyone can add to and use for non-commercial purposes ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
+The game's diary tells each player only a little about how the world works. Pooled across many players it tells a lot: how often each monster drops each item, what vendors really pay, what gathering yields. That is what the **community data** is: an open database, kept in a public project on GitHub ([ExploreTheFloor/MnMData](https://github.com/ExploreTheFloor/MnMData)), that anyone can use for non-commercial purposes ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
 
-**It's optional, and the app never sends anything.** Click the **ⓘ** in the title bar and choose **Share data with the community…**. A window shows you exactly what would be in your file, in plain words:
+**It's one question, Yes or No: "Share my data with the community?"**
+
+| | **Yes** | **No** (the default) |
+|---|---|---|
+| Your totals | shared **for you, automatically**, and kept up to date | stay on your PC; **nothing is sent** |
+| Community data | **you can use it** | **the app doesn't download or show it** |
+| Being asked | never again | **every time you start the app**, until you say Yes |
+
+The first time you start the app (and every time after, while the answer is No) a small window asks. **Yes** turns sharing on and it stops asking. **No**, or closing the window, keeps everything private and asks again next time. You can change your answer at any time: click the **ⓘ** in the title bar and tick or untick **Share my data with the community**.
+
+**What gets shared is only totals of your own play**, shown to you in full before you decide (**ⓘ → What does sharing include?**, or the **What is shared?** button on the question):
 
 - how often each kind of monster you looted dropped each item, and the coin in its purses;
 - what vendors paid and charged you, per item and zone (the game doesn't record which vendor);
 - what you gathered, per item and zone;
 - item names with the game's own ids.
 
-It is built from **your own** loot, sales and gathering only. It never contains your character names, any other player's name, individual loot lines, trades, or the time anything happened (only the day you save it). Because the same loot appears in every party member's diary, other players' loot is left out on purpose, so a corpse isn't counted once per member.
+It **never** contains your character names, any other player's name, individual loot lines, trades, or when anything happened (only the day). Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
 
-Press **Save my file…**, then follow **How to send it**: you drop the file into the community project's `contributions` folder on GitHub (you need a free GitHub account), and GitHub turns it into a request that is checked automatically. The file is named with a random id made on your PC, which isn't linked to your name or characters. Send a new file later with the same name and it **replaces** your old one, so nothing is counted twice, and you can ask to have yours removed at any time.
+**An honest note about "No means no community data":** the community data lives in a public project under an open licence, so anyone can still download it by hand. What "No" means is that *Loot Goblin* won't fetch or use it for you.
 
-For a quick look without the window, `LootGoblin.exe --contribute <folder>` saves the same file and quits.
+> **Status:** the Yes/No question, the reminder and the rule are in. The part that actually sends a Yes player's totals needs a small community "drop box" to be set up first, so for now saying Yes saves your answer and the ⓘ window says "Sending isn't connected yet". Nothing is sent until it is. Until then, `LootGoblin.exe --contribute <folder>` saves your totals as a file you can read or upload to the community project yourself.
 
 ---
 
@@ -404,7 +414,8 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--ledger <folder>` | Read the game's data from somewhere else. |
 | `--character <name>` | Start on this character. |
 | `--history` | Open the History window as soon as the app starts. |
-| `--share` | Open the "Share data with the community" window as soon as the app starts. |
+| `--share` | Open the "Share my data with the community" window as soon as the app starts. |
+| `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
 | `--contribute <folder or file>` | Save the file you can share with the community data (named by your random id) and quit, without a window. |
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
 | `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
