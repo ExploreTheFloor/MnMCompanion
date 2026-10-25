@@ -36,6 +36,7 @@ public partial class LootHistoryPage : UserControl
     private LootDay? _shown;
     private int _shownRaw = -1;
     private string? _member;   // null = everyone
+    private string? _pendingMember;   // a name asked for from the small window, kept until the ledger has been read and it can be found
     private string _tab = "";
     private bool _updatingLists;
 
@@ -72,7 +73,7 @@ public partial class LootHistoryPage : UserControl
 
     private LootSession? ScopeSession() => _scopeStart is { } s ? _store.Sessions.All.FirstOrDefault(x => x.Start == s) : null;
 
-    private void Tick()
+    public void Tick()
     {
         RefreshDays();
         // The day on screen is still filling: keep it current.
@@ -100,6 +101,7 @@ public partial class LootHistoryPage : UserControl
             _day = _items[0].Day;
             _scopeStart = null;
             _member = null;
+            _pendingMember = null;
             _tab = "";
         }
 
@@ -138,6 +140,7 @@ public partial class LootHistoryPage : UserControl
         if (_updatingLists || DayList.SelectedItem is not LootDayItem item) return;
         _day = item.Day;
         _member = null;
+        _pendingMember = null;
         _scopeStart = null;
         _tab = "";
         RenderDay();
@@ -171,6 +174,7 @@ public partial class LootHistoryPage : UserControl
         _updatingLists = false;
         _day = day;
         _member = member;
+        _pendingMember = member;
         _tab = "";
         RenderDay();
         DetailScroll.ScrollToTop();
@@ -217,7 +221,15 @@ public partial class LootHistoryPage : UserControl
                 new GridLength(Math.Max(frac, 0.0001), GridUnitType.Star), new GridLength(Math.Max(1 - frac, 0.0001), GridUnitType.Star)));
         }
         MemberList.ItemsSource = rows;
-        if (_member != null && d.Member(_member) is null) _member = null;
+        if (_pendingMember is not null)
+        {
+            // Opened from the small window on a name: this window may not have read the ledger yet (an empty day has no such name), so keep
+            // asking until it can be found, and give up only once the day has loot and the name still isn't in it
+            if (d.Member(_pendingMember) is not null) { _member = _pendingMember; _pendingMember = null; }
+            else if (d.Events.Count > 0) { _member = null; _pendingMember = null; }
+            else _member = null;
+        }
+        else if (_member != null && d.Member(_member) is null) _member = null;
         MemberList.SelectedItem = rows.FirstOrDefault(r => string.Equals(r.Key, _member, StringComparison.OrdinalIgnoreCase));
         _updatingLists = false;
         RenderDetail();
@@ -245,6 +257,7 @@ public partial class LootHistoryPage : UserControl
                 if (_updatingLists) return;
                 _scopeStart = s?.Start;
                 _member = null;
+                _pendingMember = null;
                 RenderDay();
             };
             ScopeBar.Children.Add(rb);
@@ -265,6 +278,7 @@ public partial class LootHistoryPage : UserControl
     {
         if (_updatingLists || MemberList.SelectedItem is not LootMemberItem m) return;
         _member = m.Key;
+        _pendingMember = null;
         _tab = "";
         RenderDetail();
     }
@@ -272,6 +286,7 @@ public partial class LootHistoryPage : UserControl
     private void SelectMember(string? name)
     {
         _member = name;
+        _pendingMember = null;
         _tab = "";
         _updatingLists = true;
         MemberList.SelectedItem = (MemberList.ItemsSource as IEnumerable<LootMemberItem>)?.FirstOrDefault(r => string.Equals(r.Key, name, StringComparison.OrdinalIgnoreCase));

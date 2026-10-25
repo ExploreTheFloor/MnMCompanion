@@ -292,7 +292,8 @@ internal sealed class LootPanel : Border, IMiniPage
     /// <summary>One ranked row in the meter's style: a bar behind it sized to its value, a stripe in the row's colour, rank, name, a muted note and the value.</summary>
     internal static FrameworkElement Row(int rank, string name, string sub, string value, Brush brush, double fraction, string tip, Action click, Func<string>? copy = null)
     {
-        var grid = new Grid { Height = 28, Margin = new Thickness(0, 2, 0, 2), Background = Brushes.Transparent, Cursor = Cursors.Hand };
+        var grid = new ClickRow { Height = 28, Margin = new Thickness(0, 2, 0, 2), Background = Brushes.Transparent, Cursor = Cursors.Hand, Activate = click };
+        System.Windows.Automation.AutomationProperties.SetName(grid, name);
         var back = new Border { CornerRadius = new CornerRadius(7), Background = (Brush)Ui.Theme["Subtle"] };
         grid.Children.Add(back);
         var fill = new Grid();

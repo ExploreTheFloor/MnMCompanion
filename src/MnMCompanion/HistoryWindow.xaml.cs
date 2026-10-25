@@ -44,6 +44,7 @@ public partial class HistoryWindow : Window
     private int _preset;                 // the quick period chosen, or -1 for a particular day
     private DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
     private bool _updating;
+    private bool _pageRequested;   // the small window asked for a page (a name, a row): don't send the reader back to the page they last left this on
     private HistoryCounts? _counts;
     private int _trades;   // trades, not rows: the ledger writes two rows for one
     private string _rail = "";
@@ -72,7 +73,8 @@ public partial class HistoryWindow : Window
         {
             ShowScope();
             await Task.Run(_focus.Loot.Refresh);   // this window reads the ledgers itself, so its first page already has its days
-            ShowPage(Pages.Any(p => p.Key == settings.HistoryPage) ? settings.HistoryPage! : "Loot");
+            if (_pageRequested) { if (_key == "Loot" && Page("Loot") is LootHistoryPage loot) loot.Tick(); }   // its data has just arrived
+            else ShowPage(Pages.Any(p => p.Key == settings.HistoryPage) ? settings.HistoryPage! : "Loot");
             _ = history.RefreshAsync();
             _timer.Start();
         };
@@ -116,9 +118,10 @@ public partial class HistoryWindow : Window
     /// <summary>Shows a day of loot (from the panel), optionally one session of it and one player's breakdown.</summary>
     public void ShowDay(DateOnly day, string? member = null, LootSession? session = null)
     {
-        // A session is one character's (the one the small window follows), so that is who to look at
-        if (session is not null && _smallWindow.Selected is { } following)
+        // A session, and the names in a day, are one character's (the one the small window follows), so that is who to look at
+        if ((session is not null || member is not null) && _smallWindow.Selected is { } following)
             SetScope(HistoryScope.Of(following.Server, following.Character));
+        _pageRequested = true;
         ShowPage("Loot");
         ((LootHistoryPage)Page("Loot")).ShowDay(day, member, session);
     }
@@ -127,6 +130,7 @@ public partial class HistoryWindow : Window
     public void ShowPageFor(string key)
     {
         if (_smallWindow.Selected is { } following) SetScope(HistoryScope.Of(following.Server, following.Character));
+        _pageRequested = true;
         ShowPage(key);
     }
 

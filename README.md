@@ -142,7 +142,7 @@ just happened (a session archived, how many items are unpriced).
 
 | Tab | Shows |
 |---|---|
-| **Value** | One bar per player: how many monsters they looted, how many items, and what it was all worth. The bar is their share of the group's total. Click a name to open their page in History. |
+| **Value** | One bar per player: how many monsters they looted, how many items, and what it was all worth. The bar is their share of the group's total. Click a name to open their page in History, for the session you're looking at. |
 | **Items** | Every kind of item looted, how many, what they're worth, and who took the most of them. |
 | **Mobs** | Every kind of monster looted, how many times, and what each one is worth on average. |
 | **Feed** | Every loot line, newest first, with the time, who, what, and what it came from. A box at the top filters it by player, item or monster. |
