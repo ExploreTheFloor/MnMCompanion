@@ -6,8 +6,8 @@ namespace LootWindow.Tests;
 /// Memento code. Two exceptions are made on purpose, each confined to its own project: <c>src\LootWindow.Data</c> keeps this app's
 /// OWN database of the rows it has read (the only project that may use SQLite, and the only package, Microsoft.Data.Sqlite), and
 /// <c>src\LootWindow.Update</c> asks GitHub whether a newer version of this app exists (the only project that may use the network,
-/// and only github.com and api.github.com). Everything else, the Core included, stays free of both. (When an optional wiki lookup
-/// is added, with the player's own companion code, it goes in its own folder and this list is where that exception is made too.)
+/// and only github.com and api.github.com). Everything else, the Core included, stays free of both. (There is no wiki layer: the
+/// community data is to live in an open repository on GitHub, and reading or sharing it is where this list will make its next exception.)
 /// </summary>
 public class LedgerOnlyTests
 {
