@@ -75,12 +75,27 @@ internal sealed class ShareWindow : Window
             ? "nothing leaves your PC and the community data stays off. You'll be asked again next time."
             : "nothing leaves your PC and the community data stays off (the default)."));
 
+        _details.Visibility = mode == ShareMode.Settings ? Visibility.Visible : Visibility.Collapsed;
         if (mode == ShareMode.Ask)
         {
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 20, 0, 0) };
-            buttons.Children.Add(Pill("Yes, share for me", 20, bold: true, tip: "Turns sharing on. You can change it any time from the ⓘ menu.", click: () => { yes?.Invoke(); Close(); }));
-            buttons.Children.Add(Pill("No", 26, margin: 8, tip: "Nothing is shared. You'll be asked again next time.", click: Close));
-            _stack.Children.Add(buttons);
+            // Yes | What is shared | No: three buttons of one size, the middle one unfolding the details below
+            var yesButton = Pill("Yes, share for me", 8, bold: true, tip: "Turns sharing on. You can change it any time from the ⓘ menu.", click: () => { yes?.Invoke(); Close(); });
+            var toggle = Pill("What is shared  ▾", 8, tip: "Shows exactly what sharing includes, before you decide");
+            var noButton = Pill("No", 8, tip: "Nothing is shared. You'll be asked again next time.", click: Close);
+            toggle.Click += (_, _) =>
+            {
+                bool open = _details.Visibility != Visibility.Visible;
+                _details.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                toggle.Content = open ? "What is shared  ▴" : "What is shared  ▾";
+            };
+            yesButton.Margin = new Thickness(0, 0, 4, 0);
+            toggle.Margin = new Thickness(4, 0, 4, 0);
+            noButton.Margin = new Thickness(4, 0, 0, 0);
+            var row = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 20, 0, 0) };
+            row.Children.Add(yesButton);
+            row.Children.Add(toggle);
+            row.Children.Add(noButton);
+            _stack.Children.Add(row);
         }
         else
         {
@@ -88,18 +103,6 @@ internal sealed class ShareWindow : Window
             _stack.Children.Add(_status);
             ShowStatus();
         }
-
-        // What is shared: folded away in the question, open in the settings
-        var toggle = new Button
-        {
-            Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(0, 4, 0, 4), Margin = new Thickness(0, 16, 0, 0), HorizontalAlignment = HorizontalAlignment.Left,
-            Background = Brushes.Transparent, Foreground = Palette.Muted, Cursor = System.Windows.Input.Cursors.Hand,
-        };
-        void Label() => toggle.Content = (_details.Visibility == Visibility.Visible ? "▴  " : "▾  ") + "What is shared";
-        _details.Visibility = mode == ShareMode.Settings ? Visibility.Visible : Visibility.Collapsed;
-        Label();
-        toggle.Click += (_, _) => { _details.Visibility = _details.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; Label(); };
-        if (mode == ShareMode.Ask) _stack.Children.Add(toggle);
 
         _details.Children.Add(Heading("Included: only totals of your own play"));
         _details.Children.Add(_preview);
