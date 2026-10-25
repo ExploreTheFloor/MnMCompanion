@@ -31,6 +31,12 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        if (args.Contribute is not null)
+        {
+            Contribute(args);
+            Shutdown();
+            return;
+        }
         if (args.Archive)
         {
             Archive(args);
@@ -55,9 +61,11 @@ public partial class App : Application
         MainWindow = _panel;
         _panel.Closed += (_, _) => Shutdown();
         _panel.BreakdownRequested += OpenBreakdown;
+        _panel.ShareRequested += OpenShare;
         _panel.Show();
         _history = new HistoryData(() => _store.LedgerRoot);
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
+        if (args.Share) OpenShare();
         _updates.Start();
     }
 
@@ -103,6 +111,44 @@ public partial class App : Application
             lines.Add($"{db.FilePath}: {db.RowCount():N0} rows from {db.FileCount():N0} files");
             lines.AddRange(db.RowsByAct().Select(a => $"  {a.Act}  {a.Rows,8:N0}  {a.Meaning}"));
             lines.AddRange(result.Problems.Select(p => "  to retry: " + p));
+        }
+        catch (Exception ex)
+        {
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  failed: {ex.Message}");
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
+        File.WriteAllLines(report, lines);
+    }
+
+    /// <summary>Opens the window where the player previews and saves the file they can share with the community data.</summary>
+    private void OpenShare()
+    {
+        if (_history is null) return;
+        var window = new ShareWindow(_history, "LootGoblin " + AppVersion.Show(AppVersion.Current())) { Owner = _panel };
+        window.Show();
+    }
+
+    /// <summary>
+    /// <c>--contribute &lt;file&gt;</c>: saves the file a player can share with the community data, without a window, and says what is
+    /// in it in the report. Works from the saved history (brought up to date first).
+    /// </summary>
+    private void Contribute(Args args)
+    {
+        var report = args.Report ?? Path.Combine(Settings.Folder, "contribute-report.txt");
+        var lines = new List<string>();
+        try
+        {
+            using var db = new LedgerDb(args.Db);
+            LedgerArchiver.Run(db, _store.LedgerRoot);
+            EventBuilder.Update(db);
+            var contribution = CommunityExport.Build(db, "LootGoblin " + AppVersion.Show(AppVersion.Current()));
+            var path = Path.GetFullPath(args.Contribute!);
+            // A folder (or a name with no .json) gets the file inside it, named by the contributor id as the data repository wants
+            if (Directory.Exists(path) || !path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) path = Path.Combine(path, contribution.Contributor + ".json");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, contribution.ToJson());
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  wrote {path} ({new FileInfo(path).Length:N0} bytes)");
+            lines.AddRange(Community.ContributionBuilder.Describe(contribution).Select(l => "  " + l));
         }
         catch (Exception ex)
         {
@@ -217,9 +263,9 @@ public partial class App : Application
     }
 }
 
-/// <summary>Command line: <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--size WxH]</c> for the History window.</summary>
+/// <summary>Command line: <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--size WxH]</c> for the History window.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false)
 {
     public static Args Parse(string[] args)
     {
@@ -228,6 +274,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         if (Value("--size") is { } size && size.Split('x') is [var sw, var sh] && int.TryParse(sw, out var pw) && int.TryParse(sh, out var ph)) (w, h) = (pw, ph);
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
-            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"));
+            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"));
     }
 }

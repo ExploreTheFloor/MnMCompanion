@@ -29,6 +29,9 @@ internal sealed class PanelWindow : Window
 
     public event Action<DateOnly, string?, LootSession?>? BreakdownRequested;
 
+    /// <summary>The player chose "Share data with the community" in the ⓘ menu.</summary>
+    public event Action? ShareRequested;
+
     /// <param name="updates">The update checker; null (a picture-taking run) means no update button or banner.</param>
     public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null)
     {
@@ -188,6 +191,9 @@ internal sealed class PanelWindow : Window
         auto.Click += (_, _) => { _settings.CheckForUpdates = auto.IsChecked; _settings.Save(); };
         menu.Items.Add(auto);
         menu.Items.Add(new Separator());
+        var share = new MenuItem { Header = "Share data with the community…", ToolTip = "Saves your own totals as a small file you can add to the community's open data. Nothing is sent by the app." };
+        share.Click += (_, _) => ShareRequested?.Invoke();
+        menu.Items.Add(share);
         var page = new MenuItem { Header = "Project page" };
         page.Click += (_, _) => _updates.OpenProjectPage();
         menu.Items.Add(page);

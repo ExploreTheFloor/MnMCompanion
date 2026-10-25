@@ -23,9 +23,10 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 6. [Sessions: starting a fresh tally](#sessions-starting-a-fresh-tally)
 7. [How the numbers are worked out](#how-the-numbers-are-worked-out)
 8. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
-9. [Updates](#updates)
-10. [Something looks wrong](#something-looks-wrong)
-11. [For the curious](#for-the-curious)
+9. [Sharing with the community data](#sharing-with-the-community-data)
+10. [Updates](#updates)
+11. [Something looks wrong](#something-looks-wrong)
+12. [For the curious](#for-the-curious)
 
 ---
 
@@ -44,6 +45,7 @@ them and turns them into something you can look at:
 - **What you sold and bought**, what vendors pay for each item, and how much you made.
 - **What you gathered**, how fast, and what it's worth.
 - **Your trades**, and what you dropped, picked up or destroyed.
+- **An optional way to add your own numbers to a community-run, open database** of drop rates and prices (see [Sharing](#sharing-with-the-community-data)).
 - **A copy button** that turns any of it into text you can paste into chat.
 
 It only *reads*. It never touches the game, never reads the game's memory, and never presses a key for you.
@@ -284,7 +286,7 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 
 - reads the game's ledger files, and nothing else the game writes;
 - **never** touches the running game, its memory, your keyboard or your mouse;
-- **never** sends your loot, your characters, your ledgers or anything about you anywhere;
+- **never** sends your loot, your characters, your ledgers or anything about you anywhere by itself (the optional sharing below is a file *you* choose to upload);
 - **never** installs anything by itself. Updates are only ever *offered*.
 
 The one thing it does over the internet is ask GitHub *"is there a newer version of Loot Goblin?"* (see [Updates](#updates)). That's a plain
@@ -310,6 +312,25 @@ nothing leaves your PC.
 The History window's **Trades, Vendors, Drops / Pickups / Destroys and Harvest** pages read from it (the small panel and the Loot page read
 the game's files directly). It's also there for views still to come, built from your own complete history. What the entries mean, and
 how to look inside the file, is written up in [docs/ledger-notes.md](docs/ledger-notes.md).
+
+---
+
+## Sharing with the community data
+
+The game's diary tells each player only a little about how the world works. Pooled across many players it tells a lot: how often each monster drops each item, what vendors really pay, what gathering yields. That is what the **community data** is: an open database, kept in a public project on GitHub, that anyone can add to and use for non-commercial purposes ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
+
+**It's optional, and the app never sends anything.** Click the **ⓘ** in the title bar and choose **Share data with the community…**. A window shows you exactly what would be in your file, in plain words:
+
+- how often each kind of monster you looted dropped each item, and the coin in its purses;
+- what vendors paid and charged you, per item and zone (the game doesn't record which vendor);
+- what you gathered, per item and zone;
+- item names with the game's own ids.
+
+It is built from **your own** loot, sales and gathering only. It never contains your character names, any other player's name, individual loot lines, trades, or the time anything happened (only the day you save it). Because the same loot appears in every party member's diary, other players' loot is left out on purpose, so a corpse isn't counted once per member.
+
+Press **Save my file…**, then follow **How to send it**: you drop the file into the community project's `contributions` folder on GitHub (you need a free GitHub account), and GitHub turns it into a request that is checked automatically. The file is named with a random id made on your PC, which isn't linked to your name or characters. Send a new file later with the same name and it **replaces** your old one, so nothing is counted twice, and you can ask to have yours removed at any time.
+
+For a quick look without the window, `LootGoblin.exe --contribute <folder>` saves the same file and quits.
 
 ---
 
@@ -383,6 +404,8 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--ledger <folder>` | Read the game's data from somewhere else. |
 | `--character <name>` | Start on this character. |
 | `--history` | Open the History window as soon as the app starts. |
+| `--share` | Open the "Share data with the community" window as soon as the app starts. |
+| `--contribute <folder or file>` | Save the file you can share with the community data (named by your random id) and quit, without a window. |
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
 | `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
 | `--snapshot <png> [--view Value\|Items\|Mobs\|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]` | Draw the panel to a picture and quit (how the pictures in this README were made). |

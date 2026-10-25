@@ -65,6 +65,20 @@ internal sealed class HistoryData : IDisposable
         finally { Monitor.Exit(_pass); }
     });
 
+    /// <summary>
+    /// The file this player can share with the community, from the saved history brought up to date first. Null when there is no saved
+    /// history. Runs off the UI thread.
+    /// </summary>
+    public Task<Community.Contribution?> BuildContributionAsync(string app) => Task.Run(() =>
+    {
+        if (_db is null) return null;
+        lock (_pass)
+        {
+            Pass();
+            return (Community.Contribution?)Data.CommunityExport.Build(_db, app);
+        }
+    });
+
     /// <summary>One pass on this thread (for a run with no window to keep responsive).</summary>
     public bool RefreshNow()
     {

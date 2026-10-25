@@ -280,6 +280,23 @@ public sealed class LedgerDb : IDisposable
         lock (_gate) return work(_db);
     }
 
+    /// <summary>
+    /// The random id this PC shares data under: made the first time it is asked for and kept, so a player who sends their file again
+    /// replaces what they sent before. It is not derived from anything about the player, their characters or this PC.
+    /// </summary>
+    public string ContributorId() => With(conn =>
+    {
+        using var read = conn.CreateCommand();
+        read.CommandText = "SELECT value FROM meta WHERE key = 'contributor_id'";
+        if (read.ExecuteScalar() is string have && have.Length > 0) return have;
+        var made = Guid.NewGuid().ToString("N");
+        using var write = conn.CreateCommand();
+        write.CommandText = "INSERT INTO meta (key, value) VALUES ('contributor_id', $v) ON CONFLICT (key) DO NOTHING";
+        write.Parameters.AddWithValue("$v", made);
+        write.ExecuteNonQuery();
+        return made;
+    });
+
     private void Exec(string sql)
     {
         lock (_gate)

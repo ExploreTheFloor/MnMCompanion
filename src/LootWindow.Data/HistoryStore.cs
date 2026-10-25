@@ -11,7 +11,7 @@ public sealed record HistoryCounts(int Vendor, int Harvest, int ItemMoves, int T
 /// Reads the event tables for the History pages: a character's rows over a <see cref="Period"/> (local times in, local times out),
 /// every sale on the PC for the price book, counts and the days that have anything. Nothing here writes.
 /// </summary>
-public sealed class HistoryStore(LedgerDb db)
+public sealed partial class HistoryStore(LedgerDb db)
 {
     public IReadOnlyList<VendorRow> Vendor(string server, string character, Period? period = null) => db.With(conn =>
     {
