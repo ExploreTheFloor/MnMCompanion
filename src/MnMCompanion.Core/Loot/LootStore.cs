@@ -28,6 +28,7 @@ public sealed class LootStore
     private long _version;
     private volatile Snapshot _snap = Nothing;
     private LootSessions _sessions;
+    private ActiveCharacterWatch _watch = new();
 
     /// <param name="stateRoot">Where this app keeps its own files (sessions and their archives).</param>
     /// <param name="ledgerRoot">The game's per-character folder; the default under LocalLow when null.</param>
@@ -84,6 +85,20 @@ public sealed class LootStore
     /// <summary>Looks for characters again (a new one may have logged in since).</summary>
     public void RescanSources() => Sources = LedgerLocator.Find(_ledgerRoot);
 
+    /// <summary>
+    /// Looks at the game's folders again and says which character to switch to: the one the game has written a ledger for since the last call,
+    /// unless the one being shown (<paramref name="showing"/>, its folder) was written too. Null most of the time. Call it on every tick, even
+    /// when not following, so that switching it on later only reacts to something new.
+    /// </summary>
+    public LedgerSource? DetectPlayed(string? showing)
+    {
+        lock (_gate)
+        {
+            Sources = LedgerLocator.Find(_ledgerRoot);
+            return _watch.Update(Sources, showing);
+        }
+    }
+
     /// <summary>Reads the game's data from another folder; nothing is selected until <see cref="Select"/>.</summary>
     public void ChangeRoot(string root)
     {
@@ -97,6 +112,7 @@ public sealed class LootStore
             _snap = new Snapshot(++_version, [], Nothing.ByDay, ItemValues.Empty);
             Error = null;
             Sources = LedgerLocator.Find(root);
+            _watch = new ActiveCharacterWatch();
         }
     }
 

@@ -44,10 +44,12 @@ public partial class App : Application
             Shutdown();
             return;
         }
-        var pick = _store.Sources.FirstOrDefault(s => args.Character is { } c
+        var saved = _store.Sources.FirstOrDefault(s => args.Character is { } c
                 ? s.Character.Equals(c, StringComparison.OrdinalIgnoreCase)
-                : s.Character.Equals(_settings.Character, StringComparison.OrdinalIgnoreCase) && s.Server.Equals(_settings.Server, StringComparison.OrdinalIgnoreCase))
-            ?? _store.Sources.FirstOrDefault();
+                : s.Character.Equals(_settings.Character, StringComparison.OrdinalIgnoreCase) && s.Server.Equals(_settings.Server, StringComparison.OrdinalIgnoreCase));
+        // Following the character being played: start on whichever one the game wrote a ledger for last, unless one was named on the command line
+        var pick = args.Character is null && _settings.FollowPlayed ? _store.Sources.FirstOrDefault(s => s.HasLedger) ?? saved : saved;
+        pick ??= _store.Sources.FirstOrDefault();
         if (pick is not null) _store.Select(pick);
 
         if (args.Snapshot is { } png)

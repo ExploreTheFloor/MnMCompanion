@@ -95,6 +95,11 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 
 From left to right: the **name** of the program, the **server**, your **character** (click either to switch), then on the right an **ⓘ** button
 (about, and updates), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
+Companion **follows the character you're playing**: when the game starts writing a different character's ledger, the window switches to
+them (and says so in the status line), and when it starts it opens on whichever character the game wrote last. If you pick a different
+character yourself, it stops following so the window doesn't jump back; tick **Follow the character I'm playing** in either menu to turn it
+back on. (If the character you're looking at is still being written, it stays, even with a second game open.)
+
 Pick the **server** first, then the **character** to follow. Both lists come from the folders the game keeps on your PC (one folder per
 server, one per character inside it), so they're always whatever the game has on your PC. Choosing a server follows its most recently played
 character; the character list then shows only that server's characters.

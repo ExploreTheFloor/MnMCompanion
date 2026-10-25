@@ -116,7 +116,11 @@ internal sealed class PanelWindow : Window
             if (_updates is not null) _updates.Changed -= ShowBanner;
         };
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _timer.Tick += async (_, _) => await RefreshAsync();
+        _timer.Tick += async (_, _) =>
+        {
+            await FollowAsync();
+            await RefreshAsync();
+        };
         Loaded += async (_, _) =>
         {
             _panel.Refresh();
@@ -187,6 +191,7 @@ internal sealed class PanelWindow : Window
         }
         if (_store.Sources.Count == 0) menu.Items.Add(new MenuItem { Header = "No servers found", IsEnabled = false });
         menu.Items.Add(new Separator());
+        menu.Items.Add(FollowItem());
         var folder = new MenuItem { Header = "Choose the game's data folder…", ToolTip = $"Now: {_store.LedgerRoot}" };
         folder.Click += async (_, _) => await ChooseRoot();
         menu.Items.Add(folder);
@@ -207,6 +212,8 @@ internal sealed class PanelWindow : Window
             menu.Items.Add(mi);
         }
         if (here.Count == 0) menu.Items.Add(new MenuItem { Header = "No characters found", IsEnabled = false });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(FollowItem());
         menu.IsOpen = true;
     }
 
@@ -296,8 +303,42 @@ internal sealed class PanelWindow : Window
         return b;
     }
 
-    private async Task Choose(LedgerSource source)
+    /// <summary>
+    /// Looks at which character the game is writing a ledger for and, when following, switches to it. Looks every tick even when not following,
+    /// so turning it on later only reacts to something new.
+    /// </summary>
+    private async Task FollowAsync()
     {
+        if (_busy) return;
+        var showing = _store.Selected?.Directory;
+        LedgerSource? next;
+        try { next = await Task.Run(() => _store.DetectPlayed(showing)); }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { return; }
+        if (next is null || !_settings.FollowPlayed || string.Equals(next.Directory, _store.Selected?.Directory, StringComparison.OrdinalIgnoreCase)) return;
+        await Choose(next, byHand: false);
+        _panel.Say($"Now following {next.Character} on {next.ServerName}: the game is writing their ledger");
+    }
+
+    private MenuItem FollowItem()
+    {
+        var item = new MenuItem
+        {
+            Header = "Follow the character I'm playing", IsChecked = _settings.FollowPlayed,
+            ToolTip = "Switches to whichever character the game is writing a ledger for. Picking a different character by hand turns this off.",
+        };
+        item.Click += async (_, _) =>
+        {
+            _settings.FollowPlayed = !_settings.FollowPlayed;
+            _settings.Save();
+            if (_settings.FollowPlayed && _store.Sources.FirstOrDefault(s => s.HasLedger) is { } latest && latest.Directory != _store.Selected?.Directory) await Choose(latest, byHand: false);
+        };
+        return item;
+    }
+
+    private async Task Choose(LedgerSource source, bool byHand = true)
+    {
+        // Picking anything but the character being played means "I want to look at that one": stop following until asked again
+        if (byHand && _settings.FollowPlayed && _store.Sources.FirstOrDefault(s => s.HasLedger)?.Directory != source.Directory) _settings.FollowPlayed = false;
         _store.Select(source);
         _settings.Server = source.Server;
         _settings.Character = source.Character;

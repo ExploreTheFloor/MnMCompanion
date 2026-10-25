@@ -20,6 +20,12 @@ public sealed class Settings
 
     public string View { get; set; } = "Value";
     public bool OnTop { get; set; } = true;
+
+    /// <summary>
+    /// Switch to whichever character the game is writing a ledger for, and start on the one it wrote last. On until the player picks a character
+    /// that isn't the one being played (they want to look at that one); the menu turns it back on.
+    /// </summary>
+    public bool FollowPlayed { get; set; } = true;
     public Bounds? Panel { get; set; }
     public Bounds? Breakdown { get; set; }
 
