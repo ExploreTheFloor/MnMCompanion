@@ -14,7 +14,7 @@ public sealed record PlayerLoot(string Who, bool You, int Mobs, int Items, long 
 /// the ledger names it ("a Dustrend legionary", "your corpse"); <see cref="Mob"/> is false for a player's corpse.
 /// </summary>
 public sealed record LootedCorpse(string Who, bool You, string Source, bool Mob, DateTime Start, int Items, long Copper, long Split,
-    IReadOnlyList<ItemCount>? Taken = null);
+    IReadOnlyList<ItemCount>? Taken = null, string Zone = "");
 
 /// <summary>One item and who took how many of it.</summary>
 public sealed record ItemTakers(string Item, int Count, IReadOnlyList<(string Who, int Count)> By);
@@ -44,7 +44,7 @@ public static class LootSummary
             open.TryGetValue(key, out var v);
             if (v is null || e.Time - v.Last > SameCorpse || e.Kind == LootKind.Coin && v.HasPurse)
             {
-                v = new Visit { Who = e.Who, You = e.You, Source = e.Source, Start = e.Time };
+                v = new Visit { Who = e.Who, You = e.You, Source = e.Source, Start = e.Time, Zone = e.Zone };
                 visits.Add(v);
                 open[key] = v;
             }
@@ -54,7 +54,7 @@ public static class LootSummary
             else { v.HasPurse = true; v.Copper += e.Copper; v.Split += e.Split; }
         }
         return visits.Select(v => new LootedCorpse(v.Who, v.You, v.Source, IsMob(v.Source), v.Start, v.Items, v.Copper, v.Split,
-            v.Taken.Select(t => new ItemCount(t.Key, t.Value)).ToList())).ToList();
+            v.Taken.Select(t => new ItemCount(t.Key, t.Value)).ToList(), v.Zone)).ToList();
     }
 
     /// <summary>Your own corpse and other players' ("Brom's corpse") aren't mobs.</summary>
@@ -63,7 +63,7 @@ public static class LootSummary
 
     private sealed class Visit
     {
-        public string Who = "", Source = "";
+        public string Who = "", Source = "", Zone = "";
         public bool You, HasPurse;
         public DateTime Start, Last;
         public int Items;

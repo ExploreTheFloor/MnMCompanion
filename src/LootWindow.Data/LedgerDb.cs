@@ -88,6 +88,37 @@ public sealed class LedgerDb : IDisposable
 
         -- What each act code means and how sure that is (see ActCodes).
         CREATE TABLE IF NOT EXISTS act_code (act TEXT PRIMARY KEY, meaning TEXT NOT NULL, certainty TEXT NOT NULL, notes TEXT NOT NULL) WITHOUT ROWID;
+
+        -- The event tables below are worked out from ledger_row by EventBuilder and can be dropped and built again at any time
+        -- (EventBuilder.Version). Each is keyed by the ledger_row it came from; only a character's own (Character file) rows feed them.
+        CREATE TABLE IF NOT EXISTS vendor_trade (
+            row_id INTEGER PRIMARY KEY, server TEXT NOT NULL, character TEXT NOT NULL, at_utc TEXT NOT NULL,
+            direction TEXT NOT NULL,            -- 'sold' (act_24) or 'bought' (act_28)
+            item TEXT NOT NULL, qty INTEGER NOT NULL, total_copper INTEGER NOT NULL,   -- the coin for the whole stack
+            zone TEXT NOT NULL, level INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS ix_vendor_trade_who ON vendor_trade (server, character, at_utc);
+        CREATE INDEX IF NOT EXISTS ix_vendor_trade_item ON vendor_trade (item, direction);
+
+        CREATE TABLE IF NOT EXISTS harvest (
+            row_id INTEGER PRIMARY KEY, server TEXT NOT NULL, character TEXT NOT NULL, at_utc TEXT NOT NULL,
+            item TEXT NOT NULL, qty INTEGER NOT NULL, zone TEXT NOT NULL, level INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS ix_harvest_who ON harvest (server, character, at_utc);
+
+        CREATE TABLE IF NOT EXISTS item_move (
+            row_id INTEGER PRIMARY KEY, server TEXT NOT NULL, character TEXT NOT NULL, at_utc TEXT NOT NULL,
+            kind TEXT NOT NULL,                 -- 'dropped' (act_11), 'picked_up' (act_12), 'destroyed' (act_15)
+            item TEXT NOT NULL, qty INTEGER NOT NULL, zone TEXT NOT NULL, level INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS ix_item_move_who ON item_move (server, character, at_utc);
+
+        CREATE TABLE IF NOT EXISTS trade (
+            row_id INTEGER PRIMARY KEY, server TEXT NOT NULL, character TEXT NOT NULL, at_utc TEXT NOT NULL,
+            direction TEXT NOT NULL,            -- 'gave' (act_16: what you handed over) or 'received' (act_20)
+            partner TEXT NOT NULL,              -- an id the game uses ('ref_71358'), never a name
+            coin_copper INTEGER NOT NULL, item_count INTEGER NOT NULL, summary TEXT NOT NULL, zone TEXT NOT NULL, level INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS ix_trade_who ON trade (server, character, at_utc);
+        CREATE TABLE IF NOT EXISTS trade_item (
+            trade_row_id INTEGER NOT NULL, line INTEGER NOT NULL, name TEXT NOT NULL, qty INTEGER NOT NULL, item_id TEXT NOT NULL,
+            PRIMARY KEY (trade_row_id, line)) WITHOUT ROWID;
         """;
 
     private void SeedActCodes()
@@ -243,6 +274,12 @@ public sealed class LedgerDb : IDisposable
         }
     }
 
+    /// <summary>Runs <paramref name="work"/> on the connection while holding the lock, for the classes of this project that read and write the event tables.</summary>
+    internal T With<T>(Func<SqliteConnection, T> work)
+    {
+        lock (_gate) return work(_db);
+    }
+
     private void Exec(string sql)
     {
         lock (_gate)
@@ -260,7 +297,7 @@ public sealed class LedgerDb : IDisposable
     private static string Uid(string server, string character, string kind, string raw, int occurrence) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{server}\n{character}\n{kind}\n{occurrence}\n{raw}")));
 
-    private static string Iso(DateTime utc) => utc.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'", CultureInfo.InvariantCulture);
+    internal static string Iso(DateTime utc) => utc.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'", CultureInfo.InvariantCulture);
 
     public void Dispose()
     {
