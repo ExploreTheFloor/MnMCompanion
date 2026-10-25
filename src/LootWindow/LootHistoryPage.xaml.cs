@@ -94,6 +94,15 @@ public partial class LootHistoryPage : UserControl
                 LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0), day.ToString("MMMM yyyy", CultureInfo.CurrentCulture), d.SearchText);
         }).ToList();
 
+        // The day on show has no loot (today was asked for before the ledger was read, or the character changed): show the newest day that has some
+        if (_items.Count > 0 && (_day is not { } shown || _items.All(i => i.Day != shown)))
+        {
+            _day = _items[0].Day;
+            _scopeStart = null;
+            _member = null;
+            _tab = "";
+        }
+
         _updatingLists = true;
         var view = new ListCollectionView(_items);
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LootDayItem.Month)));
@@ -103,7 +112,7 @@ public partial class LootHistoryPage : UserControl
         _updatingLists = false;
         DayCount.Text = _items.Count == 0 ? "No loot in the ledger yet" : Plural(_items.Count, "day") + " with loot";
         if (_items.Count == 0) ShowNothing();
-        else if (_shown is not null) RenderDay();
+        else if (_day is not null) RenderDay();
     }
 
     private static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n:N0} {word}s";
@@ -147,9 +156,15 @@ public partial class LootHistoryPage : UserControl
     /// <summary>Shows a day (from the panel), optionally one session of it and one player's breakdown.</summary>
     public void ShowDay(DateOnly day, string? member = null, LootSession? session = null)
     {
-        _scopeStart = session?.Start;
         _signature = "";
         RefreshDays();
+        // Nothing looted on that day (today, early on): show the newest day that has loot rather than an empty page
+        if (_items.Count > 0 && _items.All(i => i.Day != day))
+        {
+            day = _items[0].Day;
+            session = null;
+        }
+        _scopeStart = session?.Start;
         _updatingLists = true;
         DayList.SelectedItem = _items.FirstOrDefault(i => i.Day == day);
         DayList.ScrollIntoView(DayList.SelectedItem ?? day);
