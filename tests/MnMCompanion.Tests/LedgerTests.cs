@@ -199,4 +199,18 @@ public class LedgerFolderTests
         Assert.Equal(["Newer", "Old"], found.Select(f => f.Character));
         Assert.Equal(["other", "srv"], found.Select(f => f.Server));
     }
+
+    [Fact]
+    public void Servers_and_the_characters_on_one_are_listed_most_recently_played_first()
+    {
+        var at = new DateTime(2026, 10, 24, 12, 0, 0);
+        LedgerSource Of(string server, string character, int daysAgo) => new(server, character, $@"c:\{server}\{character}", at.AddDays(-daysAgo));
+        var sources = new[] { Of("alpha", "Rook", 9), Of("beta", "Pip", 1), Of("alpha", "Bishop", 3), Of("Beta", "Ada", 5), Of("gamma", "Zed", 30) };
+
+        Assert.Equal(["beta", "alpha", "gamma"], LedgerLocator.Servers(sources));
+        Assert.Equal(["Bishop", "Rook"], LedgerLocator.On(sources, "alpha").Select(s => s.Character));
+        Assert.Equal(["Pip", "Ada"], LedgerLocator.On(sources, "BETA").Select(s => s.Character));   // the same server whatever the case
+        Assert.Empty(LedgerLocator.On(sources, "nowhere"));
+        Assert.Empty(LedgerLocator.Servers([]));
+    }
 }

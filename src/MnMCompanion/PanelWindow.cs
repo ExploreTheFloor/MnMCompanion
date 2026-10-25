@@ -19,6 +19,7 @@ internal sealed class PanelWindow : Window
     private readonly LootStore _store;
     private readonly Settings _settings;
     private readonly LootPanel _panel;
+    private readonly Button _server;
     private readonly Button _character;
     private readonly Button _pin;
     private readonly Button _about;
@@ -60,6 +61,12 @@ internal sealed class PanelWindow : Window
         KeepOnScreen();
 
         var caption = new TextBlock { Text = "Companion", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
+        _server = new Button
+        {
+            Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(7, 0, 7, 0), Margin = new Thickness(0, 2, 2, 2), FontSize = 11,
+            ToolTip = "Which server's characters to choose from (the folders the game keeps its data in)", VerticalAlignment = VerticalAlignment.Stretch,
+        };
+        _server.Click += (_, _) => OpenServerMenu();
         _character = new Button
         {
             Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(7, 0, 7, 0), Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
@@ -74,11 +81,13 @@ internal sealed class PanelWindow : Window
         DockPanel.SetDock(_pin, Dock.Right);
         DockPanel.SetDock(_about, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
+        DockPanel.SetDock(_server, Dock.Left);
         DockPanel.SetDock(_character, Dock.Left);
         title.Children.Add(close);
         title.Children.Add(_pin);
         if (updates is not null) title.Children.Add(_about);
         title.Children.Add(caption);
+        title.Children.Add(_server);
         title.Children.Add(_character);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
 
@@ -92,7 +101,7 @@ internal sealed class PanelWindow : Window
         root.Children.Add(_panel);
         Content = root;
         ShowPin();
-        ShowCharacter();
+        ShowSelection();
         if (updates is not null)
         {
             updates.Changed += ShowBanner;
@@ -140,7 +149,11 @@ internal sealed class PanelWindow : Window
 
     private void ShowPin() => _pin.Foreground = Topmost ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0x70, 0x7A, 0x88));
 
-    private void ShowCharacter() => _character.Content = (_store.Selected is { } s ? s.Character : "No ledger") + "  ▾";
+    private void ShowSelection()
+    {
+        _server.Content = (_store.Selected is { } s ? s.Server : "No server") + "  ▾";
+        _character.Content = (_store.Selected is { } c ? c.Character : "No ledger") + "  ▾";
+    }
 
     /// <summary>Reads the ledger on a worker thread and redraws if it changed (or <paramref name="force"/>).</summary>
     public async Task RefreshAsync(bool force = false)
@@ -159,15 +172,16 @@ internal sealed class PanelWindow : Window
         finally { _busy = false; }
     }
 
-    private void OpenCharacterMenu()
+    /// <summary>The servers found in the game's data folder; choosing one reads its most recently played character.</summary>
+    private void OpenServerMenu()
     {
         _store.RescanSources();
-        var menu = new ContextMenu { PlacementTarget = _character, Placement = PlacementMode.Bottom };
-        foreach (var source in _store.Sources)
+        var menu = new ContextMenu { PlacementTarget = _server, Placement = PlacementMode.Bottom };
+        foreach (var name in LedgerLocator.Servers(_store.Sources))
         {
-            var s = source;
-            var mi = new MenuItem { Header = s.Label, IsChecked = _store.Selected?.Directory == s.Directory };
-            mi.Click += async (_, _) => await Choose(s);
+            var server = name;
+            var mi = new MenuItem { Header = server, IsChecked = string.Equals(_store.Selected?.Server, server, StringComparison.OrdinalIgnoreCase), ToolTip = "Reads this server's most recently played character" };
+            mi.Click += async (_, _) => await Choose(LedgerLocator.On(_store.Sources, server)[0]);
             menu.Items.Add(mi);
         }
         if (_store.Sources.Count == 0) menu.Items.Add(new MenuItem { Header = "No ledgers found", IsEnabled = false });
@@ -175,6 +189,23 @@ internal sealed class PanelWindow : Window
         var folder = new MenuItem { Header = "Choose the game's data folder…", ToolTip = $"Now: {_store.LedgerRoot}" };
         folder.Click += async (_, _) => await ChooseRoot();
         menu.Items.Add(folder);
+        menu.IsOpen = true;
+    }
+
+    /// <summary>The characters on the chosen server.</summary>
+    private void OpenCharacterMenu()
+    {
+        _store.RescanSources();
+        var menu = new ContextMenu { PlacementTarget = _character, Placement = PlacementMode.Bottom };
+        var here = _store.Selected is { } now ? LedgerLocator.On(_store.Sources, now.Server) : [];
+        foreach (var source in here)
+        {
+            var s = source;
+            var mi = new MenuItem { Header = s.Character, IsChecked = _store.Selected?.Directory == s.Directory };
+            mi.Click += async (_, _) => await Choose(s);
+            menu.Items.Add(mi);
+        }
+        if (here.Count == 0) menu.Items.Add(new MenuItem { Header = "No ledgers found", IsEnabled = false });
         menu.IsOpen = true;
     }
 
@@ -270,7 +301,7 @@ internal sealed class PanelWindow : Window
         _settings.Server = source.Server;
         _settings.Character = source.Character;
         _settings.Save();
-        ShowCharacter();
+        ShowSelection();
         _panel.Refresh();
         await RefreshAsync(force: true);
     }
@@ -285,7 +316,7 @@ internal sealed class PanelWindow : Window
         if (_store.Sources.Count > 0) await Choose(_store.Sources[0]);
         else
         {
-            ShowCharacter();
+            ShowSelection();
             _panel.Refresh();
         }
     }

@@ -93,8 +93,11 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 
 <img src="docs/images/window-update.png" alt="The window with an update banner under the title bar" width="300" align="right">
 
-From left to right: the **name** of the program, your **character** (click to switch), then on the right an **ⓘ** button
+From left to right: the **name** of the program, the **server**, your **character** (click either to switch), then on the right an **ⓘ** button
 (about, and updates), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
+Pick the **server** first, then the **character** to follow. Both lists come from the folders the game keeps on your PC (one folder per
+server, one per character inside it), so they're always whatever you've actually played. Choosing a server follows its most recently played
+character; the character list then shows only that server's characters.
 Drag the title bar to move the window; drag any edge or the corner grip to resize it. It remembers where you left it.
 
 When a new version is available, a strip appears under the title bar (picture on the right). More on that in [Updates](#updates).
@@ -373,7 +376,7 @@ If you run Companion from somewhere it can't replace itself (a read-only folder,
 ## Something looks wrong
 
 **The window says it can't find a ledger, or my character isn't in the list.**
-Companion looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click your character name, then
+Companion looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click the server name, then
 **Choose the game's data folder…** and point it at that folder (or wherever your game keeps its data). A character only appears once
 the game has written a ledger file for it (it does that as you loot, sell, level up and so on), so a brand-new character with no
 activity yet won't be listed.

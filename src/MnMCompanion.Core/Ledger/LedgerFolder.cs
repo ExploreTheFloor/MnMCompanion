@@ -37,6 +37,17 @@ public static class LedgerLocator
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return found.OrderByDescending(s => s.LastActive).ThenBy(s => s.Character, StringComparer.OrdinalIgnoreCase).ToList();
     }
+
+    /// <summary>The servers among <paramref name="sources"/> (the game's server folders), the one played most recently first.</summary>
+    public static IReadOnlyList<string> Servers(IEnumerable<LedgerSource> sources) =>
+        sources.GroupBy(s => s.Server, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Max(s => s.LastActive)).ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First().Server).ToList();
+
+    /// <summary>The characters on one server, the one played most recently first.</summary>
+    public static IReadOnlyList<LedgerSource> On(IEnumerable<LedgerSource> sources, string server) =>
+        sources.Where(s => string.Equals(s.Server, server, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(s => s.LastActive).ThenBy(s => s.Character, StringComparer.OrdinalIgnoreCase).ToList();
 }
 
 /// <summary>
