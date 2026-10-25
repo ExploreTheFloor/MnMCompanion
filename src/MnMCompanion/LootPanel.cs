@@ -275,7 +275,7 @@ internal sealed class LootPanel : Border
         if (_store.Selected is null)
         {
             _body.Children.Add(Line("No Monsters and Memories ledger found.", Palette.Text));
-            _body.Children.Add(Line($"Looked in {_store.LedgerRoot}. Use the server button in the title bar to choose where the game keeps it.", Palette.Muted));
+            _body.Children.Add(Line($"Looked in {_store.LedgerRoot}. Use the ⓘ menu in the title bar to choose where the game keeps it.", Palette.Muted));
             return;
         }
         if (_store.Selected is { HasLedger: false } fresh && _store.FileCount == 0)

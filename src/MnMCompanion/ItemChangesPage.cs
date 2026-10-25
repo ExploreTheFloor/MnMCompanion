@@ -12,10 +12,10 @@ internal sealed record ItemChangesData(IReadOnlyList<ItemMoveRow> Rows);
 /// Drops / Pickups / Destroys: what you did with items you held. Dropped is putting one on the ground, Picked up is taking one
 /// off it (often your own item back), Destroyed is deleting it. Nothing here is about monsters; it is where items went.
 /// </summary>
-internal sealed class ItemChangesPage(LootStore store, HistoryData data, HistoryView view)
-    : HistoryPage<ItemChangesData>(store, data, view, "Items you drop on the ground, pick up off it, or destroy appear here, so you can see where an item went.")
+internal sealed class ItemChangesPage(HistoryFocus focus, HistoryData data, HistoryView view)
+    : HistoryPage<ItemChangesData>(focus, data, view, "Items you drop on the ground, pick up off it, or destroy appear here, so you can see where an item went.")
 {
-    protected override ItemChangesData Query(HistoryStore s, string server, string character, Period period) => new(s.ItemMoves(server, character, period));
+    protected override ItemChangesData Query(HistoryStore s, string? server, string? character, Period period) => new(s.ItemMoves(server, character, period));
 
     protected override void Render(ItemChangesData data)
     {
@@ -37,14 +37,14 @@ internal sealed class ItemChangesPage(LootStore store, HistoryData data, History
     private FrameworkElement Log(List<ItemMoveRow> rows)
     {
         var all = rows.OrderByDescending(r => r.Time).ToList();
-        var table = Table.Build("changes-log", all.Take(Rows).ToList(), new Col<ItemMoveRow>[]
+        var table = Table.Build(TableId("changes-log"), all.Take(Rows).ToList(), WithWho(new Col<ItemMoveRow>[]
         {
             new("Time", 130, r => When(r.Time), r => r.Time, Right: false),
             new("What", 100, r => KindName(r.Kind), r => r.Kind.ToString(), Right: false),
             new("Item", 0, r => r.Item, r => r.Item, Right: false),
             new("Qty", 56, r => $"{r.Qty:N0}", r => r.Qty),
             new("Where", 200, r => r.Zone, r => r.Zone, Right: false),
-        }, Rebuild, defaultSort: 0);
+        }, r => r.Character), Rebuild, defaultSort: 0);
         return WithNote(LogNote(Math.Min(all.Count, Rows), all.Count), table);
     }
 

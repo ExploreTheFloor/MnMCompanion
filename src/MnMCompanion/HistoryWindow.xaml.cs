@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using MnMCompanion.Data;
 using MnMCompanion.History;
+using MnMCompanion.Ledger;
 using MnMCompanion.Loot;
 
 namespace MnMCompanion;
@@ -27,7 +28,8 @@ public partial class HistoryWindow : Window
         ("Loot", "Loot"), ("Trades", "Trades"), ("Vendors", "Vendors"), ("Changes", "Drops / Pickups / Destroys"), ("Harvest", "Harvest"),
     ];
 
-    private readonly LootStore _store;
+    private readonly LootStore _smallWindow;   // the small window's store: who it follows, and the game's data folder
+    private readonly HistoryFocus _focus;
     private readonly Settings _settings;
     private readonly HistoryData _history;
     private readonly HistoryView _view = new();
@@ -50,8 +52,9 @@ public partial class HistoryWindow : Window
     {
         Resources.MergedDictionaries.Add(Ui.Theme);
         InitializeComponent();
-        _store = store;
+        _smallWindow = store;
         _settings = settings;
+        _focus = new HistoryFocus(new LootStore(store.StateRoot, store.LedgerRoot), StartScope(store, settings));
         _history = history;
         if (settings.Breakdown is { } b && b.Width >= MinWidth && b.Height >= MinHeight)
         {
@@ -65,8 +68,10 @@ public partial class HistoryWindow : Window
         SizeChanged += (_, _) => Remember();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _timer.Tick += (_, _) => Tick();
-        Loaded += (_, _) =>
+        Loaded += async (_, _) =>
         {
+            ShowScope();
+            await Task.Run(_focus.Loot.Refresh);   // this window reads the ledgers itself, so its first page already has its days
             ShowPage(Pages.Any(p => p.Key == settings.HistoryPage) ? settings.HistoryPage! : "Loot");
             _ = history.RefreshAsync();
             _timer.Start();
@@ -91,24 +96,29 @@ public partial class HistoryWindow : Window
 
     private UIElement Page(string key) => _pages.TryGetValue(key, out var page) ? page : _pages[key] = key switch
     {
-        "Trades" => new TradesPage(_store, _history, _view),
-        "Vendors" => new VendorsPage(_store, _history, _view),
-        "Changes" => new ItemChangesPage(_store, _history, _view),
-        "Harvest" => new HarvestPage(_store, _history, _view),
-        _ => new LootHistoryPage(_store),
+        "Trades" => new TradesPage(_focus, _history, _view),
+        "Vendors" => new VendorsPage(_focus, _history, _view),
+        "Changes" => new ItemChangesPage(_focus, _history, _view),
+        "Harvest" => new HarvestPage(_focus, _history, _view),
+        _ => new LootHistoryPage(_focus.Loot),
     };
 
     /// <summary>Reads and draws the current page now, on this thread: for a picture, where nothing is allowed to finish later.</summary>
     internal void DrawNow()
     {
+        _focus.Loot.Refresh();
         if (Page(_key) is IHistoryPage page) page.RefreshNow();
-        if (_store.Selected is { } who && _history.Store is { } store) (_counts, _trades) = CountsOf(store, who.Server, who.Character);
+        if (_history.Store is { } store) (_counts, _trades) = CountsOf(store, _focus.Scope);
+        ShowScope();
         BuildRail();
     }
 
     /// <summary>Shows a day of loot (from the panel), optionally one session of it and one player's breakdown.</summary>
     public void ShowDay(DateOnly day, string? member = null, LootSession? session = null)
     {
+        // A session is one character's (the one the small window follows), so that is who to look at
+        if (session is not null && _smallWindow.Selected is { } following)
+            SetScope(HistoryScope.Of(following.Server, following.Character));
         ShowPage("Loot");
         ((LootHistoryPage)Page("Loot")).ShowDay(day, member, session);
     }
@@ -139,10 +149,9 @@ public partial class HistoryWindow : Window
 
     private void BuildRail()
     {
-        Who.Text = _store.Selected?.Label ?? "No character";
         string Count(int n, string what) => n == 0 ? "nothing yet" : $"{n:N0} {what}";
         var c = _counts;
-        var days = _store.Days().Count;
+        var days = _focus.Loot.Days().Count;
         var items = new List<RailItem>
         {
             new("Loot", "Loot", days == 0 ? "nothing yet" : $"{days:N0} {(days == 1 ? "day" : "days")}"),
@@ -225,8 +234,9 @@ public partial class HistoryWindow : Window
     /// <summary>A menu of the days this character has anything on, newest first.</summary>
     private async Task OpenDayMenu()
     {
-        if (_store.Selected is not { } who || _history.Store is not { } store) return;
-        var days = await Task.Run(() => store.Days(who.Server, who.Character));
+        if (_history.Store is not { } store) return;
+        var scope = _focus.Scope;
+        var days = await Task.Run(() => store.Days(scope.Server, scope.Character));
         var menu = new ContextMenu { PlacementTarget = _day, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, MaxHeight = 420 };
         if (days.Count == 0) menu.Items.Add(new MenuItem { Header = "No days yet", IsEnabled = false });
         var today = DateOnly.FromDateTime(DateTime.Now);
@@ -266,18 +276,91 @@ public partial class HistoryWindow : Window
             _today = today;
             if (_preset >= 0) _view.Set(Period.Presets(DateTime.Now)[_preset]);
         }
+        // The game's folder may have been changed from the small window, and a new character may have started a ledger
+        if (_smallWindow.LedgerRoot != _focus.Loot.LedgerRoot) _focus.Loot.ChangeRoot(_smallWindow.LedgerRoot);
+        _focus.Sync();
+        await Task.Run(_focus.Loot.Refresh);
         await _history.RefreshAsync();
         if (Page(_key) is IHistoryPage page) page.Tick();
-        if (_store.Selected is { } who && _history.Store is { } store)
+        if (_history.Store is { } store)
         {
-            var counts = await Task.Run(() => { try { return CountsOf(store, who.Server, who.Character); } catch (Exception ex) when (ex is not OutOfMemoryException) { return ((HistoryCounts?)null, 0); } });
+            var scope = _focus.Scope;
+            var counts = await Task.Run(() => { try { return CountsOf(store, scope); } catch (Exception ex) when (ex is not OutOfMemoryException) { return ((HistoryCounts?)null, 0); } });
             if (counts.Item1 is not null) (_counts, _trades) = (counts.Item1, counts.Item2);
         }
         BuildRail();
     }
 
-    private static (HistoryCounts Counts, int Trades) CountsOf(HistoryStore store, string server, string character) =>
-        (store.Counts(server, character), TradeSummary.Pair(store.Trades(server, character)).Count);
+    private static (HistoryCounts Counts, int Trades) CountsOf(HistoryStore store, HistoryScope scope) =>
+        (store.Counts(scope.Server, scope.Character), TradeSummary.Pair(store.Trades(scope.Server, scope.Character)).Count);
+
+    // ---- Whose history ------------------------------------------------------------------------------------------
+
+    /// <summary>What to show on opening: the player's last choice, or the character the small window follows when they have not chosen.</summary>
+    private static HistoryScope StartScope(LootStore small, Settings settings)
+    {
+        if (settings.HistoryScopeChosen)
+        {
+            var saved = HistoryScope.Of(settings.HistoryServer, settings.HistoryCharacter);
+            if (saved.IsEveryone || saved.Pick(small.Sources).Count > 0) return saved;
+        }
+        return small.Selected is { } s ? HistoryScope.Of(s.Server, s.Character) : HistoryScope.Everyone;
+    }
+
+    private void ShowScope()
+    {
+        var scope = _focus.Scope;
+        ServerButton.Content = (scope.IsEveryone ? "All servers" : LedgerLocator.Capitalize(scope.Server!)) + "  ▾";
+        CharacterButton.Content = (scope.IsOneCharacter ? scope.Character : "Everyone") + "  ▾";
+    }
+
+    private void SetScope(HistoryScope scope)
+    {
+        _focus.Set(scope);
+        _settings.HistoryServer = scope.Server;
+        _settings.HistoryCharacter = scope.Character;
+        _settings.HistoryScopeChosen = true;
+        _settings.Save();
+        ShowScope();
+        Tick();
+    }
+
+    private void ScopeMenu(Button anchor, Action<ContextMenu, Action<string, HistoryScope, bool>> fill)
+    {
+        _focus.Loot.RescanSources();
+        var menu = new ContextMenu { PlacementTarget = anchor, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, MaxHeight = 460 };
+        fill(menu, (header, scope, chosen) =>
+        {
+            var item = new MenuItem { Header = header, IsChecked = chosen };
+            item.Click += (_, _) => SetScope(scope);
+            menu.Items.Add(item);
+        });
+        menu.IsOpen = true;
+    }
+
+    private void OnServer(object sender, RoutedEventArgs e) => ScopeMenu(ServerButton, (menu, add) =>
+    {
+        var sources = _focus.Loot.Sources;
+        add("All servers", HistoryScope.Everyone, _focus.Scope.IsEveryone);
+        foreach (var name in LedgerLocator.Servers(sources))
+        {
+            var played = LedgerLocator.On(sources, name).Any(s => s.HasLedger);
+            add(LedgerLocator.Capitalize(name) + (played ? "" : "  ·  no ledger yet"), HistoryScope.Of(name), string.Equals(_focus.Scope.Server, name, StringComparison.OrdinalIgnoreCase));
+        }
+    });
+
+    private void OnCharacter(object sender, RoutedEventArgs e) => ScopeMenu(CharacterButton, (menu, add) =>
+    {
+        var scope = _focus.Scope;
+        var sources = scope.IsEveryone ? _focus.Loot.Sources : LedgerLocator.On(_focus.Loot.Sources, scope.Server!);
+        add(scope.IsEveryone ? "Everyone" : "Everyone on " + LedgerLocator.Capitalize(scope.Server!), HistoryScope.Of(scope.Server), !scope.IsOneCharacter);
+        foreach (var s in sources)
+        {
+            // With every server in view a character needs its server beside it: two servers can have one of the same name
+            var name = (scope.IsEveryone ? s.Label : s.Character) + (s.HasLedger ? "" : "  ·  no ledger yet");
+            add(name, HistoryScope.Of(s.Server, s.Character), scope.IsOneCharacter && string.Equals(scope.Server, s.Server, StringComparison.OrdinalIgnoreCase) && string.Equals(scope.Character, s.Character, StringComparison.OrdinalIgnoreCase));
+        }
+    });
 
     // ---- Window chrome ------------------------------------------------------------------------------------------
 

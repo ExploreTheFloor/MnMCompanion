@@ -110,6 +110,22 @@ public class ScopeTests
         Assert.Equal("Aldric", store.Selected?.Character);
     }
 
+    [Fact]
+    public void An_event_that_looks_the_same_on_two_servers_is_two_events_because_they_are_two_worlds()
+    {
+        using var s = new Scratch();
+        var same = Fixture.File(Fixture.Item(T, "Rook", "Aldric", "a rat", "Rat Ear"));
+        s.Write(@"alpha\Aldric\Ledger\Aldric_Social_2026-10-25.json", same);
+        s.Write(@"beta\Aldric\Ledger\Aldric_Social_2026-10-25.json", same);
+        s.Write(@"alpha\Wendell\Ledger\Wendell_Social_2026-10-25.json", Fixture.File(Fixture.Item(T, "Rook", "Wendell", "a rat", "Rat Ear")));
+        var store = new LootStore(Path.Combine(s.Path, "state"), s.Path);
+
+        store.Select(store.Sources.ToList());
+        store.Refresh();
+
+        Assert.Equal(2, store.Events(DateOnly.FromDateTime(T)).Count);   // alpha's two characters saw one; beta's saw its own
+    }
+
     // ------------------------------------------------------------------ the histories for a wider scope
 
     private static string Harvest(DateTime when, string item, string who)

@@ -31,6 +31,7 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
 {
     private const int LogRows = 400;
 
+    protected readonly HistoryFocus Focus;
     protected readonly LootStore Store;
     protected readonly HistoryData Data;
     protected readonly HistoryView View;
@@ -58,9 +59,10 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
     private int _generation;
     private readonly string _emptyHint;
 
-    protected HistoryPage(LootStore store, HistoryData data, HistoryView view, string emptyHint)
+    protected HistoryPage(HistoryFocus focus, HistoryData data, HistoryView view, string emptyHint)
     {
-        Store = store;
+        Focus = focus;
+        Store = focus.Loot;
         Data = data;
         View = view;
         _emptyHint = emptyHint;
@@ -107,7 +109,7 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
         Unloaded += (_, _) => View.Changed -= OnViewChanged;
     }
 
-    protected abstract T Query(HistoryStore store, string server, string character, Period period);
+    protected abstract T Query(HistoryStore store, string? server, string? character, Period period);
 
     protected abstract void Render(T data);
 
@@ -115,7 +117,7 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
 
     public void Tick()
     {
-        var who = Store.Selected is { } s ? s.Server + "/" + s.Character : "";
+        var who = Focus.Key;
         if (who != _who || Data.Version != _seen) Refresh();
     }
 
@@ -131,11 +133,10 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
         else Refresh();
     }
 
-    private (HistoryStore Store, string Server, string Character, Period Period, long Version, string Who)? Capture()
+    private (HistoryStore Store, string? Server, string? Character, Period Period, long Version, string Who)? Capture()
     {
-        if (Store.Selected is not { } who) { Say("Pick a character (the name at the top left of the small window) to see its history."); return null; }
         if (Data.Store is not { } store) { Say("The saved history isn't available: " + Data.Status); return null; }
-        return (store, who.Server, who.Character, View.Period, Data.Version, who.Server + "/" + who.Character);
+        return (store, Focus.Scope.Server, Focus.Scope.Character, View.Period, Data.Version, Focus.Key);
     }
 
     public async void Refresh()
@@ -271,7 +272,18 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
         View.Period.From is { } from && View.Period.To is { } to && to - from <= TimeSpan.FromDays(1) ? time.ToString("HH:mm:ss", CultureInfo.CurrentCulture) : time.ToString("MMM d  HH:mm", CultureInfo.CurrentCulture);
 
     /// <summary>The line under the heading: the period, and the filter when there is one.</summary>
-    protected string Scope(string what) => View.Period.Label + " · " + what + (View.Filter.Length > 0 ? $" · matching “{View.Filter}”" : "");
+    protected string Scope(string what) =>
+        (Focus.Scope.IsOneCharacter ? "" : Focus.Scope.Label + " · ") + View.Period.Label + " · " + what + (View.Filter.Length > 0 ? $" · matching “{View.Filter}”" : "");
+
+    /// <summary>True when the rows can belong to different characters, so a table needs to say whose each is.</summary>
+    protected bool ShowWho => !Focus.Scope.IsOneCharacter;
+
+    /// <summary>A table's id, kept apart from the one-character layout when it has the extra Character column.</summary>
+    protected string TableId(string id) => ShowWho ? id + "-all" : id;
+
+    /// <summary>The columns of a log, with a Character column after the first (the time) when the rows can be several characters'.</summary>
+    protected Col<R>[] WithWho<R>(Col<R>[] columns, Func<R, string> who) =>
+        ShowWho ? [columns[0], new Col<R>("Character", 100, r => who(r), r => who(r), Right: false), .. columns.Skip(1)] : columns;
 
     protected static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n:N0} {word}s";
 

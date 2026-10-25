@@ -25,7 +25,11 @@ public partial class App : Application
         var args = Args.Parse(e.Args);
 
         _settings = Settings.Load();
-        _store = new LootStore(Settings.Folder, args.Ledger ?? _settings.LedgerRoot);
+        // A run pointed at another game folder (a test, a picture, a borrowed copy) keeps its own saved copy and sessions and saves no settings,
+        // so what it reads can never end up in the player's own database
+        var other = args.Ledger is null ? null : LedgerDb.OtherFolder(args.Ledger);
+        if (other is not null) _settings.ReadOnly = true;
+        _store = new LootStore(other ?? Settings.Folder, args.Ledger ?? _settings.LedgerRoot);
         if (args.About)
         {
             About(args);
@@ -47,8 +51,8 @@ public partial class App : Application
         var saved = _store.Sources.FirstOrDefault(s => args.Character is { } c
                 ? s.Character.Equals(c, StringComparison.OrdinalIgnoreCase)
                 : s.Character.Equals(_settings.Character, StringComparison.OrdinalIgnoreCase) && s.Server.Equals(_settings.Server, StringComparison.OrdinalIgnoreCase));
-        // Following the character being played: start on whichever one the game wrote a ledger for last, unless one was named on the command line
-        var pick = args.Character is null && _settings.FollowPlayed ? _store.Sources.FirstOrDefault(s => s.HasLedger) ?? saved : saved;
+        // The small window follows the character being played: it starts on whichever one the game wrote a ledger for last, unless one was named on the command line
+        var pick = args.Character is null ? _store.Sources.FirstOrDefault(s => s.HasLedger) ?? saved : saved;
         pick ??= _store.Sources.FirstOrDefault();
         if (pick is not null) _store.Select(pick);
 
@@ -66,7 +70,7 @@ public partial class App : Application
         _panel.BreakdownRequested += OpenBreakdown;
         _panel.ShareRequested += OpenShare;
         _panel.Show();
-        _history = new HistoryData(() => _store.LedgerRoot);
+        _history = new HistoryData(() => _store.LedgerRoot, OtherDb(args));
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
         if (args.Share) OpenShare();
         // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here)
@@ -109,7 +113,7 @@ public partial class App : Application
         var lines = new List<string>();
         try
         {
-            using var db = new LedgerDb(args.Db);
+            using var db = new LedgerDb(args.Db ?? OtherDb(args));
             var result = LedgerArchiver.Run(db, _store.LedgerRoot);
             var events = EventBuilder.Update(db);
             lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {result}; {events.Added:N0} history events {(events.Rebuilt ? "(rebuilt)" : "new")}");
@@ -152,7 +156,7 @@ public partial class App : Application
         var lines = new List<string>();
         try
         {
-            using var db = new LedgerDb(args.Db);
+            using var db = new LedgerDb(args.Db ?? OtherDb(args));
             LedgerArchiver.Run(db, _store.LedgerRoot);
             EventBuilder.Update(db);
             var contribution = CommunityExport.Build(db, "MnMCompanion " + AppVersion.Show(AppVersion.Current()));
@@ -171,6 +175,9 @@ public partial class App : Application
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
         File.WriteAllLines(report, lines);
     }
+
+    /// <summary>The database file for a run pointed at another game folder with <c>--ledger</c>: its own, never the player's. Null for a normal run.</summary>
+    private static string? OtherDb(Args args) => args.Ledger is null ? null : Path.Combine(LedgerDb.OtherFolder(args.Ledger), "ledger.db");
 
     /// <summary>Opens the History window (or brings it forward) on a day of loot, optionally one player and one session.</summary>
     private void OpenBreakdown(DateOnly day, string? member, LootSession? session)

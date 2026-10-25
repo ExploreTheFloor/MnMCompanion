@@ -22,10 +22,12 @@ public sealed class Settings
     public bool OnTop { get; set; } = true;
 
     /// <summary>
-    /// Switch to whichever character the game is writing a ledger for, and start on the one it wrote last. On until the player picks a character
-    /// that isn't the one being played (they want to look at that one); the menu turns it back on.
+    /// What the History window shows, once the player has chosen: a server and a character, a server alone (everyone on it), or neither
+    /// (everyone). Until <see cref="HistoryScopeChosen"/> it shows the character the small window follows.
     /// </summary>
-    public bool FollowPlayed { get; set; } = true;
+    public string? HistoryServer { get; set; }
+    public string? HistoryCharacter { get; set; }
+    public bool HistoryScopeChosen { get; set; }
     public Bounds? Panel { get; set; }
     public Bounds? Breakdown { get; set; }
 
@@ -46,7 +48,7 @@ public sealed class Settings
 
     /// <summary>A picture-taking run: nothing is written.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool ReadOnly { get; init; }
+    public bool ReadOnly { get; set; }
 
     public static string Folder => AppFolder.Folder;
 

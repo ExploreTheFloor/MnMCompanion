@@ -132,7 +132,7 @@ public sealed class LootStore
 
     /// <summary>
     /// Starts reading these characters' ledgers together: their loot merged, an event more than one of them logged counting once
-    /// (<see cref="LootMerge"/>). Sessions are the one character's own; with several there are none. Call <see cref="Refresh"/> after.
+    /// (<see cref="LootMerge"/>), on one server only. Sessions are the one character's own; with several there are none. Call <see cref="Refresh"/> after.
     /// </summary>
     public void Select(IReadOnlyList<LedgerSource> sources)
     {
@@ -174,8 +174,10 @@ public sealed class LootStore
             var values = _pricesChanged ? ItemValues.FromLedger(_prices.SelectMany(p => p.Rows), _public) : _snap.Values;
             _pricesChanged = false;
             _dirty = false;
-            var perCharacter = _folders.Select(f => (IReadOnlyList<LootEvent>)LootExtractor.Extract(f.Rows)).ToList();
-            var events = perCharacter.Count == 1 ? perCharacter[0] : LootMerge.Combine(perCharacter);
+            // Characters on one server share a world, so what two of them logged is merged; two servers are two worlds, so nothing is
+            var perCharacter = _folders.Select((f, i) => (Server: Selection[i].Server.ToLowerInvariant(), Events: (IReadOnlyList<LootEvent>)LootExtractor.Extract(f.Rows))).ToList();
+            var events = perCharacter.Count == 1 ? perCharacter[0].Events
+                : perCharacter.GroupBy(c => c.Server).SelectMany(g => LootMerge.Combine(g.Select(c => c.Events).ToList())).OrderBy(e => e.Time).ToList();
             var byDay = events.GroupBy(e => e.Day)
                 .ToDictionary(g => g.Key, g => (IReadOnlyList<LootEvent>)g.ToList());
             _snap = new Snapshot(++_version, byDay.Keys.OrderByDescending(d => d).ToList(), byDay, values);

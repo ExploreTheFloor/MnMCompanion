@@ -14,10 +14,10 @@ internal sealed record VendorsData(IReadOnlyList<VendorRow> Rows, IReadOnlyList<
 /// the Price book is every price this PC has seen (all characters, all time), the very figures item values are worked out from;
 /// Log is every stack.
 /// </summary>
-internal sealed class VendorsPage(LootStore store, HistoryData data, HistoryView view)
-    : HistoryPage<VendorsData>(store, data, view, "Sales to vendors and purchases from them appear here, with the price of each. Sell something to a vendor and it will show up within a few seconds.")
+internal sealed class VendorsPage(HistoryFocus focus, HistoryData data, HistoryView view)
+    : HistoryPage<VendorsData>(focus, data, view, "Sales to vendors and purchases from them appear here, with the price of each. Sell something to a vendor and it will show up within a few seconds.")
 {
-    protected override VendorsData Query(HistoryStore s, string server, string character, Period period) =>
+    protected override VendorsData Query(HistoryStore s, string? server, string? character, Period period) =>
         new(s.Vendor(server, character, period), VendorSummary.PriceBook(s.VendorAll()));
 
     protected override void Render(VendorsData data)
@@ -77,7 +77,7 @@ internal sealed class VendorsPage(LootStore store, HistoryData data, HistoryView
     private FrameworkElement Log(List<VendorRow> rows)
     {
         var all = rows.OrderByDescending(r => r.Time).ToList();
-        var table = Table.Build("vendor-log", all.Take(Rows).ToList(), new Col<VendorRow>[]
+        var table = Table.Build(TableId("vendor-log"), all.Take(Rows).ToList(), WithWho(new Col<VendorRow>[]
         {
             new("Time", 120, r => When(r.Time), r => r.Time, Right: false),
             new("What", 70, r => r.Direction == VendorDirection.Sold ? "Sold" : "Bought", r => r.Direction.ToString(), Right: false),
@@ -85,7 +85,7 @@ internal sealed class VendorsPage(LootStore store, HistoryData data, HistoryView
             new("Qty", 56, r => $"{r.Qty:N0}", r => r.Qty),
             new("Each", 90, r => r.Each > 0 ? LootSummary.Coin(r.Each) : "—", r => r.Each),
             new("Total", 110, r => r.TotalCopper > 0 ? LootSummary.Coin(r.TotalCopper) : "—", r => r.TotalCopper),
-        }, Rebuild, defaultSort: 0);
+        }, r => r.Character), Rebuild, defaultSort: 0);
         return WithNote(LogNote(Math.Min(all.Count, Rows), all.Count), table);
     }
 

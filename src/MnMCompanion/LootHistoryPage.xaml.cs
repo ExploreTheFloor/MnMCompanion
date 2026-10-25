@@ -82,7 +82,7 @@ public partial class LootHistoryPage : UserControl
     private void RefreshDays()
     {
         var days = _store.Days();
-        var sig = string.Join(',', days.Select(d => d.DayNumber)) + "|" + _store.Version + "|" + _store.Selected?.Directory + "|" + Today.DayNumber;
+        var sig = string.Join(',', days.Select(d => d.DayNumber)) + "|" + _store.Version + "|" + _store.SelectionKey + "|" + Today.DayNumber;
         if (sig == _signature) return;
         _signature = sig;
         _days.Clear();

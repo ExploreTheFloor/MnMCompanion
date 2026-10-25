@@ -93,16 +93,13 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 
 <img src="docs/images/window-update.png" alt="The window with an update banner under the title bar" width="300" align="right">
 
-From left to right: the **name** of the program, the **server**, your **character** (click either to switch), then on the right an **ⓘ** button
-(about, and updates), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
-Companion **follows the character you're playing**: when the game starts writing a different character's ledger, the window switches to
-them (and says so in the status line), and when it starts it opens on whichever character the game wrote last. If you pick a different
-character yourself, it stops following so the window doesn't jump back; tick **Follow the character I'm playing** in either menu to turn it
-back on. (If the character you're looking at is still being written, it stays, even with a second game open.)
+From left to right: the **name** of the program, the **character and server** it is showing, then on the right an **ⓘ** button
+(about, updates, and where the game keeps its data), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
 
-Pick the **server** first, then the **character** to follow. Both lists come from the folders the game keeps on your PC (one folder per
-server, one per character inside it), so they're always whatever the game has on your PC. Choosing a server follows its most recently played
-character; the character list then shows only that server's characters.
+There is nothing to pick: this window **follows the character you're playing**. The game rewrites the ledger of whoever is logged in, so when it
+starts writing a different character's ledger the window switches to them (and says so in the status line), and when it starts it opens on
+whichever character the game wrote last. If you have two games open, it stays on the one it's showing while that one is still being written.
+To look at another character, or at all of them together, use the **History** window.
 Drag the title bar to move the window; drag any edge or the corner grip to resize it. It remembers where you left it.
 
 When a new version is available, a strip appears under the title bar (picture on the right). More on that in [Updates](#updates).
@@ -163,6 +160,24 @@ Press the **History** button for the big window. Down the left is a **rail** wit
 | **Harvest** | What you gathered, how fast, and what it's worth. |
 
 Under each name on the rail is a small count, so you can see at a glance which pages have something.
+
+### Whose history: the server and character pickers
+
+At the top of the rail are two pickers, **Server** and **Character**. They list the servers and characters the game has folders for on your PC,
+so they are always whatever you've actually got (a character that hasn't written a ledger yet is listed too, marked *no ledger yet*).
+
+| Server | Character | What every page shows |
+|---|---|---|
+| All servers | Everyone | Everything on this PC, all your characters added together. |
+| One server | Everyone on that server | All your characters on that server. |
+| One server | One character | Just that character. |
+
+The first time you open the History window it shows the character the small window is following; after that it remembers your last choice.
+When you're looking at more than one character the log tables gain a **Character** column, and every heading says whose it is.
+
+On the **Loot** page, putting characters together doesn't count anything twice. If two of your characters were in the same group, both
+ledgers record what the others looted, so Companion counts an event both of them logged once (it has the same time, looter, item and amount in
+each). Characters on different servers are never merged: those are two separate worlds.
 
 ### The bar across the top (every page except Loot)
 
@@ -381,7 +396,7 @@ If you run Companion from somewhere it can't replace itself (a read-only folder,
 ## Something looks wrong
 
 **The window says it can't find a ledger, or my character isn't in the list.**
-Companion looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click the server name, then
+Companion looks in `C:\Users\<you>\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories`. Click the **ⓘ** in the title bar, then
 **Choose the game's data folder…** and point it at that folder (or wherever your game keeps its data). A character with no ledger yet
 is still listed (marked *no ledger yet*): the game writes the file as you loot, sell, level up and so on, and the window picks it up by itself.
 
@@ -421,7 +436,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 
 | Option | What it does |
 |---|---|
-| `--ledger <folder>` | Read the game's data from somewhere else. |
+| `--ledger <folder>` | Read the game's data from somewhere else (a test, a demo, a copy). Such a run keeps its own saved copy and saves no settings, so it can never mix into your real history. |
 | `--character <name>` | Start on this character. |
 | `--history` | Open the History window as soon as the app starts. |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |

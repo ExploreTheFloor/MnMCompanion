@@ -13,10 +13,10 @@ internal sealed record HarvestData(IReadOnlyList<HarvestRow> Rows);
 /// Harvest: what you gathered, how fast, and what it is worth at vendor prices (the same item values as the loot, so an estimate is
 /// marked <c>~</c> and an item with no price <c>+</c>). The ledger names the item and the zone, not the node.
 /// </summary>
-internal sealed class HarvestPage(LootStore store, HistoryData data, HistoryView view)
-    : HistoryPage<HarvestData>(store, data, view, "Everything you gather (ore, wood, herbs and so on) appears here, with how many you get an hour and what it would fetch from a vendor.")
+internal sealed class HarvestPage(HistoryFocus focus, HistoryData data, HistoryView view)
+    : HistoryPage<HarvestData>(focus, data, view, "Everything you gather (ore, wood, herbs and so on) appears here, with how many you get an hour and what it would fetch from a vendor.")
 {
-    protected override HarvestData Query(HistoryStore s, string server, string character, Period period) => new(s.Harvests(server, character, period));
+    protected override HarvestData Query(HistoryStore s, string? server, string? character, Period period) => new(s.Harvests(server, character, period));
 
     protected override void Render(HarvestData data)
     {
@@ -65,13 +65,13 @@ internal sealed class HarvestPage(LootStore store, HistoryData data, HistoryView
     private FrameworkElement Log(List<HarvestRow> rows)
     {
         var all = rows.OrderByDescending(r => r.Time).ToList();
-        var table = Table.Build("harvest-log", all.Take(Rows).ToList(), new Col<HarvestRow>[]
+        var table = Table.Build(TableId("harvest-log"), all.Take(Rows).ToList(), WithWho(new Col<HarvestRow>[]
         {
             new("Time", 130, r => When(r.Time), r => r.Time, Right: false),
             new("Item", 0, r => r.Item, r => r.Item, Right: false),
             new("Qty", 60, r => $"{r.Qty:N0}", r => r.Qty),
             new("Where", 200, r => r.Zone, r => r.Zone, Right: false),
-        }, Rebuild, defaultSort: 0);
+        }, r => r.Character), Rebuild, defaultSort: 0);
         return WithNote(LogNote(Math.Min(all.Count, Rows), all.Count), table);
     }
 
