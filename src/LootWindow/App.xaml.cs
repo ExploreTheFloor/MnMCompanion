@@ -13,8 +13,8 @@ public partial class App : Application
     private LootStore _store = null!;
     private Settings _settings = null!;
     private PanelWindow? _panel;
-    private BreakdownWindow? _breakdown;
-    private BackgroundArchiver? _archiver;
+    private HistoryWindow? _breakdown;
+    private HistoryData? _history;
     private UpdateController? _updates;
 
     private void OnStartup(object sender, StartupEventArgs e)
@@ -56,13 +56,13 @@ public partial class App : Application
         _panel.Closed += (_, _) => Shutdown();
         _panel.BreakdownRequested += OpenBreakdown;
         _panel.Show();
-        _archiver = new BackgroundArchiver(() => _store.LedgerRoot);
+        _history = new HistoryData(() => _store.LedgerRoot);
         _updates.Start();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _archiver?.Dispose();
+        _history?.Dispose();
         _updates?.Dispose();
         base.OnExit(e);
     }
@@ -97,7 +97,8 @@ public partial class App : Application
         {
             using var db = new LedgerDb(args.Db);
             var result = LedgerArchiver.Run(db, _store.LedgerRoot);
-            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {result}");
+            var events = EventBuilder.Update(db);
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {result}; {events.Added:N0} history events {(events.Rebuilt ? "(rebuilt)" : "new")}");
             lines.Add($"{db.FilePath}: {db.RowCount():N0} rows from {db.FileCount():N0} files");
             lines.AddRange(db.RowsByAct().Select(a => $"  {a.Act}  {a.Rows,8:N0}  {a.Meaning}"));
             lines.AddRange(result.Problems.Select(p => "  to retry: " + p));
@@ -110,12 +111,12 @@ public partial class App : Application
         File.WriteAllLines(report, lines);
     }
 
-    /// <summary>Opens the breakdown window (or brings it forward) on a day, optionally one player and one session.</summary>
+    /// <summary>Opens the History window (or brings it forward) on a day of loot, optionally one player and one session.</summary>
     private void OpenBreakdown(DateOnly day, string? member, LootSession? session)
     {
         if (_breakdown is null)
         {
-            _breakdown = new BreakdownWindow(_store, _settings);
+            _breakdown = new HistoryWindow(_store, _settings, _history!);
             if (_settings.Breakdown is null && _panel is not null) _breakdown.PlaceBeside(_panel);
             _breakdown.Closed += (_, _) => _breakdown = null;
             _breakdown.Show();
@@ -131,17 +132,41 @@ public partial class App : Application
         _store.Refresh();
         if (args.Breakdown)
         {
-            var window = new BreakdownWindow(_store, new Settings { ReadOnly = true }) { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
-            window.Left = -20000;
-            window.Top = 0;
-            window.Width = args.Width;
-            window.Height = args.Height;
-            window.Show();
-            window.ShowDay(args.Day ?? _store.Days().FirstOrDefault(), args.Member);
-            if (args.Tab is { } tab) window.PickTab(tab);
-            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-            RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
-            window.Close();
+            // The History window, with the saved history built into a scratch file for the picture (not the player's own)
+            var scratch = Path.Combine(Path.GetTempPath(), "lootgoblin-snapshot-" + Guid.NewGuid().ToString("N") + ".db");
+            try
+            {
+                using var history = new HistoryData(() => _store.LedgerRoot, scratch, automatic: false);
+                history.RefreshNow();
+                var page = args.Page ?? "Loot";
+                var window = new HistoryWindow(_store, new Settings { ReadOnly = true, HistoryPage = page }, history) { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
+                window.Left = -20000;
+                window.Top = 0;
+                window.Width = args.Width;
+                window.Height = args.Height;
+                window.Show();
+                Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                if (page.Equals("Loot", StringComparison.OrdinalIgnoreCase))
+                {
+                    window.ShowDay(args.Day ?? _store.Days().FirstOrDefault(), args.Member);
+                    if (args.Tab is { } tab) window.PickTab(tab);
+                    if (args.Drop is { } drop) window.PickDrop(drop);
+                }
+                else
+                {
+                    if (args.Period is { } period) window.SetPeriod(period);
+                    window.DrawNow();
+                    if (args.Tab is { } tab) window.PickTab(tab);
+                }
+                Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
+                window.Close();
+            }
+            finally
+            {
+                foreach (var file in new[] { scratch, scratch + "-wal", scratch + "-shm" })
+                    try { File.Delete(file); } catch (IOException) { }
+            }
             return;
         }
         if (args.Window)
@@ -191,9 +216,9 @@ public partial class App : Application
     }
 }
 
-/// <summary>Command line: <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--member name] [--tab Looters|Items|Mobs|"Loot log"] [--size WxH]</c> for the breakdown window.</summary>
+/// <summary>Command line: <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--size WxH]</c> for the History window.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null)
 {
     public static Args Parse(string[] args)
     {
@@ -202,6 +227,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         if (Value("--size") is { } size && size.Split('x') is [var sw, var sh] && int.TryParse(sw, out var pw) && int.TryParse(sh, out var ph)) (w, h) = (pw, ph);
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
-            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"));
+            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"));
     }
 }

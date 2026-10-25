@@ -2,11 +2,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using LootWindow.Loot;
@@ -18,17 +16,16 @@ public sealed record LootDayItem(DateOnly Day, string Title, string Sub, string 
 public sealed record LootMemberItem(string? Key, string Name, string Value, string Sub, Brush Brush, GridLength Fill, GridLength Rest);
 
 /// <summary>
-/// The loot breakdown, laid out like the fights window: the days with loot on the left, the day's group in the middle
+/// The Loot page of the History window: the days with loot on the left, the day's group in the middle
 /// (most valuable first, with a bar), and on the right the totals for everyone or, after a click on a name, that player's
 /// items, the mobs they looted and every line. Reads the <see cref="LootStore"/>, which fills as the game writes its ledger;
 /// the window looks again every couple of seconds.
 /// </summary>
-public partial class BreakdownWindow : Window
+public partial class LootHistoryPage : UserControl
 {
     private const int LogRows = 400;
 
     private readonly LootStore _store;
-    private readonly Settings _settings;
     private readonly DispatcherTimer _timer;
     private readonly Dictionary<(DateOnly, DateTime?), (int Count, ItemValues Values, LootDay Day)> _days = [];
 
@@ -41,23 +38,12 @@ public partial class BreakdownWindow : Window
     private string? _member;   // null = everyone
     private string _tab = "";
     private bool _updatingLists;
-    private DispatcherTimer? _saveSoon;
 
-    internal BreakdownWindow(LootStore store, Settings settings)
+    internal LootHistoryPage(LootStore store)
     {
         Resources.MergedDictionaries.Add(Ui.Theme);
         InitializeComponent();
         _store = store;
-        _settings = settings;
-        if (settings.Breakdown is { } b && b.Width >= MinWidth && b.Height >= MinHeight)
-        {
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            (Left, Top, Width, Height) = (b.Left, b.Top, b.Width, b.Height);
-            KeepOnScreen();
-        }
-        SourceInitialized += (_, _) => DarkTitleBar();
-        LocationChanged += (_, _) => Remember();
-        SizeChanged += (_, _) => Remember();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += (_, _) => Tick();
         Loaded += (_, _) =>
@@ -66,7 +52,7 @@ public partial class BreakdownWindow : Window
             if (_day is null && _items.Count > 0) DayList.SelectedIndex = 0;
             _timer.Start();
         };
-        Closed += (_, _) => _timer.Stop();
+        Unloaded += (_, _) => _timer.Stop();
     }
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
@@ -175,18 +161,11 @@ public partial class BreakdownWindow : Window
         DetailScroll.ScrollToTop();
     }
 
-    /// <summary>
-    /// Puts the window next to <paramref name="anchor"/> (the panel): to its left if that is on the desktop, else to its right,
-    /// at the same height, so it opens on the monitor the panel is on and not wherever the system would centre it (with several
-    /// monitors that can be one nobody is looking at). For a first open, when no position was saved.
-    /// </summary>
-    public void PlaceBeside(Window anchor)
+    /// <summary>Opens one monster's drop table on the Drop rates tab (for a picture).</summary>
+    public void PickDrop(string mob)
     {
-        WindowStartupLocation = WindowStartupLocation.Manual;
-        double left = anchor.Left - Width - 12;
-        if (left < SystemParameters.VirtualScreenLeft) left = anchor.Left + anchor.ActualWidth + 12;
-        (Left, Top) = (left, anchor.Top);
-        KeepOnScreen();
+        PickTab("Drop rates");
+        DropRatesFor().Open(mob);
     }
 
     /// <summary>Opens a tab of the detail pane by name ("Looters", "Items", "Mobs", "Loot log").</summary>
@@ -330,11 +309,12 @@ public partial class BreakdownWindow : Window
         if (d.ItemsWorth.FirstOrDefault(i => i.Value.Known) is { } best) AddTile("Best item", best.Item, $"{(best.Value.Estimated ? "~" : "")}{LootSummary.Coin(best.Value.Each)} each · {best.Count:N0} taken");
         if (t.Share > 0) AddTile("Your splits", LootSummary.Coin(t.Share), "your share of the purses", Palette.Heal);
 
-        Tabs(["Looters", "Items", "Mobs", "Loot log"], tab => tab switch
+        Tabs(["Looters", "Items", "Mobs", "Drop rates", "Loot log"], tab => tab switch
         {
             "Looters" => LootersTable(d),
             "Items" => ItemsTable(d),
             "Mobs" => MobsTable(d),
+            "Drop rates" => DropRatesFor(),
             _ => Log(d.Events),
         }, tab => tab == "Items"
             ? [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values)), ("Copy items", () => LootSummary.ItemsText(d.Day, d.ItemsWorth, ScopeText()))]
@@ -368,6 +348,24 @@ public partial class BreakdownWindow : Window
             "Mobs" => MemberMobsTable(m),
             _ => Log(day.Events.Where(e => e.Who.Equals(m.Name, StringComparison.OrdinalIgnoreCase))),
         }, _ => [("Copy summary", () => LootSummary.MemberText(m))]);
+    }
+
+    // ---- Drop rates ---------------------------------------------------------------------------------------------
+
+    private (long Version, DropRatesView View)? _drops;
+
+    /// <summary>
+    /// How often each item comes off each kind of monster, over every day of this character's ledger (a bigger sample than one day).
+    /// Worked out once per change of the ledger and kept, with the page the reader was on.
+    /// </summary>
+    private DropRatesView DropRatesFor()
+    {
+        if (_drops is not { } cached || cached.Version != _store.Version)
+        {
+            var all = _store.Days().SelectMany(day => _store.Events(day)).ToList();
+            _drops = (_store.Version, new DropRatesView(DropRates.ByMob(all), _store.Values));
+        }
+        return _drops.Value.View;
     }
 
     // ---- Pieces -------------------------------------------------------------------------------------------------
@@ -534,35 +532,5 @@ public partial class BreakdownWindow : Window
         });
         panel.Children.Add(table);
         return panel;
-    }
-
-    // ---- Window chrome ------------------------------------------------------------------------------------------
-
-    private void Remember()
-    {
-        if (WindowState != WindowState.Normal) return;
-        _settings.Breakdown = new Bounds(Left, Top, Width, Height);
-        _saveSoon ??= new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => { _saveSoon!.Stop(); _settings.Save(); }, Dispatcher);
-        _saveSoon.Stop();
-        _saveSoon.Start();
-    }
-
-    /// <summary>Saved on another monitor layout: pull it back onto the desktop.</summary>
-    private void KeepOnScreen()
-    {
-        double l = SystemParameters.VirtualScreenLeft, t = SystemParameters.VirtualScreenTop;
-        double r = l + SystemParameters.VirtualScreenWidth, b = t + SystemParameters.VirtualScreenHeight;
-        Left = Math.Clamp(Left, l, Math.Max(l, r - 200));
-        Top = Math.Clamp(Top, t, Math.Max(t, b - 100));
-    }
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
-
-    private void DarkTitleBar()
-    {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        int on = 1;
-        if (DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int)) != 0) DwmSetWindowAttribute(hwnd, 19, ref on, sizeof(int));
     }
 }

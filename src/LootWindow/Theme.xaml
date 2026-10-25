@@ -180,6 +180,16 @@
         <SolidColorBrush x:Key="Panel" Color="#161920"/>
         <SolidColorBrush x:Key="Selected" Color="#2A5B9DFF"/>
 
+        <Style x:Key="Tile" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Margin" Value="0,0,10,10"/>
+            <Setter Property="Width" Value="176"/>
+        </Style>
+
         <Style x:Key="NavItem" TargetType="ListBoxItem">
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="Cursor" Value="Hand"/>

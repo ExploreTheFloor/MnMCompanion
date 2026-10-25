@@ -1,0 +1,42 @@
+<Window x:Class="LootWindow.HistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Loot Goblin · History" Width="1560" Height="900" MinWidth="1180" MinHeight="600"
+        Background="{StaticResource Window}" Foreground="{StaticResource Text}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True" WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <DataTemplate x:Key="RailItem">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Sub}" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="214"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The histories -->
+        <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="12,16,10,8">
+                <StackPanel DockPanel.Dock="Top" Margin="6,0,4,14">
+                    <TextBlock Text="History" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="Who" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <ListBox x:Name="Rail" Style="{StaticResource NavList}" ItemTemplate="{StaticResource RailItem}" SelectionChanged="OnRail"/>
+            </DockPanel>
+        </Border>
+
+        <DockPanel Grid.Column="1">
+            <!-- The period and the filter, for every page but Loot (which has its own days) -->
+            <Border x:Name="PeriodHost" DockPanel.Dock="Top" BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,0,1" Padding="20,10,20,10"
+                    Visibility="Collapsed"/>
+            <ContentControl x:Name="Host"/>
+        </DockPanel>
+    </Grid>
+</Window>
