@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shell;
 using System.Windows.Threading;
 using MnMCompanion.Ledger;
 using MnMCompanion.Loot;
@@ -54,6 +55,13 @@ internal sealed class PanelWindow : Window
         Title = "Companion";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResizeWithGrip;
+        // A borderless window still gets a 7 px resize frame from Windows, and at the top Windows paints it white above our title bar. Taking the
+        // frame over (no system caption, no glass) lets the title bar run to the very top; the edges still resize.
+        WindowChrome.SetWindowChrome(this, new WindowChrome
+        {
+            CaptionHeight = 0, ResizeBorderThickness = new Thickness(5), GlassFrameThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false,
+        });
         Background = new SolidColorBrush(Color.FromRgb(0x12, 0x16, 0x1C));
         BorderBrush = new SolidColorBrush(Color.FromArgb(0x80, 0x90, 0xA0, 0xB0));
         BorderThickness = new Thickness(1);
