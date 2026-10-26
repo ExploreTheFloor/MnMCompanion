@@ -9,9 +9,8 @@
 Companion sits beside the game and keeps a running tally of your group's loot: every item and every coin purse, who took it, which
 monster it came from, and roughly what a vendor would pay for it. At the end of a night it can tell you exactly who got what.
 
-> **Status: private beta.** Everything below works. While the project is private, the in-app "new version" check can't see the releases
-> (GitHub hides them from anyone not signed in), so it quietly does nothing. Until the project goes public, get new versions by hand from
-> the Releases page.
+> **Status: beta, free and open source (MIT).** Everything below works. The program isn't code-signed, so Windows may warn the first time you run it
+> (see [Install it](#install-it)). Once installed, it finds new versions by itself (see [Updates](#updates)).
 
 ---
 
@@ -480,8 +479,9 @@ you can build it yourself from the source (below).
 It pulls itself back onto the desktop when it starts. If it's on the wrong screen, drag it by the title bar.
 
 **It hasn't updated and there's a newer version.**
-While the project is private, the automatic check can't see releases. Download the new `MnMCompanion.exe` from the Releases page and replace
-the old one; your settings and history are kept.
+Click **ⓘ → Check for updates now**, and make sure **Check for updates automatically** is ticked. If you are still on version 0.1.0 (when it was called Loot Goblin), that
+version can't see newer releases at all: download the current `MnMCompanion.exe` from the Releases page once and replace the old file (your settings and history are kept);
+from then on it updates itself.
 
 ---
 
@@ -526,11 +526,13 @@ straight from the files.
 
 ### Making a release
 
-1. Raise `<Version>` in `src\MnMCompanion\MnMCompanion.csproj` (for example `0.1.1`) and commit and push.
-2. Run `scripts\build-release.ps1`. It runs the tests, builds the single-file `MnMCompanion.exe`, writes `MnMCompanion.exe.sha256`
-   beside it in `dist\`, and checks the built program starts and reports that version.
-3. Add `-Publish` to create the GitHub release `v<version>` with both files attached
-   (`scripts\build-release.ps1 -Publish -Notes "What changed"`). The app's update check looks for exactly those two file names.
+1. Raise `<Version>` in `src\MnMCompanion\MnMCompanion.csproj` (for example `0.3.1`), commit and push, and wait for CI (the build and tests on every push) to pass.
+2. Push a tag with the same number: `git tag -a v0.3.1 -m "Companion 0.3.1" && git push origin v0.3.1`. The [release workflow](.github/workflows/release.yml) builds the
+   program on GitHub's own machines, runs the tests, checks it starts and reports that version, writes `MnMCompanion.exe.sha256` and publishes the release `v<version>` with
+   both files attached. The app's update check looks for exactly those two file names. (Write the release notes afterwards with `gh release edit v0.3.1 --notes-file <file>`.)
+
+The same can be done by hand: `scripts\build-release.ps1` runs the tests, builds the single-file `MnMCompanion.exe`, writes the checksum beside it in `dist\` and checks the
+built program starts; add `-Publish` to create the release (`scripts\build-release.ps1 -Publish -Notes "What changed"`).
 
 ### How the project is laid out
 
@@ -543,6 +545,7 @@ src/MnMCompanion          the Windows app: the small window and its pages, the H
                         (the only package it has is Windows' web view, for the Map page)
 tests/MnMCompanion.Tests  the automatic tests
 scripts/                build-release.ps1, make-demo-ledger.py, make-screenshots.ps1
+.github/workflows/      ci.yml (build and test on every push) and release.yml (builds and publishes a release from a version tag)
 docs/                   ledger-notes.md (what the ledger holds), images/
 ```
 
