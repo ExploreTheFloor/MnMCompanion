@@ -7,7 +7,15 @@ namespace MnMCompanion.Tests;
 
 public class LootStoreTests
 {
-    private static readonly DateTime Today = DateTime.Today.AddHours(9);
+    // An hour ago, never later today: a session marker is made "now", so loot dated after now (09:00 on a clock that says 03:00, as on CI) would belong to the new session.
+    // Kept clear of midnight so the loot's few minutes never straddle two days.
+    private static readonly DateTime Today = Recent();
+
+    private static DateTime Recent()
+    {
+        var t = DateTime.Now.AddHours(-1);
+        return t.Hour == 23 && t.Minute >= 50 ? t.AddMinutes(-15) : t;
+    }
 
     /// <summary>A server with Aldric (looting with Brom) and Other, who sold the rat ear for a price Aldric never saw.</summary>
     private static (Scratch Scratch, LootStore Store) Make()
