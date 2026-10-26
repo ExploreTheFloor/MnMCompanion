@@ -54,6 +54,14 @@ none ever reaches a file. A guild ledger type exists in the client; there are no
 corpse id and no vendor name. Other players' sales, harvests, trades and drops are not in your files, and you see only your own share
 of a split. There is no combat, damage or chat.
 
+## The other files in the game's folders (checked 2026-10-26): no casts, no buffs
+
+Besides `Ledger\` and `journal\`, a character's folder holds `chats.json` (the chat windows' settings: channels, colours, tabs; **no chat history**), `windows.json` (the
+position and size of about fifty UI windows) and `journal_migration_checked` (a 20-byte marker). The game folder itself has `controls.json` (key bindings), `settings.json` (game
+options), an empty `notes.txt`, and `Player.log` / `Player-prev.log`, Unity's log: engine and network messages with **no clock time on any line**. Its only cast-related lines are
+"AbilityPrediction MISPREDICT" warnings with a stack trace (no ability name, no target, no time); it has nothing at all about buffs, effects, cooldowns, damage, deaths or experience.
+None of them says when anything was cast, so a buff or cooldown timer cannot be started from the files: the player would have to start it.
+
 ## Things that bite when reading it
 
 - **Own rows come twice.** A character's own actions are in its Character file and again, a moment later, in its Social file
