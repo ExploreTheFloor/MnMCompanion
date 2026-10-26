@@ -1,0 +1,26 @@
+name: Remove my shared data
+description: Delete what I shared with the community, and stop it being counted
+labels: ["privacy"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If you said Yes to sharing, your totals were filed under a random id that isn't linked to your name or characters. Give the **first eight characters** of that id and your file is removed and the id blocked from being counted again.
+
+        To find it: open Companion, click the ⓘ in the title bar, choose **What does sharing include?**; the window says "Your random id is xxxxxxxx…". Nothing else is needed, and please don't post anything about your characters.
+
+        To stop sharing from now on, untick **Share my data with the community** in the same ⓘ menu.
+  - type: input
+    id: id
+    attributes:
+      label: The first eight characters of your random id
+      placeholder: "74040de9"
+    validations:
+      required: true
+  - type: checkboxes
+    id: mine
+    attributes:
+      label: Confirm
+      options:
+        - label: This is my own id, from my own Companion.
+          required: true

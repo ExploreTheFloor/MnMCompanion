@@ -12,6 +12,16 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 > **Status: beta, free and open source (MIT).** Everything below works. The program isn't code-signed, so Windows may warn the first time you run it
 > (see [Install it](#install-it)). Once installed, it finds new versions by itself (see [Updates](#updates)).
 
+**[Download the latest version](https://github.com/ExploreTheFloor/MnMCompanion/releases/latest)**  ·  Windows 10 or 11, 64-bit  ·  nothing to install  ·  [Questions? Read the FAQ](docs/FAQ.md)  ·  [Report a problem or ask for a feature](https://github.com/ExploreTheFloor/MnMCompanion/issues/new/choose)
+
+[![CI](https://github.com/ExploreTheFloor/MnMCompanion/actions/workflows/ci.yml/badge.svg)](https://github.com/ExploreTheFloor/MnMCompanion/actions/workflows/ci.yml)
+
+### In a minute
+
+1. Download **MnMCompanion.exe** from the [latest release](https://github.com/ExploreTheFloor/MnMCompanion/releases/latest). If Windows warns you, click **More info**, then **Run anyway**.
+2. Run it. A narrow window sits beside the game and **follows the character you're playing**.
+3. Loot shows up within seconds. The clock in the title bar opens the **History** window: every day, every player, drop rates, vendors, harvests and trades.
+
 ---
 
 ## Contents
@@ -28,6 +38,8 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 10. [Updates](#updates)
 11. [Something looks wrong](#something-looks-wrong)
 12. [For the curious](#for-the-curious)
+
+More: the [**FAQ**](docs/FAQ.md) answers the common questions in a few lines each, and [docs/ledger-notes.md](docs/ledger-notes.md) is what the game's ledger does and doesn't hold.
 
 ---
 
@@ -117,6 +129,7 @@ The bottom of the window has a button for each **page**.
   <img src="docs/images/window-vendor.png" alt="The Vendor page" width="200">
   <img src="docs/images/window-trades.png" alt="The Trades page" width="200">
   <img src="docs/images/window-harvest.png" alt="The Harvest page" width="200">
+  <img src="docs/images/window-changes.png" alt="The Items page: what you dropped, picked up and destroyed" width="200">
 </p>
 
 | Page | Shows, for the day and session on show |
@@ -153,6 +166,8 @@ just happened (a session archived, how many items are unpriced).
 </p>
 
 ### The Map page
+
+<img src="docs/images/window-map.png" alt="The Map page the first time: it asks before loading the atlas" width="240" align="right">
 
 The ledger names the zone on every line it writes, so Companion always knows which zone your character was last in, and the **Map** page shows
 that zone's map. When you zone, it follows as soon as the game writes something in the new zone (loot, a sale, something gathered); the ledger
@@ -403,6 +418,8 @@ The game's diary tells each player only a little about how the world works. Pool
 | Community data | **you can use it** | **the app doesn't download or show it** |
 | Being asked | not again, unless what is shared grows (see below) | **every time you start the app**, until you say Yes |
 
+<img src="docs/images/window-sharing.png" alt="The sharing window: Yes or No, and exactly what would be shared, in plain words" width="300" align="right">
+
 The first time you start the app (and every time after, while the answer is No) a small window asks. **Yes** turns sharing on and it stops asking. **No**, or closing the window, keeps everything private and asks again next time. You can change your answer at any time: click the **ⓘ** in the title bar and tick or untick **Share my data with the community**.
 
 **What gets shared is only totals of your own play**, shown to you in full before you decide (**ⓘ → What does sharing include?**, or the **What is shared** fold-out on the question):
@@ -414,7 +431,7 @@ The first time you start the app (and every time after, while the answer is No) 
 - what NPCs said to you, as distinct lines with your own character's name replaced by `{player}` (no times and no characters);
 - **running totals, counted by week**: how many corpses you looted (the game doesn't record kills, so this is the kill count), the coin in their purses, the items taken, what you gathered, how many stacks you sold to and bought from vendors and for how much coin, and how many trades you made with other players (only the number). These are kept as one row for each of the last 53 weeks plus one row for everything older, so they never grow into a list of events. A week is only its Monday's date, never a day or a time.
 
-It **never** contains your character names, any other player's name, individual loot lines or trades, or when anything happened (only the day the file was made, and which weeks the running totals fall in). The NPC lines carry no time and no character, and your own character's name in them is replaced by `{player}`. Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
+It **never** contains your character names, any other player's name, individual loot lines or trades, or when anything happened (only the day the file was made, and which weeks the running totals fall in). The NPC lines carry no time and no character, and your own character's name in them is replaced by `{player}`. Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can have yours removed: open an issue with the [**Remove my shared data**](https://github.com/ExploreTheFloor/MnMCompanion/issues/new/choose) form and give the first eight characters of your random id (the sharing window shows it).
 
 **A Yes covers what you were shown.** If a new version shares more than the one you said Yes to (the weekly running totals were the first such addition), your earlier Yes no longer covers it: sharing pauses, the question comes back saying what was added, and nothing is sent until you say Yes again.
 
@@ -433,7 +450,7 @@ It **never** contains your character names, any other player's name, individual 
 A few seconds after it starts, and every six hours while it's running, Companion asks GitHub whether a newer version has been released.
 If there is one, a strip appears under the title bar:
 
-> **Version 0.2.0 is ready (you have 0.1.0).**   `Update now`   `Later`   `Skip this version`
+> **Version 0.4.0 is ready (you have 0.3.0).**   `Update now`   `Later`   `Skip this version`
 
 - **Update now** downloads the new program, **checks it against the checksum published with the release**, and only if that matches replaces
   the old one and restarts. If anything doesn't match (a damaged or tampered download), it throws the download away, keeps your current

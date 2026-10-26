@@ -1,0 +1,15 @@
+name: Suggest something
+description: An idea for Companion
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Companion only reads the files the game writes (the ledger and the NPC journal), so it can show what those files hold and nothing else: no kills, buffs, casts, damage or position. The [FAQ](https://github.com/ExploreTheFloor/MnMCompanion/blob/main/docs/FAQ.md) and [docs/ledger-notes.md](https://github.com/ExploreTheFloor/MnMCompanion/blob/main/docs/ledger-notes.md) say what is in them.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+      description: What you want to see or do, and why it would help.
+    validations:
+      required: true

@@ -1,0 +1,32 @@
+name: Report a problem
+description: Something doesn't work, or the numbers look wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for telling us. Please look at the [FAQ](https://github.com/ExploreTheFloor/MnMCompanion/blob/main/docs/FAQ.md) first, in case your question is answered there.
+
+        **Please don't paste your ledger files, your character names or other players' names.** A description, or a picture of the window, is enough.
+  - type: input
+    id: version
+    attributes:
+      label: Which version of Companion?
+      description: Click the ⓘ in the title bar; the first line shows it.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: What you did, what you saw, what you thought you'd see.
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: A picture of the window helps. Windows version, a second game open, an unusual setup, and so on.
+    validations:
+      required: false
