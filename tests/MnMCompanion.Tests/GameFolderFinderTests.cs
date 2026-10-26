@@ -11,7 +11,7 @@ public class GameFolderFinderTests
     private static readonly DateTime Newer = new(2026, 10, 26, 18, 0, 0), Older = new(2026, 10, 20, 9, 0, 0);
 
     /// <summary>A prefix's game data with one character holding one ledger file written at <paramref name="when"/>; returns the game data folder.</summary>
-    private static string Game(Fixture.Scratch s, string prefixUnderRoot, string character = "Aldric", DateTime? when = null, string user = "steamuser", string server = "trem")
+    private static string Game(Fixture.Scratch s, string prefixUnderRoot, string character = "Aldric", DateTime? when = null, string user = "steamuser", string server = "alpha")
     {
         var root = Path.Combine([s.Path, .. prefixUnderRoot.Split('/'), "drive_c", "users", user, "AppData", "LocalLow", "Niche Worlds Cult", "Monsters and Memories"]);
         var file = s.Write(Path.GetRelativePath(s.Path, Path.Combine(root, server, character, "Ledger", $"{character}_Character_2026-10-26.json")), "{}");
