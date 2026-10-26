@@ -130,6 +130,30 @@ public sealed class LedgerDb : IDisposable
         CREATE TABLE IF NOT EXISTS trade_item (
             trade_row_id INTEGER NOT NULL, line INTEGER NOT NULL, name TEXT NOT NULL, qty INTEGER NOT NULL, item_id TEXT NOT NULL,
             PRIMARY KEY (trade_row_id, line)) WITHOUT ROWID;
+
+        -- The journal: <character>\journal\<NPC name>, one file per NPC with everything that NPC has said to the character.
+        -- journal_file = one line per file read, so an unchanged file is not read again.
+        CREATE TABLE IF NOT EXISTS journal_file (
+            server TEXT NOT NULL, character TEXT NOT NULL, file TEXT NOT NULL, size INTEGER NOT NULL, written_utc TEXT NOT NULL,
+            lines INTEGER NOT NULL, imported_utc TEXT NOT NULL,
+            PRIMARY KEY (server, character, file)) WITHOUT ROWID;
+        -- npc = every NPC a journal file is named for, once, whatever the number of characters that met them. looted_as_monster = the same name
+        -- also appears in the ledger as something killed or looted (so the NPC lines up with a monster of the loot tables).
+        CREATE TABLE IF NOT EXISTS npc (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            first_seen_utc TEXT,
+            looted_as_monster INTEGER NOT NULL DEFAULT 0);
+        -- npc_line = one entry of a journal file. text = what was said (the speaker and the quotes taken off), raw = the entry as written.
+        -- at_utc is null for an entry the game gave no time. uid makes an entry read twice one entry.
+        CREATE TABLE IF NOT EXISTS npc_line (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uid TEXT NOT NULL UNIQUE,
+            npc_id INTEGER NOT NULL REFERENCES npc (id),
+            server TEXT NOT NULL, character TEXT NOT NULL,
+            at_utc TEXT, speaker TEXT NOT NULL, verb TEXT NOT NULL, text TEXT NOT NULL, raw TEXT NOT NULL, imported_utc TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS ix_npc_line_npc ON npc_line (npc_id, at_utc);
+        CREATE INDEX IF NOT EXISTS ix_npc_line_who ON npc_line (server, character, at_utc);
         """;
 
     private void SeedActCodes()
@@ -247,6 +271,127 @@ public sealed class LedgerDb : IDisposable
         }
         return added;
     }
+
+    /// <summary>The size and write time (UTC) of a journal file when it was last imported, or null if it never was.</summary>
+    public (long Size, string WrittenUtc)? JournalState(LedgerFileKey key)
+    {
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "SELECT size, written_utc FROM journal_file WHERE server = $s AND character = $c AND file = $f";
+            cmd.Parameters.AddWithValue("$s", key.Server);
+            cmd.Parameters.AddWithValue("$c", key.Character);
+            cmd.Parameters.AddWithValue("$f", key.File);
+            using var r = cmd.ExecuteReader();
+            return r.Read() ? (r.GetInt64(0), r.GetString(1)) : null;
+        }
+    }
+
+    /// <summary>
+    /// Stores one journal file (<see cref="LedgerFileKey.File"/> is the NPC's name). The NPC is added if the name is new (names match
+    /// without regard to case); an entry already held is ignored, so reading the file again, or the game putting a new entry at its top,
+    /// adds only what is new; two identical entries in one file are both kept (they are numbered). Returns how many NPCs and entries were new.
+    /// </summary>
+    public (int Npcs, int Lines) ImportJournal(LedgerFileKey key, long size, DateTime writtenUtc, IReadOnlyList<Journal.JournalLine> lines)
+    {
+        var now = Iso(DateTime.UtcNow);
+        int npcs, added = 0;
+        lock (_gate)
+        {
+            using var tx = _db.BeginTransaction();
+            var times = lines.Where(l => l.Time is not null).Select(l => l.Time!.Value.ToUniversalTime()).ToList();
+            string? earliest = times.Count == 0 ? null : Iso(times.Min());
+
+            using (var cmd = _db.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "INSERT INTO npc (name, first_seen_utc) VALUES ($n, $t) ON CONFLICT (name) DO NOTHING";
+                cmd.Parameters.AddWithValue("$n", key.File);
+                cmd.Parameters.AddWithValue("$t", (object?)earliest ?? DBNull.Value);
+                npcs = cmd.ExecuteNonQuery();
+            }
+            long npcId;
+            using (var cmd = _db.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "SELECT id FROM npc WHERE name = $n";
+                cmd.Parameters.AddWithValue("$n", key.File);
+                npcId = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
+            }
+            if (earliest is not null)
+            {
+                using var cmd = _db.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE npc SET first_seen_utc = $t WHERE id = $id AND (first_seen_utc IS NULL OR first_seen_utc > $t)";
+                cmd.Parameters.AddWithValue("$t", earliest);
+                cmd.Parameters.AddWithValue("$id", npcId);
+                cmd.ExecuteNonQuery();
+            }
+
+            using (var cmd = _db.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = """
+                    INSERT OR IGNORE INTO npc_line (uid, npc_id, server, character, at_utc, speaker, verb, text, raw, imported_utc)
+                    VALUES ($uid, $npc, $server, $character, $at, $speaker, $verb, $text, $raw, $now)
+                    """;
+                var uid = cmd.Parameters.Add("$uid", SqliteType.Text);
+                var at = cmd.Parameters.Add("$at", SqliteType.Text);
+                var speaker = cmd.Parameters.Add("$speaker", SqliteType.Text);
+                var verb = cmd.Parameters.Add("$verb", SqliteType.Text);
+                var text = cmd.Parameters.Add("$text", SqliteType.Text);
+                var raw = cmd.Parameters.Add("$raw", SqliteType.Text);
+                cmd.Parameters.AddWithValue("$npc", npcId);
+                cmd.Parameters.AddWithValue("$server", key.Server);
+                cmd.Parameters.AddWithValue("$character", key.Character);
+                cmd.Parameters.AddWithValue("$now", now);
+                var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var line in lines)
+                {
+                    var stamp = line.Time is null ? "" : Iso(line.Time.Value);
+                    var identity = stamp + "\n" + line.Raw;
+                    seen.TryGetValue(identity, out var occurrence);
+                    seen[identity] = occurrence + 1;
+                    uid.Value = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{key.Server}\n{key.Character}\n{key.File}\n{occurrence}\n{identity}")));
+                    at.Value = line.Time is null ? DBNull.Value : stamp;
+                    speaker.Value = line.Speaker;
+                    verb.Value = line.Verb;
+                    text.Value = line.Text;
+                    raw.Value = line.Raw;
+                    added += cmd.ExecuteNonQuery();
+                }
+            }
+            using (var cmd = _db.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = """
+                    INSERT INTO journal_file (server, character, file, size, written_utc, lines, imported_utc)
+                    VALUES ($server, $character, $file, $size, $written, $lines, $now)
+                    ON CONFLICT (server, character, file) DO UPDATE SET size = $size, written_utc = $written, lines = $lines, imported_utc = $now
+                    """;
+                cmd.Parameters.AddWithValue("$server", key.Server);
+                cmd.Parameters.AddWithValue("$character", key.Character);
+                cmd.Parameters.AddWithValue("$file", key.File);
+                cmd.Parameters.AddWithValue("$size", size);
+                cmd.Parameters.AddWithValue("$written", Iso(writtenUtc));
+                cmd.Parameters.AddWithValue("$lines", lines.Count);
+                cmd.Parameters.AddWithValue("$now", now);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+        return (npcs, added);
+    }
+
+    /// <summary>
+    /// Lines the NPCs up with the monsters of the loot tables: an NPC whose name also appears in the ledger as something killed (act_14) or
+    /// as what dropped an item (act_13) is marked <c>looted_as_monster</c>. Worked out from the saved ledger rows, so it is cheap to redo.
+    /// </summary>
+    public void MarkLootedNpcs() => Exec("""
+        UPDATE npc SET looted_as_monster = CASE WHEN name IN (
+            SELECT name FROM ledger_row WHERE act = 'act_14' AND name <> ''
+            UNION SELECT json_extract(detail, '$.d02') FROM ledger_row WHERE act = 'act_13' AND json_extract(detail, '$.d02') IS NOT NULL) THEN 1 ELSE 0 END
+        """);
 
     /// <summary>The file kind the game's file names give: a name with "_Character_" is a Character file, anything else Social.</summary>
     public static LedgerFileKind KindOf(string file) =>

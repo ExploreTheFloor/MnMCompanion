@@ -23,6 +23,9 @@ public sealed record ContributionHarvest(string Item, string Zone, int Harvests,
 /// <summary>An item's name with the 24-character id the game gives it.</summary>
 public sealed record ContributionName(string Name, string Id);
 
+/// <summary>What one NPC said to the player, as distinct lines with the player's own name replaced by {player}: no times, no characters.</summary>
+public sealed record ContributionNpc(string Name, IReadOnlyList<string> Lines);
+
 /// <summary>Headline counts of a contribution, for the preview.</summary>
 public sealed record ContributionTotals(int Monsters, int Corpses, int Sales, int Purchases, int Harvests, int Items);
 
@@ -34,7 +37,8 @@ public sealed record ContributionTotals(int Monsters, int Corpses, int Sales, in
 /// </summary>
 public sealed record Contribution(
     int Schema, string Contributor, string App, string Generated, string License, ContributionTotals Totals,
-    IReadOnlyList<ContributionDrop> Drops, IReadOnlyList<ContributionPrice> Prices, IReadOnlyList<ContributionHarvest> Harvest, IReadOnlyList<ContributionName> Items)
+    IReadOnlyList<ContributionDrop> Drops, IReadOnlyList<ContributionPrice> Prices, IReadOnlyList<ContributionHarvest> Harvest, IReadOnlyList<ContributionName> Items,
+    IReadOnlyList<ContributionNpc> Npcs)
 {
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -58,6 +62,9 @@ public static class ContributionBuilder
 
     private const int MaxName = 80;
 
+    /// <summary>The community service refuses more than this: lines longer than <see cref="MaxLine"/> are left out, an NPC keeps at most <see cref="MaxLinesPerNpc"/>, a file at most <see cref="MaxNpcs"/> NPCs.</summary>
+    public const int MaxLine = 2000, MaxLinesPerNpc = 500, MaxNpcs = 5000;
+
     /// <summary>
     /// Builds a contribution from one player's own rows: the loot they took (items and purses, with the corpse rule of
     /// <see cref="LootSummary.Corpses"/>), what they sold and bought, what they gathered, and the item names with their ids.
@@ -65,7 +72,7 @@ public static class ContributionBuilder
     /// social file and would otherwise be counted once per member.
     /// </summary>
     public static Contribution Build(IEnumerable<LootEvent> ownLoot, IEnumerable<VendorRow> vendor, IEnumerable<HarvestRow> harvest,
-        IEnumerable<ContributionName> names, string contributor, string app, DateOnly generated)
+        IEnumerable<ContributionName> names, string contributor, string app, DateOnly generated, IEnumerable<ContributionNpc>? npcs = null)
     {
         var drops = DropRates.ByMob(ownLoot)
             .Where(m => Ok(m.Mob))
@@ -87,7 +94,13 @@ public static class ContributionBuilder
 
         var totals = new ContributionTotals(drops.Count, drops.Sum(d => d.Corpses), rows.Count(v => v.Direction == VendorDirection.Sold),
             rows.Count(v => v.Direction == VendorDirection.Bought), gathered.Sum(h => h.Harvests), catalogue.Count);
-        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue);
+        var dialogue = (npcs ?? []).Where(n => Ok(n.Name)).GroupBy(n => Clean(n.Name).ToLowerInvariant())
+            .Select(g => new ContributionNpc(Clean(g.First().Name),
+                g.SelectMany(n => n.Lines).Select(l => l.Trim()).Where(l => l.Length > 0 && l.Length <= MaxLine && !l.Any(char.IsControl)).Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal).Take(MaxLinesPerNpc).ToList()))
+            .Where(n => n.Lines.Count > 0).OrderBy(n => n.Name, StringComparer.OrdinalIgnoreCase).Take(MaxNpcs).ToList();
+
+        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue);
     }
 
     private static Dictionary<string, int> Tally(IEnumerable<VendorRow> rows, VendorDirection direction) =>
@@ -114,6 +127,7 @@ public static class ContributionBuilder
             $"{c.Prices.Count:N0} item prices by zone, from {t.Sales:N0} sales and {t.Purchases:N0} purchases",
             $"{c.Harvest.Count:N0} things gathered by zone, from {t.Harvests:N0} harvests",
             $"{t.Items:N0} item names with their game ids",
+            $"{c.Npcs.Count:N0} NPCs with {c.Npcs.Sum(n => n.Lines.Count):N0} lines of what they said to you (your character's name replaced, no times)",
         ];
     }
 }

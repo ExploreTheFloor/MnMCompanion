@@ -353,10 +353,12 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 
 **It reads files. That's all.** Companion:
 
-- reads the game's ledger files, and nothing else the game writes;
+- reads two things the game writes, its ledger files and each character's journal (what NPCs have said to you), and nothing else it writes;
 - **never** touches the running game, its memory, your keyboard or your mouse;
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - **never** installs anything by itself. Updates are only ever *offered*.
+
+The **journal** is a folder the game keeps for each character, `<character>\journal`: one text file per NPC, named for them, with everything that NPC has said to you (quest text and so on), each line stamped with the time. Companion reads those files too and keeps every line in its own saved database, one NPC once however many characters met them, and lined up with the monsters it has seen looted (an NPC who is also something you killed is marked as such). It doesn't show them on a page yet. It never opens anything else in that folder.
 
 The one thing it does over the internet by itself is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)). That's a plain
 request that carries only the program's name and version number. You can switch it off.
@@ -407,9 +409,10 @@ The first time you start the app (and every time after, while the answer is No) 
 - how often each kind of monster you looted dropped each item, and the coin in its purses;
 - what vendors paid and charged you, per item and zone (the game doesn't record which vendor);
 - what you gathered, per item and zone;
-- item names with the game's own ids.
+- item names with the game's own ids;
+- what NPCs said to you, as distinct lines with your own character's name replaced by `{player}` (no times and no characters).
 
-It **never** contains your character names, any other player's name, individual loot lines, trades, or when anything happened (only the day). Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
+It **never** contains your character names, any other player's name, individual loot lines, trades, or when anything happened (only the day). The NPC lines carry no time and no character, and your own character's name in them is replaced by `{player}`. Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
 
 **No means no community data:** if the answer is No, nothing is sent, and Companion doesn't ask for or show the combined figures.
 

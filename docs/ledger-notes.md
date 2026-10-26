@@ -189,3 +189,15 @@ SELECT actor, class, count(*) FROM ledger_row WHERE act = 'act_13' AND kind = 'S
 ```
 
 `at_utc` is ISO 8601 UTC with 7 fractional digits, so it sorts as text. `raw` always has the row exactly as the game wrote it.
+
+## The journal (what NPCs said to the player)
+
+Not part of the ledger, but kept in the same database: `<server>\<character>\journal\<NPC name>`, one text file per NPC with no extension, named
+for the NPC exactly ("Abbot Harrow"). Each entry is `yyyy-MM-dd HH:mm:ss: <NPC> says <what was said>` in the character's local time, newest first,
+entries separated by a blank line; a line without a stamp continues the entry above it. The verb is one of says, whispers, shouts, tells you, yells.
+The game puts a new entry at the top of the file, so a file is read again whenever its size or time changes and only entries not held yet are added.
+
+Tables: `journal_file` (what was read and when), `npc` (one row per NPC name, matched without regard to case; `looted_as_monster` = the same name
+also appears in the ledger as a corpse, act_14, or as what dropped an item, act_13), `npc_line` (one row per entry: time, speaker, verb, the text
+with the quotes taken off, and the entry as written; two identical entries in one file are both kept). Journal text can address the player by
+name, so anything that leaves the PC has the character's own name replaced by `{player}` first (`JournalParser.WithoutPlayerName`).

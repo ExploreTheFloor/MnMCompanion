@@ -113,6 +113,7 @@ internal sealed class ShareWindow : Window
             "Your character names, or any other player's name",
             "Individual loot lines, trades, or when anything happened (only the day)",
             "Anything from other players' ledgers: only what you looted, sold and gathered",
+            "Your character's name in what NPCs said to you (it is replaced), or when they said it",
         })
             _details.Children.Add(Line(line, Palette.Text, "✕  "));
         _details.Children.Add(_id);

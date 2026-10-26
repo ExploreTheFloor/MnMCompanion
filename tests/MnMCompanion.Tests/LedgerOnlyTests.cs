@@ -1,7 +1,7 @@
 namespace MnMCompanion.Tests;
 
 /// <summary>
-/// The rule this app is built on: its only input is the game's ledger files. These tests read the project's own sources and
+/// The rule this app is built on: its only inputs are the game's ledger files and each character's journal folder (what NPCs said to them). These tests read the project's own sources and
 /// fail if anything reaches for another source: someone else's database, the network, the game's process or memory, or the
 /// Memento code. Two exceptions are made on purpose, each confined to its own project: <c>src\MnMCompanion.Data</c> keeps this app's
 /// OWN database of the rows it has read (the only project that may use SQLite, and the only package, Microsoft.Data.Sqlite), and

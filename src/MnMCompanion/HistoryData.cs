@@ -91,9 +91,10 @@ internal sealed class HistoryData : IDisposable
         try
         {
             var archived = LedgerArchiver.Run(_db!, _root());
+            var journal = JournalArchiver.Run(_db!, _root());
             var built = EventBuilder.Update(_db!);
-            Status = archived.ToString();
-            bool changed = archived.RowsAdded > 0 || built.Added > 0 || built.Rebuilt;
+            Status = archived + "; " + journal;
+            bool changed = archived.RowsAdded > 0 || journal.LinesAdded > 0 || built.Added > 0 || built.Rebuilt;
             if (changed) Interlocked.Increment(ref _version);
             return changed;
         }

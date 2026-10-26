@@ -116,11 +116,13 @@ public partial class App : Application
         {
             using var db = new LedgerDb(args.Db ?? OtherDb(args));
             var result = LedgerArchiver.Run(db, _store.LedgerRoot);
+            var journal = JournalArchiver.Run(db, _store.LedgerRoot);
             var events = EventBuilder.Update(db);
             lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {result}; {events.Added:N0} history events {(events.Rebuilt ? "(rebuilt)" : "new")}");
+            lines.Add($"  journal: {journal}");
             lines.Add($"{db.FilePath}: {db.RowCount():N0} rows from {db.FileCount():N0} files");
             lines.AddRange(db.RowsByAct().Select(a => $"  {a.Act}  {a.Rows,8:N0}  {a.Meaning}"));
-            lines.AddRange(result.Problems.Select(p => "  to retry: " + p));
+            lines.AddRange(result.Problems.Concat(journal.Problems).Select(p => "  to retry: " + p));
         }
         catch (Exception ex)
         {
@@ -159,6 +161,7 @@ public partial class App : Application
         {
             using var db = new LedgerDb(args.Db ?? OtherDb(args));
             LedgerArchiver.Run(db, _store.LedgerRoot);
+            JournalArchiver.Run(db, _store.LedgerRoot);
             EventBuilder.Update(db);
             var contribution = CommunityExport.Build(db, "MnMCompanion " + AppVersion.Show(AppVersion.Current()));
             var path = Path.GetFullPath(args.Contribute!);
