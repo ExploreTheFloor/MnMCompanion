@@ -23,8 +23,9 @@ public static class CommunityPolicy
     public static bool ShouldAsk(bool sharing, bool askingIsAllowed) => !sharing && askingIsAllowed;
 
     /// <summary>One line saying where things stand, for the sharing window and the menu.</summary>
-    public static string Status(bool sharing, bool sendingConnected) =>
+    public static string Status(bool sharing, bool sendingConnected, string? note = null) =>
         !sharing ? "Not sharing. Nothing leaves your PC, and community data isn't used."
-        : sendingConnected ? "Sharing is on. Your totals are sent automatically and kept up to date, and community data is available to you."
+        : sendingConnected ? "Sharing is on. Your totals are sent automatically, no more than every few hours, and replace your last ones; you can use what everyone has shared."
+            + (note is { Length: > 0 } ? " " + note : "")
         : "Sharing is on. Sending isn't connected yet: your Yes is saved, and it starts once the community intake is connected.";
 }

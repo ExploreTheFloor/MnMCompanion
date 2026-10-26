@@ -79,6 +79,9 @@ internal sealed class HistoryData : IDisposable
         }
     });
 
+    /// <summary>The random id this PC shares under (made the first time it is asked for), or null when there is no saved history.</summary>
+    public string? ContributorId() => _db?.ContributorId();
+
     /// <summary>One pass on this thread (for a run with no window to keep responsive).</summary>
     public bool RefreshNow()
     {

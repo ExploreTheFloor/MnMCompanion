@@ -161,7 +161,7 @@ internal sealed class ShareWindow : Window
     private void ShowStatus()
     {
         bool on = _settings.ShareWithCommunity;
-        _status.Text = CommunityPolicy.Status(on, sendingConnected: Sharing.Connected);
+        _status.Text = CommunityPolicy.Status(on, sendingConnected: true, _settings.ShareNote);
         _status.Foreground = on ? Palette.Heal : Palette.Muted;
     }
 
@@ -257,8 +257,3 @@ internal sealed class ShareWindow : Window
     }
 }
 
-/// <summary>Whether the part that sends a sharing player's totals is connected yet. It isn't: the community intake isn't connected.</summary>
-internal static class Sharing
-{
-    public static bool Connected => false;
-}

@@ -363,6 +363,8 @@ The **journal** is a folder the game keeps for each character, `<character>\jour
 The one thing it does over the internet by itself is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)). That's a plain
 request that carries only the program's name and version number. You can switch it off.
 
+Only if you answered **Yes** to sharing, it also talks to the project's small community service (see [Sharing](#sharing-with-the-community-data)): it sends your totals, and asks for community figures by name, always with your random id and nothing else about you.
+
 The other exception is the **Map** page, and only if you say yes: it shows the community atlas's map of your zone, which loads mnmatlas.com, so that site
 sees your zone and your internet address (see [The Map page](#the-map-page)). Until you say yes, nothing is loaded, and "Open in Atlas" only opens
 your own browser when you press it.
@@ -418,7 +420,7 @@ It **never** contains your character names, any other player's name, individual 
 
 **Where it goes.** A Yes sends your totals to a small service run by the project, on Cloudflare's network. Like any website, it sees your internet address while you send; the project does not store it. The totals are only used to build the combined figures, which sharing players get back inside Companion. They are not published.
 
-> **Status:** the Yes/No question, the reminder and the rule are in. The part that sends a Yes player's totals (and brings the combined figures back) is not connected yet, so for now saying Yes saves your answer and the ⓘ window says "Sending isn't connected yet". Nothing is sent until it is. Until then, `MnMCompanion.exe --contribute <folder>` saves your totals as a file you can read.
+**How it works.** With a Yes, Companion sends your totals a short while after it starts and then every few hours (the service takes one file per id every 6 hours, and a newer file replaces the older one), and not at all when nothing has changed since the last send. The sharing window (ⓘ → What does sharing include?) says when the last one went. Community figures appear in History → Loot → Drop rates: open a monster and a **Community** column shows the middle of the community players' shares, and an item's page shows what the community says vendors pay. A figure is shown only where at least 3 players stand behind it, so there may be none for a while. Nothing here is sent or asked for on a No. `MnMCompanion.exe --contribute <folder>` saves exactly the file that would be sent, so you can read it.
 
 ---
 
@@ -532,8 +534,8 @@ straight from the files.
 ```
 src/MnMCompanion.Core     reads the ledger and works out the loot, drop rates and histories (no windows, no packages)
 src/MnMCompanion.Data     the saved database and the history tables built from it (the only project that may use SQLite)
-src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256
-                        (the only project that may use the network, and only github.com)
+src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256, and talks to the community service
+                        (the only project that may use the network: GitHub, the map's atlas if you say yes, and the community service if you say Yes)
 src/MnMCompanion          the Windows app: the small window and its pages, the History window and its pages, the update banner
                         (the only package it has is Windows' web view, for the Map page)
 tests/MnMCompanion.Tests  the automatic tests

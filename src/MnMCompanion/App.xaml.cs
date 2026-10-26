@@ -17,6 +17,8 @@ public partial class App : Application
     private HistoryWindow? _breakdown;
     private HistoryData? _history;
     private UpdateController? _updates;
+    private CommunityClient? _community;
+    private SharingController? _sharing;
 
     private void OnStartup(object sender, StartupEventArgs e)
     {
@@ -65,6 +67,9 @@ public partial class App : Application
 
         _updates = new UpdateController(_settings);
         _history = new HistoryData(() => _store.LedgerRoot, OtherDb(args));
+        _community = new CommunityClient(AppVersion.Current());
+        _sharing = new SharingController(_settings, _history, _community);
+        CommunityAccess.Reader = new CommunityReader(_settings, _history, _community);
         _panel = new PanelWindow(_store, _settings, _updates, _history);
         MainWindow = _panel;
         _panel.Closed += (_, _) => Shutdown();
@@ -77,10 +82,14 @@ public partial class App : Application
         // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here)
         if (CommunityPolicy.ShouldAsk(_settings.ShareWithCommunity, !args.NoSharePrompt)) AskToShare();
         _updates.Start();
+        _sharing.Start();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        CommunityAccess.Reader = null;
+        _sharing?.Dispose();
+        _community?.Dispose();
         _history?.Dispose();
         _updates?.Dispose();
         base.OnExit(e);

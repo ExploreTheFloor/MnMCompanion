@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using MnMCompanion.Loot;
+using MnMCompanion.Update;
 
 namespace MnMCompanion;
 
@@ -19,6 +20,11 @@ internal sealed class DropRatesView : UserControl
     private bool _byItem;
     private MobDrops? _mob;
     private DroppedItem? _item;
+
+    // What the community's players have for the monster or item on show (asked for once each, only if the player shares their own totals)
+    private readonly Dictionary<string, CommunityDrops?> _communityDrops = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CommunityPrices?> _communityPrices = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _asking = new(StringComparer.OrdinalIgnoreCase);
 
     public DropRatesView(IReadOnlyList<MobDrops> mobs, ItemValues values)
     {
@@ -102,7 +108,11 @@ internal sealed class DropRatesView : UserControl
         panel.Children.Add(Title(m.Mob, m.Zone));
         panel.Children.Add(Line($"{m.Corpses:N0} looted corpses · {(m.Copper > 0 ? LootSummary.Coin((long)m.CopperEach) + " coin each" : "no coin")} · {m.ItemsEach:0.0} items each"));
         if (m.Few) panel.Children.Add(Line($"Only {m.Corpses:N0} corpses looted: the shares below are rough.", Palette.Gold));
-        panel.Children.Add(Table.Build("drop-mob-items", m.Drops, new Col<DropItem>[]
+        var community = CommunityZone(m);
+        var theirs = community?.Items.ToDictionary(i => i.Item, i => i, StringComparer.OrdinalIgnoreCase);
+        if (community is not null)
+            panel.Children.Add(Line($"Community: {community.Contributors:N0} players looted this monster ({community.Corpses:N0} corpses between them). The Community column is the middle of their shares, so one player can't swing it."));
+        var columns = new List<Col<DropItem>>
         {
             new("Item", 0, d => d.Item, d => d.Item, Right: false),
             new("Share", 80, d => Fmt.Pct(d.Share), d => d.Share, Tip: "Of this monster's looted corpses, how many gave the item"),
@@ -110,7 +120,11 @@ internal sealed class DropRatesView : UserControl
             new("Corpses", 110, d => $"{d.Corpses:N0} of {m.Corpses:N0}", d => d.Corpses),
             new("Units", 70, d => $"{d.Units:N0}", d => d.Units),
             new("Each", 90, d => Each(d.Item), d => _values.Of(d.Item).Each, Tip: "What a vendor pays for one"),
-        }, Build, defaultSort: 1, bar: d => d.Share, color: _ => Palette.Heal));
+        };
+        if (theirs is not null)
+            columns.Insert(2, new Col<DropItem>("Community", 96, d => theirs.TryGetValue(d.Item, out var c) ? Fmt.Pct(c.Share) : "—", d => theirs.TryGetValue(d.Item, out var c) ? c.Share : -1.0,
+                Tip: "The middle of the community players' shares of this monster's corpses that gave the item. — = no player has it"));
+        panel.Children.Add(Table.Build(theirs is null ? "drop-mob-items" : "drop-mob-items-community", m.Drops, columns.ToArray(), Build, defaultSort: 1, bar: d => d.Share, color: _ => Palette.Heal));
         return panel;
     }
 
@@ -132,6 +146,8 @@ internal sealed class DropRatesView : UserControl
         var panel = new StackPanel();
         panel.Children.Add(Title(item.Item, "comes off"));
         panel.Children.Add(Line($"{item.Corpses:N0} looted corpses in all · {item.Sources.Count:N0} kinds of monster · a vendor pays {Each(item.Item)}"));
+        if (CommunityPrice(item.Item) is { } sold)
+            panel.Children.Add(Line($"Community: vendors pay a middle price of {LootSummary.Coin(sold.Median)} for one ({LootSummary.Coin(sold.Low)} to {LootSummary.Coin(sold.High)} between players), from {sold.Contributors:N0} players."));
         panel.Children.Add(Table.Build("drop-item-sources", item.Sources, new Col<DropSource>[]
         {
             new("Monster", 0, s => s.Mob, s => s.Mob, Right: false),
@@ -141,6 +157,36 @@ internal sealed class DropRatesView : UserControl
             new("Corpses", 120, s => $"{s.Corpses:N0} of {s.OfCorpses:N0}{(s.Few ? " *" : "")}", s => s.Corpses),
         }, Build, defaultSort: 2, bar: s => s.Share, color: _ => Palette.Heal));
         return panel;
+    }
+
+    /// <summary>What the community has for this monster in its zone, or null (not sharing, nobody has it yet, or still asking: the view is built again when the answer arrives).</summary>
+    private CommunityDropZone? CommunityZone(MobDrops m)
+    {
+        if (CommunityAccess.Reader is not { Enabled: true } reader) return null;
+        if (_communityDrops.TryGetValue(m.Mob, out var answer)) return answer?.Zones.FirstOrDefault(z => z.Zone.Equals(m.Zone, StringComparison.OrdinalIgnoreCase));
+        if (_asking.Add("drop:" + m.Mob)) _ = AskDrops(reader, m);
+        return null;
+    }
+
+    private async Task AskDrops(CommunityReader reader, MobDrops m)
+    {
+        _communityDrops[m.Mob] = await reader.DropsAsync(m.Mob);
+        if (ReferenceEquals(_mob, m)) Build();
+    }
+
+    /// <summary>What the community says vendors pay for one of this item, or null.</summary>
+    private CommunityPrice? CommunityPrice(string item)
+    {
+        if (CommunityAccess.Reader is not { Enabled: true } reader) return null;
+        if (_communityPrices.TryGetValue(item, out var answer)) return answer?.Prices.FirstOrDefault(p => p.Direction == "sold");
+        if (_asking.Add("price:" + item)) _ = AskPrice(reader, item);
+        return null;
+    }
+
+    private async Task AskPrice(CommunityReader reader, string item)
+    {
+        _communityPrices[item] = await reader.PricesAsync(item);
+        if (_item is not null && _item.Item.Equals(item, StringComparison.OrdinalIgnoreCase)) Build();
     }
 
     private static FrameworkElement Title(string name, string sub)

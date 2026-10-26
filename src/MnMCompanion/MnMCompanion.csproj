@@ -10,7 +10,7 @@
     <RootNamespace>MnMCompanion</RootNamespace>
     <AssemblyName>MnMCompanion</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Companion for Monsters &amp; Memories</Product>
     <Description>Shows who looted what in Monsters &amp; Memories, from the game's own ledger files.</Description>
   </PropertyGroup>

@@ -34,5 +34,7 @@ public class CommunityPolicyTests
         Assert.Contains("Nothing leaves your PC", CommunityPolicy.Status(false, sendingConnected: true));
         Assert.Contains("isn't connected yet", CommunityPolicy.Status(true, sendingConnected: false));
         Assert.Contains("sent automatically", CommunityPolicy.Status(true, sendingConnected: true));
+        Assert.EndsWith("Last sent today.", CommunityPolicy.Status(true, sendingConnected: true, note: "Last sent today."));   // how the last send went
+        Assert.DoesNotContain("Last sent", CommunityPolicy.Status(false, sendingConnected: true, note: "Last sent today."));   // never said while the answer is No
     }
 }

@@ -49,6 +49,11 @@ public sealed class Settings
     /// </summary>
     public bool ShareWithCommunity { get; set; }
 
+    /// <summary>When the player's totals were last sent to the community service (UTC), a fingerprint of that file (so an unchanged one is not sent again), and a sentence about how the last try went.</summary>
+    public DateTime? LastSharedUtc { get; set; }
+    public string? SharedFingerprint { get; set; }
+    public string ShareNote { get; set; } = "";
+
     /// <summary>Look for a newer version on GitHub when the app starts and every few hours. It only ever offers; nothing installs by itself.</summary>
     public bool CheckForUpdates { get; set; } = true;
 
