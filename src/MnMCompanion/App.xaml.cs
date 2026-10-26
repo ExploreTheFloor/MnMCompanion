@@ -249,9 +249,39 @@ public partial class App : Application
                 }
                 else
                 {
+                    window.ShowPage(page);   // the window picks its page only once it has loaded; a picture can't wait for that
                     if (args.Period is { } period) window.SetPeriod(period);
                     window.DrawNow();
                     if (args.Tab is { } tab) window.PickTab(tab);
+                }
+                Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
+                window.Close();
+            }
+            finally
+            {
+                foreach (var file in new[] { scratch, scratch + "-wal", scratch + "-shm" })
+                    try { File.Delete(file); } catch (IOException) { }
+            }
+            return;
+        }
+        if (args.Share)
+        {
+            // The sharing window as a player who said Yes sees it, with what would be shared worked out from the ledger it was pointed at
+            var scratch = Path.Combine(Path.GetTempPath(), "mnmcompanion-snapshot-" + Guid.NewGuid().ToString("N") + ".db");
+            try
+            {
+                using var history = new HistoryData(() => _store.LedgerRoot, scratch, automatic: false);
+                history.RefreshNow();
+                var settings = new Settings { ReadOnly = true, ShareWithCommunity = true, ShareConsentSchema = Community.ContributionBuilder.Schema };
+                var window = new ShareWindow(history, settings, "MnMCompanion " + AppVersion.Show(AppVersion.Current()), ShareMode.Settings)
+                    { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = -20000, Top = 0 };
+                window.Show();
+                var until = DateTime.UtcNow.AddSeconds(15);
+                while (!window.PreviewReady && DateTime.UtcNow < until)
+                {
+                    Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Background);
+                    Thread.Sleep(30);
                 }
                 Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
@@ -270,7 +300,7 @@ public partial class App : Application
             // The same window the player sees, update button included; nothing is checked or downloaded
             var updates = new UpdateController(new Settings { ReadOnly = true });
             if (args.PreviewUpdate)
-                updates.Preview(new UpdateOffer(new Version(0, 2, 0), "v0.2.0", "Faster refresh, a Harvest tab and a few fixes.", UpdateService.ReleasesUrl, "", "", 0));
+                updates.Preview(new UpdateOffer(new Version(0, 4, 0), "v0.4.0", "A few fixes and a cleaner look.", UpdateService.ReleasesUrl, "", "", 0));
             // The saved history for the Vendor, Trades, Items and Harvest pages is built into a scratch file for the picture (not the player's own)
             var scratch = Path.Combine(Path.GetTempPath(), "mnmcompanion-snapshot-" + Guid.NewGuid().ToString("N") + ".db");
             try

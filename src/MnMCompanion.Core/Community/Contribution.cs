@@ -225,7 +225,7 @@ public static class ContributionBuilder
             $"{t.Monsters:N0} kinds of monster, from {t.Corpses:N0} looted corpses: what came off each, how often, and the coin in their purses",
             $"Running totals, counted by week (only which week, never a day or a time): {n.Corpses:N0} corpses looted, {n.Units:N0} items and {LootSummary.Coin(n.Copper)} taken from them, " +
                 $"{n.Harvests:N0} harvests, {n.Sold:N0} stacks sold for {LootSummary.Coin(n.SoldCopper)}, {n.Bought:N0} bought for {LootSummary.Coin(n.BoughtCopper)}, {n.Trades:N0} trades with players " +
-                $"({c.Counts.Weeks.Count:N0} weekly rows)",
+                $"({c.Counts.Weeks.Count:N0} weekly {(c.Counts.Weeks.Count == 1 ? "row" : "rows")})",
             $"{c.Prices.Count:N0} item prices by zone, from {t.Sales:N0} sales and {t.Purchases:N0} purchases",
             $"{c.Harvest.Count:N0} things gathered by zone, from {t.Harvests:N0} harvests",
             $"{t.Items:N0} item names with their game ids",

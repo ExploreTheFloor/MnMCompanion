@@ -41,6 +41,9 @@ internal sealed class ShareWindow : Window
     private Contribution? _contribution;
     private bool _loading = true;
 
+    /// <summary>The preview of what would be shared has been worked out and is on show (for drawing a picture of the window).</summary>
+    internal bool PreviewReady => _contribution is not null;
+
     /// <param name="yes">Ask mode only: called when the player presses Yes.</param>
     public ShareWindow(HistoryData history, Settings settings, string app, ShareMode mode, Action? yes = null)
     {
