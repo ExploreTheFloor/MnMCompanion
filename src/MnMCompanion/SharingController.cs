@@ -15,7 +15,7 @@ internal sealed class SharingController(Settings settings, HistoryData history, 
 {
     private readonly CancellationTokenSource _stop = new();
     private readonly string _app = "MnMCompanion " + AppVersion.Show(AppVersion.Current());
-    private DateTime? _notBefore;
+    private DateTime? _notBefore, _partNotBefore;
 
     public void Start() => _ = Loop();
 
@@ -32,51 +32,111 @@ internal sealed class SharingController(Settings settings, HistoryData history, 
 
     private async Task TickAsync(DateTime now)
     {
-        if (!SharePlan.Due(settings.Sharing, now, settings.LastSharedUtc, _notBefore)) return;
+        // Two documents, each with its own timing: the totals, and the NPC dialogue (a separate, smaller upload; nothing in it is checked against the totals)
+        bool coreDue = SharePlan.Due(settings.Sharing, now, settings.LastSharedUtc, _notBefore);
+        bool partDue = SharePlan.Due(settings.Sharing, now, settings.LastNpcSharedUtc, _partNotBefore);
+        if (!coreDue && !partDue) return;
         Contribution? file;
         try { file = await history.BuildContributionAsync(_app); }
         catch (Exception ex) when (ex is not OutOfMemoryException) { file = null; }
         if (file is null)
         {
-            _notBefore = now + SharePlan.AfterFailure;
+            if (coreDue) _notBefore = now + SharePlan.AfterFailure;
+            if (partDue) _partNotBefore = now + SharePlan.AfterFailure;
             return;
         }
 
+        // The service takes dialogue only for an id it already knows, so the totals go first; if they weren't sent this time the id is known from before
+        bool known = !coreDue || await SendTotalsAsync(file, now);
+        if (partDue && known) await SendDialogueAsync(file, now);
+    }
+
+    /// <summary>Sends the totals file if there is something new in it. True when the service now has this id's totals (sent, or unchanged since last time).</summary>
+    private async Task<bool> SendTotalsAsync(Contribution file, DateTime now)
+    {
         switch (SharePlan.Decide(file, settings.SharedFingerprint, now, settings.LastSharedUtc))
         {
             case ShareStep.NothingToShare:
                 _notBefore = now + TimeSpan.FromHours(1);
                 Remember("Nothing to share yet: loot, sell or gather something first.");
-                return;
+                return false;
             case ShareStep.Unchanged:
                 _notBefore = now + SharePlan.Every;
-                return;
+                return true;
         }
 
-        var result = await client.SendAsync(file.ToJson(), _stop.Token);
+        var result = await client.SendAsync(file.ToCoreJson(), _stop.Token);
         switch (result.Outcome)
         {
             case SendOutcome.Sent:
                 _notBefore = null;
                 Remember($"Last sent {DateTime.Now:g}.", sent: now, fingerprint: SharePlan.Fingerprint(file));
-                break;
+                return true;
             case SendOutcome.TooSoon:
                 _notBefore = now + (result.RetryAfter ?? SharePlan.Every);
                 Remember(result.Message);
-                break;
+                return true;   // too soon means the service already has this id's totals
             case SendOutcome.Busy:
                 _notBefore = now + (result.RetryAfter ?? TimeSpan.FromHours(1));
                 Remember(result.Message);
-                break;
+                return false;
             case SendOutcome.Refused:
                 _notBefore = now + SharePlan.AfterRefusal;
                 Remember(result.Message);
-                break;
+                return false;
             default:
                 _notBefore = now + SharePlan.AfterFailure;
                 Remember(result.Message);
+                return false;
+        }
+    }
+
+    /// <summary>Sends the NPC dialogue document if there is dialogue and it isn't the one last sent. What goes wrong is told in the note; what goes right needs no words.</summary>
+    private async Task SendDialogueAsync(Contribution file, DateTime now)
+    {
+        switch (SharePlan.DecidePart(file, settings.SharedNpcFingerprint, now, settings.LastNpcSharedUtc))
+        {
+            case ShareStep.NothingToShare:
+                _partNotBefore = now + TimeSpan.FromHours(1);
+                return;
+            case ShareStep.Unchanged:
+                _partNotBefore = now + SharePlan.Every;
+                return;
+        }
+
+        var result = await client.SendAsync(file.ToNpcPartJson(), _stop.Token);
+        switch (result.Outcome)
+        {
+            case SendOutcome.Sent:
+                _partNotBefore = null;
+                RememberDialogue(sent: now, fingerprint: SharePlan.NpcFingerprint(file));
+                break;
+            case SendOutcome.TooSoon:
+                _partNotBefore = now + (result.RetryAfter ?? SharePlan.Every);
+                break;
+            case SendOutcome.Busy:
+                _partNotBefore = now + (result.RetryAfter ?? TimeSpan.FromHours(1));
+                break;
+            case SendOutcome.Refused:
+                _partNotBefore = now + SharePlan.AfterRefusal;
+                Remember("The dialogue wasn't taken: " + result.Message);
+                break;
+            default:
+                _partNotBefore = now + SharePlan.AfterFailure;
                 break;
         }
+    }
+
+    /// <summary>Notes (on the window's thread) that the dialogue went and what it looked like, so an unchanged one isn't sent again.</summary>
+    private void RememberDialogue(DateTime sent, string fingerprint)
+    {
+        void Write()
+        {
+            settings.LastNpcSharedUtc = sent;
+            settings.SharedNpcFingerprint = fingerprint;
+            settings.Save();
+        }
+        if (Application.Current?.Dispatcher is { } d) d.Invoke(Write); else Write();
     }
 
     /// <summary>Notes what happened (and a successful send) in the settings, on the window's thread.</summary>

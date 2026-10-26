@@ -106,7 +106,7 @@ Details in [Sharing with the community data](../README.md#sharing-with-the-commu
 <img src="images/window-sharing.png" alt="The sharing window, listing exactly what would be shared" width="300" align="right">
 
 ### Can I see exactly what would be sent before I decide?
-Yes. **ⓘ → What does sharing include?** lists it in plain words (the picture on the right), and **Save a copy of my file…** writes the exact file so you can read it. From a command line,
+Yes. **ⓘ → What does sharing include?** lists it in plain words (the picture on the right), and **Save a copy of my file…** writes exactly what would be sent so you can read it (the totals, and what NPCs said to you as a second small file; they are sent as two small uploads, without indentation). From a command line,
 `MnMCompanion.exe --contribute <folder>` does the same.
 
 ### What is never sent?

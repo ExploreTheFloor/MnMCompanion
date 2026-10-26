@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using MnMCompanion.History;
 using MnMCompanion.Loot;
@@ -68,7 +70,37 @@ public sealed record Contribution(
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     };
 
+    // What is sent: no indentation (it was over 40% of every file) and no needless \u escapes (names with an apostrophe stay as they are)
+    private static readonly JsonSerializerOptions Compact = new(Options) { WriteIndented = false, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private static readonly JsonSerializerOptions Indented = new(Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    /// <summary>The whole contribution, indented, dialogue included (a picture of everything in it; what is sent is <see cref="ToCoreJson"/> and <see cref="ToNpcPartJson"/>).</summary>
     public string ToJson() => JsonSerializer.Serialize(this, Options);
+
+    /// <summary>
+    /// The file that is sent: everything but the NPC dialogue, which travels as a document of its own (<see cref="ToNpcPartJson"/>) so no single upload is large.
+    /// Compact by default; <paramref name="indented"/> is the same file laid out to be read (the saved copy).
+    /// </summary>
+    public string ToCoreJson(bool indented = false)
+    {
+        var node = JsonSerializer.SerializeToNode(this, Options)!.AsObject();
+        node.Remove("npcs");
+        return node.ToJsonString(indented ? Indented : Compact);
+    }
+
+    /// <summary>The NPC dialogue as a "part" document: the same id, app, day and licence, and the NPC lines, and nothing else.</summary>
+    public string ToNpcPartJson(bool indented = false)
+    {
+        var part = new JsonObject
+        {
+            ["schema"] = Schema, ["part"] = NpcPart, ["contributor"] = Contributor, ["app"] = App, ["generated"] = Generated, ["license"] = License,
+            ["npcs"] = JsonSerializer.SerializeToNode(Npcs, Options),
+        };
+        return part.ToJsonString(indented ? Indented : Compact);
+    }
+
+    /// <summary>The name of the one part there is: the NPC dialogue.</summary>
+    public const string NpcPart = "npcs";
 
     public static Contribution? FromJson(string json) => JsonSerializer.Deserialize<Contribution>(json, Options);
 }

@@ -64,7 +64,26 @@ public class SharePlanTests
     public void The_fingerprint_follows_what_the_file_says_and_not_when_it_was_made()
     {
         Assert.Equal(SharePlan.Fingerprint(File()), SharePlan.Fingerprint(File(day: new DateOnly(2026, 10, 28))));
-        Assert.NotEqual(SharePlan.Fingerprint(File()), SharePlan.Fingerprint(File(npcLines: ["Hello."])));
         Assert.Equal(64, SharePlan.Fingerprint(File()).Length);
+    }
+
+    [Fact]
+    public void The_dialogue_is_judged_on_its_own_because_it_is_sent_on_its_own()
+    {
+        var plain = File();
+        var talking = File(npcLines: ["Hello."]);
+        var other = File(npcLines: ["Goodbye."]);
+
+        // the totals' fingerprint doesn't change with the dialogue, and the dialogue's does
+        Assert.Equal(SharePlan.Fingerprint(plain), SharePlan.Fingerprint(talking));
+        Assert.NotEqual(SharePlan.NpcFingerprint(talking), SharePlan.NpcFingerprint(other));
+        Assert.Equal(SharePlan.NpcFingerprint(talking), SharePlan.NpcFingerprint(File(npcLines: ["Hello."], day: new DateOnly(2026, 10, 28))));   // not the day
+
+        var fingerprint = SharePlan.NpcFingerprint(talking);
+        Assert.Equal(ShareStep.NothingToShare, SharePlan.DecidePart(plain, null, Now, null));
+        Assert.Equal(ShareStep.Send, SharePlan.DecidePart(talking, null, Now, null));
+        Assert.Equal(ShareStep.Unchanged, SharePlan.DecidePart(talking, fingerprint, Now, Now.AddDays(-1)));
+        Assert.Equal(ShareStep.Send, SharePlan.DecidePart(other, fingerprint, Now, Now.AddDays(-1)));      // she said something new
+        Assert.Equal(ShareStep.Send, SharePlan.DecidePart(talking, fingerprint, Now, Now.AddDays(-8)));    // refreshed after a week
     }
 }

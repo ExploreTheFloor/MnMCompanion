@@ -439,7 +439,7 @@ It **never** contains your character names, any other player's name, individual 
 
 **Where it goes.** A Yes sends your totals to a small service run by the project, on Cloudflare's network. Like any website, it sees your internet address while you send; the project does not store it. The totals are only used to build the combined figures, which sharing players get back inside Companion. They are not published.
 
-**How it works.** With a Yes, Companion sends your totals a short while after it starts and then every few hours (the service takes one file per id every 6 hours, and a newer file replaces the older one), and not at all when nothing has changed since the last send. The sharing window (ⓘ → What does sharing include?) says when the last one went. Community figures appear in History → Loot → Drop rates: open a monster and a **Community** column shows the middle of the community players' shares, and an item's page shows what the community says vendors pay. A figure is shown only where at least 3 players stand behind it, so there may be none for a while. Nothing here is sent or asked for on a No. `MnMCompanion.exe --contribute <folder>` saves exactly the file that would be sent, so you can read it.
+**How it works.** With a Yes, Companion sends your totals a short while after it starts and then every few hours (the service takes one file per id every 6 hours, and a newer file replaces the older one), and not at all when nothing has changed since the last send. The sharing window (ⓘ → What does sharing include?) says when the last one went. Community figures appear in History → Loot → Drop rates: open a monster and a **Community** column shows the middle of the community players' shares, and an item's page shows what the community says vendors pay. A figure is shown only where at least 3 players stand behind it, so there may be none for a while. Nothing here is sent or asked for on a No. `MnMCompanion.exe --contribute <folder>` saves exactly what would be sent (the totals, and what NPCs said to you as a second small file), laid out so you can read it.
 
 ---
 
@@ -516,7 +516,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items or Harvest). |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
-| `--contribute <folder or file>` | Save the file that sharing would send (named by your random id) and quit, without a window. |
+| `--contribute <folder or file>` | Save what sharing would send (named by your random id: the totals, and what NPCs said to you as a second `.npcs.json` file) and quit, without a window. |
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
 | `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
 | `--snapshot <png> [--view Value\|Items\|Mobs\|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]` | Draw the panel to a picture and quit (how the pictures in this README were made). |

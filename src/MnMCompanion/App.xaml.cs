@@ -177,8 +177,15 @@ public partial class App : Application
             // A folder (or a name with no .json) gets the file inside it, named by the contributor id as the data repository wants
             if (Directory.Exists(path) || !path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) path = Path.Combine(path, contribution.Contributor + ".json");
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, contribution.ToJson());
-            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  wrote {path} ({new FileInfo(path).Length:N0} bytes)");
+            // Exactly what sharing sends, laid out to be read: the totals, and (when there is any) the NPC dialogue as its own second file
+            File.WriteAllText(path, contribution.ToCoreJson(indented: true));
+            lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  wrote {path} ({new FileInfo(path).Length:N0} bytes; sent without the indentation it is {contribution.ToCoreJson().Length:N0})");
+            if (contribution.Npcs.Count > 0)
+            {
+                var partPath = Path.ChangeExtension(path, null) + ".npcs.json";
+                File.WriteAllText(partPath, contribution.ToNpcPartJson(indented: true));
+                lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  wrote {partPath} ({new FileInfo(partPath).Length:N0} bytes; sent compact it is {contribution.ToNpcPartJson().Length:N0})");
+            }
             lines.AddRange(Community.ContributionBuilder.Describe(contribution).Select(l => "  " + l));
         }
         catch (Exception ex)

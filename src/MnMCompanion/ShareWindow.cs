@@ -210,14 +210,17 @@ internal sealed class ShareWindow : Window
         if (dialog.ShowDialog(this) != true) return;
         try
         {
-            File.WriteAllText(dialog.FileName, _contribution.ToJson());
+            File.WriteAllText(dialog.FileName, _contribution.ToCoreJson(indented: true));
+            // The dialogue is sent as a second, separate file, so the copy has it beside the first
+            if (_contribution.Npcs.Count > 0) File.WriteAllText(Path.ChangeExtension(dialog.FileName, null) + ".npcs.json", _contribution.ToNpcPartJson(indented: true));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             MessageBox.Show(this, "The file couldn't be saved: " + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        _saved.Text = $"Saved to {dialog.FileName}. It's only a copy to read; sharing is the Yes | No switch above.";
+        _saved.Text = $"Saved to {dialog.FileName}" + (_contribution.Npcs.Count > 0 ? $" and {Path.GetFileName(Path.ChangeExtension(dialog.FileName, null))}.npcs.json (what NPCs said to you, sent as a second small file)" : "")
+            + ". It's only a copy to read; sharing is the Yes | No switch above.";
         _saved.Visibility = Visibility.Visible;
     }
 

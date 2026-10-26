@@ -52,5 +52,17 @@ public static class SharePlan
     /// A fingerprint of what the file says, leaving out the day it was made, so a file that only differs by its date counts as unchanged.
     /// </summary>
     public static string Fingerprint(Contribution file) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes((file with { Generated = "" }).ToJson())));
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes((file with { Generated = "" }).ToCoreJson())));
+
+    /// <summary>The same for the NPC dialogue, which is sent as its own document and so is judged unchanged on its own.</summary>
+    public static string NpcFingerprint(Contribution file) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes((file with { Generated = "" }).ToNpcPartJson())));
+
+    /// <summary>What to do with the dialogue document: nothing to send when there are no NPC lines, nothing new when it is the one last sent, else send it.</summary>
+    public static ShareStep DecidePart(Contribution file, string? lastFingerprint, DateTime now, DateTime? lastSent)
+    {
+        if (file.Npcs.Count == 0) return ShareStep.NothingToShare;
+        if (lastFingerprint is not null && lastFingerprint == NpcFingerprint(file) && lastSent is { } sent && now - sent < Refresh) return ShareStep.Unchanged;
+        return ShareStep.Send;
+    }
 }
