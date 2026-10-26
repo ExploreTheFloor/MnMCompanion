@@ -518,6 +518,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
 | `--contribute <folder or file>` | Save what sharing would send (named by your random id: the totals, and what NPCs said to you as a second `.npcs.json` file) and quit, without a window. |
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
+| `--diagnose [--report <file>]` | Write a report of what this copy sees of where it runs (is it under Wine or Proton, where it looked for the game's data and what it found, whether a window can be drawn), with counts but no names and the user name in paths hidden, and quit. For testing on Linux. |
 | `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
 | `--snapshot <png> [--view Value\|Items\|Mobs\|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]` | Draw the panel to a picture and quit (how the pictures in this README were made). |
 | `--snapshot <png> --breakdown [--page Loot\|Trades\|Vendors\|Changes\|Harvest] [--member <name>] [--tab <tab>] [--drop "<monster>"] [--size WxH]` | The same for the History window: any page, any tab, or one monster's drop table. |

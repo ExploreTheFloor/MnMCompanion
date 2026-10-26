@@ -157,6 +157,11 @@ internal sealed class LootPanel : Border, IMiniPage
         {
             _body.Children.Add(Line("No Monsters and Memories ledger found.", Palette.Text));
             _body.Children.Add(Line($"Looked in {_store.LedgerRoot}. Use the ⓘ menu in the title bar to choose where the game keeps it.", Palette.Muted));
+            if (Ledger.GameFolderFinder.RunningUnderWine())
+                _body.Children.Add(Line("This looks like Wine or Proton: the game keeps its data in its own prefix, not this one, and Companion looked through the usual ones " +
+                    "(Steam, UMU, Lutris) when it started. Choose it by hand from ⓘ → Choose the game's data folder…: it is the folder called “Niche Worlds Cult” inside the game's prefix, reached from here as " +
+                    @"Z:\home\<you>\…\pfx\drive_c\users\steamuser\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories. " +
+                    "In a terminal, find ~/.local/share/Steam/steamapps/compatdata -type d -name \"Niche Worlds Cult\" shows where.", Palette.Muted));
             return;
         }
         if (_store.Selected is { HasLedger: false } fresh && _store.FileCount == 0)

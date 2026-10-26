@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using MnMCompanion.Community;
 using MnMCompanion.Data;
+using MnMCompanion.Ledger;
 using MnMCompanion.Loot;
 using MnMCompanion.Update;
 
@@ -31,10 +32,16 @@ public partial class App : Application
         // so what it reads can never end up in the player's own database
         var other = args.Ledger is null ? null : LedgerDb.OtherFolder(args.Ledger);
         if (other is not null) _settings.ReadOnly = true;
-        _store = new LootStore(other ?? Settings.Folder, args.Ledger ?? _settings.LedgerRoot);
+        _store = new LootStore(other ?? Settings.Folder, args.Ledger ?? FindUnderWine(_settings) ?? _settings.LedgerRoot);
         if (args.About)
         {
             About(args);
+            Shutdown();
+            return;
+        }
+        if (args.Diagnose)
+        {
+            Diagnose(args);
             Shutdown();
             return;
         }
@@ -93,6 +100,87 @@ public partial class App : Application
         _history?.Dispose();
         _updates?.Dispose();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// A Linux player (Wine or Proton) has the game in another prefix, so the usual place is empty. When nothing is there and no working folder was chosen,
+    /// look through the other prefixes through Wine's Z: drive and remember what is found (a folder the player chose that still works is left alone).
+    /// </summary>
+    private static string? FindUnderWine(Settings settings)
+    {
+        var found = GameFolderFinder.Choose(settings.LedgerRoot, root => LedgerLocator.Find(root).Count, LedgerLocator.Find().Count, GameFolderFinder.RunningUnderWine(),
+            () => GameFolderFinder.LinuxRoot() is { } linux ? GameFolderFinder.Best(linux)?.Root : null);
+        if (found is not null && !settings.ReadOnly)
+        {
+            settings.LedgerRoot = found;
+            settings.Save();
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// <c>--diagnose</c>: writes what this program sees of where it is running (is it under Wine or Proton, where it looked for the game's data and what it found,
+    /// whether a window can be shown and drawn, whether the map's web view exists) to a report a tester can post, and quits. Counts only: no names, and the
+    /// user name in a path is hidden.
+    /// </summary>
+    private void Diagnose(Args args)
+    {
+        var report = args.Report ?? Path.Combine(Settings.Folder, "diagnose-report.txt");
+        string text;
+        try
+        {
+            var names = new[] { "WINEPREFIX", "STEAM_COMPAT_DATA_PATH", "PROTON_VERSION", "WINELOADERNOEXEC" };
+            var env = names.Select(n => (Name: n, Value: Environment.GetEnvironmentVariable(n))).Select(e => (e.Name, Value: string.IsNullOrEmpty(e.Value) ? null : e.Value)).ToList();
+            var signs = env.Where(e => e.Value is not null).Select(e => e.Name + " is set").ToList();
+            if (File.Exists(@"Z:\proc\version")) signs.Add(@"Z:\proc\version can be read");
+            var linux = GameFolderFinder.LinuxRoot();
+            var chosen = _settings.LedgerRoot;
+            text = GameFolderFinder.Report(new DiagnoseFacts(
+                AppVersion.Show(AppVersion.Current()), System.Runtime.InteropServices.RuntimeInformation.OSDescription + " (reports " + Environment.OSVersion.VersionString + ")",
+                System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription, GameFolderFinder.RunningUnderWine(), signs.Count == 0 ? "no signs" : string.Join(", ", signs), env, linux,
+                _store.LedgerRoot, LedgerLocator.DefaultRoot(), LedgerLocator.Find().Count, chosen, chosen is null ? 0 : LedgerLocator.Find(chosen).Count,
+                linux is null ? [] : GameFolderFinder.Find(linux), WindowTest(), WebViewState(), Settings.Folder));
+        }
+        catch (Exception ex)
+        {
+            text = "the diagnosis itself failed: " + ex.GetType().Name + ": " + GameFolderFinder.Mask(ex.Message);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
+        File.WriteAllText(report, text);
+    }
+
+    /// <summary>Shows a small window far off screen and draws it to a picture, which is the least a Wine or Proton run has to manage.</summary>
+    private string WindowTest()
+    {
+        var png = Path.Combine(Path.GetTempPath(), "mnmcompanion-test-" + Guid.NewGuid().ToString("N") + ".png");
+        try
+        {
+            var window = new Window { Width = 220, Height = 90, Left = -20000, Top = 0, ShowInTaskbar = false, ShowActivated = false, Content = new System.Windows.Controls.TextBlock { Text = "Companion", Margin = new Thickness(12) } };
+            window.Show();
+            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            RenderVisual(window, Math.Max(1, (int)window.ActualWidth), Math.Max(1, (int)window.ActualHeight), png);
+            window.Close();
+            return new FileInfo(png).Length > 0 ? "a window could be shown and drawn" : "a window was shown but the picture of it was empty";
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return "failed: " + ex.GetType().Name + ": " + GameFolderFinder.Mask(ex.Message);
+        }
+        finally { try { File.Delete(png); } catch (IOException) { } }
+    }
+
+    /// <summary>Whether Microsoft's web view (the map page's) exists here; under Wine it normally doesn't, and the map page then offers the browser instead.</summary>
+    private static string WebViewState()
+    {
+        try
+        {
+            var version = Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString();
+            return string.IsNullOrEmpty(version) ? "not installed (the map page offers to open the browser instead)" : "installed, version " + version;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return "not available (" + ex.GetType().Name + "); the map page offers to open the browser instead";
+        }
     }
 
     /// <summary><c>--about</c>: writes the version, whether this copy can update itself, and where its files are, to a report file and quits.</summary>
@@ -364,7 +452,7 @@ public partial class App : Application
 
 /// <summary>Command line: <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--size WxH]</c> for the History window.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false)
 {
     public static Args Parse(string[] args)
     {
@@ -373,6 +461,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         if (Value("--size") is { } size && size.Split('x') is [var sw, var sh] && int.TryParse(sw, out var pw) && int.TryParse(sh, out var ph)) (w, h) = (pw, ph);
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
-            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"));
+            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"), args.Contains("--diagnose"));
     }
 }
