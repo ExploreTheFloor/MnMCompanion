@@ -1,0 +1,23 @@
+name: CI
+
+# Builds Companion and runs its tests on every push and pull request. Nothing is published from here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Build
+        run: dotnet build MnMCompanion.sln --nologo -v q -c Release
+      - name: Test
+        run: dotnet test MnMCompanion.sln --nologo -v q -c Release --no-build

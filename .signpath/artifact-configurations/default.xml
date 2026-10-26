@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What SignPath signs: the one program inside the zip that .github/workflows/release.yml uploads. Paste this into the project's
+  artifact configuration in SignPath (or let SignPath read it from the repository). It signs MnMCompanion.exe with Authenticode and
+  refuses an exe whose product name or version is not the one expected; ${version} is passed in by the workflow from <Version>.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" />
+  </parameters>
+  <zip-file>
+    <pe-file path="MnMCompanion.exe" product-name="Companion for Monsters &amp; Memories" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

@@ -1,0 +1,141 @@
+name: Release
+
+# Builds Companion from a version tag, has SignPath sign it (once signing is switched on, see below), and publishes the release the
+# in-app updater reads: MnMCompanion.exe and MnMCompanion.exe.sha256.
+#
+# To release: raise <Version> in src/MnMCompanion/MnMCompanion.csproj, commit, push, then push a tag with the same number:
+#     git tag v0.3.0 && git push origin v0.3.0
+#
+# Signing is OFF until the repository variable SIGNING_ENABLED is true (Settings > Secrets and variables > Actions > Variables).
+# Set that only after SignPath has approved the project and these exist:
+#     variables  SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG, SIGNPATH_SIGNING_POLICY_SLUG   (identifiers, not secrets)
+#     secret     SIGNPATH_API_TOKEN
+# With signing on, the release is published only if SignPath signed the exe (after a person approves the request in SignPath) and the
+# signature checks out; with signing off, the exe is published unsigned, as the local scripts\build-release.ps1 does.
+#
+# Every job runs on a GitHub-hosted runner, which SignPath requires of open source projects. The actions are pinned to commits.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+  actions: read   # SignPath reads the job's details to check where the build came from
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: The tag must be the version in the project
+        id: version
+        shell: pwsh
+        run: |
+          $project = 'src/MnMCompanion/MnMCompanion.csproj'
+          $version = [string](([xml](Get-Content $project -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "The <Version> in $project should look like 1.2.3 (found '$version')." }
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "The tag is $env:GITHUB_REF_NAME but the project's <Version> is $version." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test MnMCompanion.sln --nologo -v q -c Release
+
+      - name: Publish the single-file program
+        run: >
+          dotnet publish src/MnMCompanion/MnMCompanion.csproj -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None
+          -o dist --nologo -v q
+
+      - name: The program must start and report this version, and carry it in its file properties
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path dist/MnMCompanion.exe
+          $about = Join-Path $env:RUNNER_TEMP 'about-check.txt'
+          Start-Process $exe -ArgumentList '--about', '--report', "`"$about`"" -Wait
+          $text = if (Test-Path $about) { Get-Content $about -Raw } else { '' }
+          if ($text -notmatch "Companion $([regex]::Escape('${{ steps.version.outputs.version }}'))") { throw "The built program doesn't report version ${{ steps.version.outputs.version }} (got: $text)." }
+          $info = (Get-Item $exe).VersionInfo
+          if ($info.ProductVersion -ne '${{ steps.version.outputs.version }}') { throw "The program's ProductVersion is '$($info.ProductVersion)', not ${{ steps.version.outputs.version }}." }
+          "$($info.ProductName) $($info.ProductVersion), $([math]::Round((Get-Item $exe).Length / 1MB, 1)) MB"
+
+      - name: Keep the unsigned program for signing
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-MnMCompanion
+          path: dist/MnMCompanion.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  sign:
+    needs: build
+    if: ${{ vars.SIGNING_ENABLED == 'true' }}
+    runs-on: windows-latest
+    timeout-minutes: 300   # the request waits for a person's approval in SignPath
+    steps:
+      - name: Ask SignPath to sign it
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion-timeout-in-seconds: 14400
+          output-artifact-directory: signed
+          parameters: |
+            version: "${{ needs.build.outputs.version }}"
+
+      - name: The signature must be valid
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature signed/MnMCompanion.exe
+          "$($sig.Status): $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') { throw "The signed program's signature is $($sig.Status): $($sig.StatusMessage)" }
+
+      - name: Keep the signed program
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-MnMCompanion
+          path: signed/MnMCompanion.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: [build, sign]
+    # unsigned only when signing is off; with signing on, nothing is published unless it was signed
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.sign.result == 'success' || (needs.sign.result == 'skipped' && vars.SIGNING_ENABLED != 'true')) }}
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.sign.result == 'success' && 'signed-MnMCompanion' || 'unsigned-MnMCompanion' }}
+          path: release
+
+      - name: Checksum and release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SIGNED: ${{ needs.sign.result == 'success' }}
+        run: |
+          $exe = Join-Path release 'MnMCompanion.exe'
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  MnMCompanion.exe" | Set-Content "$exe.sha256" -Encoding ascii
+          $notes = "Companion $env:VERSION`n`nDownload **MnMCompanion.exe** and run it; nothing needs installing. To check the download: ``(Get-FileHash MnMCompanion.exe).Hash`` should equal the digits in **MnMCompanion.exe.sha256**."
+          if ($env:SIGNED -eq 'true') { $notes += "`n`nFree code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)." }
+          gh release create $env:GITHUB_REF_NAME $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --title "Companion $env:VERSION" --notes $notes --generate-notes
+          if ($LASTEXITCODE) { throw 'Creating the GitHub release failed.' }
