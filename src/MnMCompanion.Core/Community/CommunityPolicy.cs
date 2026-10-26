@@ -17,6 +17,16 @@ public static class CommunityPolicy
     public static bool MaySend(bool sharing) => sharing;
 
     /// <summary>
+    /// Whether a player's Yes still covers what the app would send. A Yes is given to the file layout the player was shown
+    /// (<see cref="ContributionBuilder.Schema"/>); a Yes from before a layout that carries more than they saw (no layout recorded, so 1)
+    /// is not a Yes to the new one, and the app asks again, sending and using community data in the meantime as it does on a No.
+    /// </summary>
+    public static bool Consented(bool yes, int answeredSchema, int currentSchema) => yes && Math.Max(1, answeredSchema) >= currentSchema;
+
+    /// <summary>Whether a Yes was given and now needs renewing because the file has grown since: the question then says why.</summary>
+    public static bool NeedsRenewal(bool yes, int answeredSchema, int currentSchema) => yes && !Consented(yes, answeredSchema, currentSchema);
+
+    /// <summary>
     /// Whether to ask at start-up: only while the answer is No, and never for a run with no window (a picture, a report, a headless
     /// export), which can't ask anyone.
     /// </summary>

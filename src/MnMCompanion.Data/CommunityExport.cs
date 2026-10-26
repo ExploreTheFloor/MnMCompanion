@@ -18,7 +18,7 @@ public static class CommunityExport
     {
         var store = new HistoryStore(db);
         return ContributionBuilder.Build(store.OwnLoot(), store.VendorAll(), store.HarvestsAll(), store.OwnNames(),
-            db.ContributorId(), app, generated ?? DateOnly.FromDateTime(DateTime.Now), store.OwnNpcDialogue());
+            db.ContributorId(), app, generated ?? DateOnly.FromDateTime(DateTime.Now), store.OwnNpcDialogue(), store.Trades(null, null));
     }
 }
 

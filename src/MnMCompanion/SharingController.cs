@@ -5,7 +5,7 @@ using MnMCompanion.Update;
 namespace MnMCompanion;
 
 /// <summary>
-/// Sends a sharing player's totals to the project's community service, and only if they answered Yes (<see cref="Settings.ShareWithCommunity"/>).
+/// Sends a sharing player's totals to the project's community service, and only if they answered Yes to the file as it is now (<see cref="Settings.Sharing"/>).
 /// It looks every 30 seconds whether it is time (<see cref="SharePlan"/>): the first send comes shortly after start, then one every few
 /// hours (the service takes one file per id every 6), a file that has not changed since the last send is not sent again, and after a
 /// refusal or a failure it waits instead of trying again at once. It never throws and never blocks the window; what happened last is a
@@ -32,7 +32,7 @@ internal sealed class SharingController(Settings settings, HistoryData history, 
 
     private async Task TickAsync(DateTime now)
     {
-        if (!SharePlan.Due(settings.ShareWithCommunity, now, settings.LastSharedUtc, _notBefore)) return;
+        if (!SharePlan.Due(settings.Sharing, now, settings.LastSharedUtc, _notBefore)) return;
         Contribution? file;
         try { file = await history.BuildContributionAsync(_app); }
         catch (Exception ex) when (ex is not OutOfMemoryException) { file = null; }

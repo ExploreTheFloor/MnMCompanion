@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using MnMCompanion.Community;
 
 namespace MnMCompanion;
 
@@ -48,6 +49,28 @@ public sealed class Settings
     /// asked again every time the app starts, and community data isn't used.
     /// </summary>
     public bool ShareWithCommunity { get; set; }
+
+    /// <summary>
+    /// The file layout (<see cref="ContributionBuilder.Schema"/>) the player's Yes was given to; 0 where it was never recorded, which is a Yes from
+    /// layout 1. A Yes counts only for the layout the player was shown: when the shared file grows, everyone is asked again
+    /// (<see cref="Sharing"/> is false until they say Yes to the new one).
+    /// </summary>
+    public int ShareConsentSchema { get; set; }
+
+    /// <summary>Whether sharing is on: a Yes that covers the file as it is now. Everything that sends, asks or uses community data goes by this, not by the raw answer.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Sharing => CommunityPolicy.Consented(ShareWithCommunity, ShareConsentSchema, ContributionBuilder.Schema);
+
+    /// <summary>A Yes given to an older file layout: sharing is paused and the question says what has been added.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ConsentNeedsRenewal => CommunityPolicy.NeedsRenewal(ShareWithCommunity, ShareConsentSchema, ContributionBuilder.Schema);
+
+    /// <summary>Records the player's answer: a Yes is a Yes to the file as it is now.</summary>
+    public void SetSharing(bool yes)
+    {
+        ShareWithCommunity = yes;
+        if (yes) ShareConsentSchema = ContributionBuilder.Schema;
+    }
 
     /// <summary>When the player's totals were last sent to the community service (UTC), a fingerprint of that file (so an unchanged one is not sent again), and a sentence about how the last try went.</summary>
     public DateTime? LastSharedUtc { get; set; }

@@ -80,7 +80,7 @@ public partial class App : Application
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
         if (args.Share) OpenShare();
         // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here)
-        if (CommunityPolicy.ShouldAsk(_settings.ShareWithCommunity, !args.NoSharePrompt)) AskToShare();
+        if (CommunityPolicy.ShouldAsk(_settings.Sharing, !args.NoSharePrompt)) AskToShare();
         _updates.Start();
         _sharing.Start();
     }
@@ -145,7 +145,7 @@ public partial class App : Application
     private void AskToShare()
     {
         var prompt = new ShareWindow(_history!, _settings, "MnMCompanion " + AppVersion.Show(AppVersion.Current()), ShareMode.Ask,
-            yes: () => { _settings.ShareWithCommunity = true; _settings.Save(); }) { Owner = _panel };
+            yes: () => { _settings.SetSharing(true); _settings.Save(); }) { Owner = _panel };
         prompt.Show();
         prompt.Activate();
     }

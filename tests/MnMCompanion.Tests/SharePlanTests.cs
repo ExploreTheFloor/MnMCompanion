@@ -63,7 +63,7 @@ public class SharePlanTests
     [Fact]
     public void The_fingerprint_follows_what_the_file_says_and_not_when_it_was_made()
     {
-        Assert.Equal(SharePlan.Fingerprint(File()), SharePlan.Fingerprint(File(day: new DateOnly(2030, 1, 1))));
+        Assert.Equal(SharePlan.Fingerprint(File()), SharePlan.Fingerprint(File(day: new DateOnly(2026, 10, 28))));
         Assert.NotEqual(SharePlan.Fingerprint(File()), SharePlan.Fingerprint(File(npcLines: ["Hello."])));
         Assert.Equal(64, SharePlan.Fingerprint(File()).Length);
     }

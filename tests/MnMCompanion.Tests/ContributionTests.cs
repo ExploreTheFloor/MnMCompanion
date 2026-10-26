@@ -130,7 +130,7 @@ public class ContributionTests
         Assert.DoesNotContain("ref_", json);
         Assert.Contains("\"generated\": \"2026-10-25\"", json);
         Assert.Contains("\"license\": \"CC-BY-NC-SA-4.0\"", json);
-        Assert.Contains("\"schema\": 1", json);
+        Assert.Contains("\"schema\": 2", json);
         Assert.Contains($"\"contributor\": \"{Id}\"", json);
     }
 
@@ -157,7 +157,7 @@ public class ContributionTests
 
         Assert.Empty(c.Drops);
         Assert.Equal(new ContributionTotals(0, 0, 0, 0, 0, 0), c.Totals);
-        Assert.Equal(5, ContributionBuilder.Describe(c).Count);   // monsters, prices, harvests, item names, NPC lines
+        Assert.Equal(6, ContributionBuilder.Describe(c).Count);   // monsters, running totals, prices, harvests, item names, NPC lines
         Assert.Empty(c.Npcs);
     }
 

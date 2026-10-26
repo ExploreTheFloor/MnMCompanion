@@ -70,6 +70,9 @@ internal sealed class ShareWindow : Window
         });
         _stack.Children.Add(Text("Players pool their own totals into one combined database of drop rates, vendor prices and gathering yields, kept privately by the project and never published. " +
             "Saying Yes adds yours for you, automatically, and lets you use what everyone has shared.", 10, Palette.Muted));
+        if (settings.ConsentNeedsRenewal)
+            _stack.Children.Add(Text("You said Yes before. Companion now also shares running totals counted by week (corpses looted, coin, items, gathering, sales and trades), " +
+                "so sharing is paused until you say Yes again. \"What is shared\" lists them.", 10, Palette.Text));
         _stack.Children.Add(Bullet("Yes", "your totals are shared for you, and you can use the community data."));
         _stack.Children.Add(Bullet("No", mode == ShareMode.Ask
             ? "nothing leaves your PC and the community data stays off. You'll be asked again next time."
@@ -111,7 +114,7 @@ internal sealed class ShareWindow : Window
         foreach (var line in new[]
         {
             "Your character names, or any other player's name",
-            "Individual loot lines, trades, or when anything happened (only the day)",
+            "Individual loot lines or trades, or when anything happened (only the day the file was made, and the weeks the running totals fall in)",
             "Anything from other players' ledgers: only what you looted, sold and gathered",
             "Your character's name in what NPCs said to you (it is replaced), or when they said it",
         })
@@ -143,13 +146,13 @@ internal sealed class ShareWindow : Window
             var rb = new RadioButton
             {
                 Content = new TextBlock { Text = text, Margin = new Thickness(30, 0, 30, 0) }, Style = (Style)Ui.Theme["Segment"],
-                GroupName = "ShareChoice", IsChecked = _settings.ShareWithCommunity == value, FontSize = 13,
+                GroupName = "ShareChoice", IsChecked = _settings.Sharing == value, FontSize = 13,
             };
             bool answer = value;
             rb.Checked += (_, _) =>
             {
                 if (_loading) return;
-                _settings.ShareWithCommunity = answer;
+                _settings.SetSharing(answer);
                 _settings.Save();
                 ShowStatus();
             };
@@ -160,7 +163,7 @@ internal sealed class ShareWindow : Window
 
     private void ShowStatus()
     {
-        bool on = _settings.ShareWithCommunity;
+        bool on = _settings.Sharing;
         _status.Text = CommunityPolicy.Status(on, sendingConnected: true, _settings.ShareNote);
         _status.Foreground = on ? Palette.Heal : Palette.Muted;
     }

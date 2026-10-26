@@ -30,6 +30,27 @@ public sealed record ContributionNpc(string Name, IReadOnlyList<string> Lines);
 public sealed record ContributionTotals(int Monsters, int Corpses, int Sales, int Purchases, int Harvests, int Items);
 
 /// <summary>
+/// One row of the running counters (schema 2): the same loot, sales and gathering as the lists, counted instead of listed.
+/// <see cref="Week"/> is the Monday (UTC, yyyy-MM-dd) that starts the week the row counts, or null for the "before" row that holds everything older.
+/// <see cref="Corpses"/> is the kill count: the ledger records no kills, so it is the corpses the player looted. Coin is copper.
+/// </summary>
+public sealed record CountRow(
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Week,
+    long Corpses, long Purses, long Copper, long Units, long Harvests, long HarvestUnits,
+    long Sold, long SoldCopper, long Bought, long BoughtCopper, long Trades)
+{
+    [JsonIgnore]
+    public bool IsEmpty => Corpses == 0 && Purses == 0 && Copper == 0 && Units == 0 && Harvests == 0 && HarvestUnits == 0
+        && Sold == 0 && SoldCopper == 0 && Bought == 0 && BoughtCopper == 0 && Trades == 0;
+}
+
+/// <summary>
+/// The running counters: at most <see cref="ContributionBuilder.MaxWeeks"/> weekly rows and one row for everything before them, so the
+/// file stops growing after a year and never holds one row per event.
+/// </summary>
+public sealed record ContributionCounts(CountRow Before, IReadOnlyList<CountRow> Weeks);
+
+/// <summary>
 /// What a player shares with the community data: aggregates of their OWN loot, sales and gathering, and nothing else. It holds no
 /// character or player name, no individual rows, no trade partners and no times beyond the day it was made. <see cref="Contributor"/>
 /// is a random id made on this PC (not derived from anything about the player), so sending the file again replaces what they sent
@@ -38,7 +59,7 @@ public sealed record ContributionTotals(int Monsters, int Corpses, int Sales, in
 public sealed record Contribution(
     int Schema, string Contributor, string App, string Generated, string License, ContributionTotals Totals,
     IReadOnlyList<ContributionDrop> Drops, IReadOnlyList<ContributionPrice> Prices, IReadOnlyList<ContributionHarvest> Harvest, IReadOnlyList<ContributionName> Items,
-    IReadOnlyList<ContributionNpc> Npcs)
+    IReadOnlyList<ContributionNpc> Npcs, ContributionCounts Counts)
 {
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -54,8 +75,14 @@ public sealed record Contribution(
 
 public static class ContributionBuilder
 {
-    /// <summary>The version of the file layout; the data repository refuses layouts it doesn't know.</summary>
-    public const int Schema = 1;
+    /// <summary>
+    /// The version of the file layout; the community service refuses layouts it doesn't know. 2 added the running counters (<see cref="CountRow"/>).
+    /// A player's Yes is tied to the layout they saw (<see cref="CommunityPolicy.Consented"/>), so raising this asks everyone again.
+    /// </summary>
+    public const int Schema = 2;
+
+    /// <summary>The weekly rows of the counters: the current week and the 52 before it. Older weeks are folded into the "before" row.</summary>
+    public const int MaxWeeks = 53;
 
     /// <summary>The licence a contributor gives their file under, stated in the file itself.</summary>
     public const string License = "CC-BY-NC-SA-4.0";
@@ -72,9 +99,11 @@ public static class ContributionBuilder
     /// social file and would otherwise be counted once per member.
     /// </summary>
     public static Contribution Build(IEnumerable<LootEvent> ownLoot, IEnumerable<VendorRow> vendor, IEnumerable<HarvestRow> harvest,
-        IEnumerable<ContributionName> names, string contributor, string app, DateOnly generated, IEnumerable<ContributionNpc>? npcs = null)
+        IEnumerable<ContributionName> names, string contributor, string app, DateOnly generated, IEnumerable<ContributionNpc>? npcs = null,
+        IEnumerable<TradeRow>? trades = null)
     {
-        var drops = DropRates.ByMob(ownLoot)
+        var loot = ownLoot as IReadOnlyList<LootEvent> ?? ownLoot.ToList();
+        var drops = DropRates.ByMob(loot)
             .Where(m => Ok(m.Mob))
             .Select(m => new ContributionDrop(Clean(m.Mob), Clean(m.Zone), m.Corpses, m.WithPurse, m.Copper,
                 m.Drops.Where(d => Ok(d.Item)).Select(d => new ContributionItem(Clean(d.Item), d.Corpses, d.Units)).ToList()))
@@ -100,7 +129,76 @@ public static class ContributionBuilder
                     .Order(StringComparer.Ordinal).Take(MaxLinesPerNpc).ToList()))
             .Where(n => n.Lines.Count > 0).OrderBy(n => n.Name, StringComparer.OrdinalIgnoreCase).Take(MaxNpcs).ToList();
 
-        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue);
+        // The counters count exactly what the lists above list (the same corpses, stacks and harvests, the same name rule), so the service can check they add up
+        var looted = LootSummary.Corpses(loot).Where(c => c.Mob && Ok(c.Source)).ToList();
+        var gatheredRows = harvest.Where(h => Ok(h.Item)).ToList();
+        var counts = CountsOf(looted, rows, gatheredRows, trades ?? [], generated);
+
+        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue, counts);
+    }
+
+    // The slots of one row of counters, in the order of CountRow
+    private const int KCorpses = 0, KPurses = 1, KCopper = 2, KUnits = 3, KHarvests = 4, KHarvestUnits = 5, KSold = 6, KSoldCopper = 7, KBought = 8, KBoughtCopper = 9, KTrades = 10, Slots = 11;
+
+    /// <summary>The Monday that starts the week a day is in (weeks run Monday to Sunday).</summary>
+    public static DateOnly WeekStart(DateOnly day) => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
+
+    /// <summary>
+    /// The running counters: every looted corpse, vendor stack, harvest and trade counted into the UTC week it happened in, the last
+    /// <see cref="MaxWeeks"/> weeks as rows and everything older folded into one "before" row. A week with nothing in it has no row.
+    /// A trade is both sides of it (what was given and what came back) counted once.
+    /// </summary>
+    private static ContributionCounts CountsOf(IEnumerable<LootedCorpse> corpses, IEnumerable<VendorRow> vendorRows, IEnumerable<HarvestRow> gathered, IEnumerable<TradeRow> trades, DateOnly generated)
+    {
+        var thisWeek = WeekStart(generated);
+        var oldest = thisWeek.AddDays(-7 * (MaxWeeks - 1));
+        var weeks = new SortedDictionary<DateOnly, long[]>();
+        var before = new long[Slots];
+
+        long[] RowFor(DateTime at)
+        {
+            var week = WeekStart(DateOnly.FromDateTime(at.Kind == DateTimeKind.Utc ? at : at.ToUniversalTime()));
+            if (week > thisWeek) week = thisWeek;   // a clock a little ahead of the file's date
+            if (week < oldest) return before;
+            if (!weeks.TryGetValue(week, out var row)) weeks[week] = row = new long[Slots];
+            return row;
+        }
+
+        foreach (var c in corpses)
+        {
+            var row = RowFor(c.Start);
+            row[KCorpses]++;
+            if (c.Copper > 0) row[KPurses]++;
+            row[KCopper] += c.Copper;
+            foreach (var t in c.Taken ?? []) if (Ok(t.Item)) row[KUnits] += t.Count;
+        }
+        foreach (var v in vendorRows)
+        {
+            var row = RowFor(v.Time);
+            if (v.Direction == VendorDirection.Sold) { row[KSold]++; row[KSoldCopper] += v.TotalCopper; }
+            else { row[KBought]++; row[KBoughtCopper] += v.TotalCopper; }
+        }
+        foreach (var h in gathered)
+        {
+            var row = RowFor(h.Time);
+            row[KHarvests]++;
+            row[KHarvestUnits] += h.Qty;
+        }
+        // A trade is written once for what the player gave and once for what they got, a moment apart: one trade per partner and minute
+        foreach (var once in trades.GroupBy(x => (x.Partner, x.Time.Ticks / TimeSpan.TicksPerMinute)).Select(g => g.First()))
+            RowFor(once.Time)[KTrades]++;
+
+        return new ContributionCounts(Row(null, before), weeks.Select(w => Row(w.Key.ToString("yyyy-MM-dd"), w.Value)).ToList());
+
+        static CountRow Row(string? week, long[] m) => new(week, m[KCorpses], m[KPurses], m[KCopper], m[KUnits], m[KHarvests], m[KHarvestUnits], m[KSold], m[KSoldCopper], m[KBought], m[KBoughtCopper], m[KTrades]);
+    }
+
+    /// <summary>The counters added up over every row: the player's lifetime figures as the file states them.</summary>
+    public static CountRow Lifetime(ContributionCounts counts)
+    {
+        var rows = counts.Weeks.Prepend(counts.Before).ToList();
+        return new CountRow(null, rows.Sum(r => r.Corpses), rows.Sum(r => r.Purses), rows.Sum(r => r.Copper), rows.Sum(r => r.Units), rows.Sum(r => r.Harvests),
+            rows.Sum(r => r.HarvestUnits), rows.Sum(r => r.Sold), rows.Sum(r => r.SoldCopper), rows.Sum(r => r.Bought), rows.Sum(r => r.BoughtCopper), rows.Sum(r => r.Trades));
     }
 
     private static Dictionary<string, int> Tally(IEnumerable<VendorRow> rows, VendorDirection direction) =>
@@ -121,9 +219,13 @@ public static class ContributionBuilder
     public static IReadOnlyList<string> Describe(Contribution c)
     {
         var t = c.Totals;
+        var n = Lifetime(c.Counts);
         return
         [
             $"{t.Monsters:N0} kinds of monster, from {t.Corpses:N0} looted corpses: what came off each, how often, and the coin in their purses",
+            $"Running totals, counted by week (only which week, never a day or a time): {n.Corpses:N0} corpses looted, {n.Units:N0} items and {LootSummary.Coin(n.Copper)} taken from them, " +
+                $"{n.Harvests:N0} harvests, {n.Sold:N0} stacks sold for {LootSummary.Coin(n.SoldCopper)}, {n.Bought:N0} bought for {LootSummary.Coin(n.BoughtCopper)}, {n.Trades:N0} trades with players " +
+                $"({c.Counts.Weeks.Count:N0} weekly rows)",
             $"{c.Prices.Count:N0} item prices by zone, from {t.Sales:N0} sales and {t.Purchases:N0} purchases",
             $"{c.Harvest.Count:N0} things gathered by zone, from {t.Harvests:N0} harvests",
             $"{t.Items:N0} item names with their game ids",

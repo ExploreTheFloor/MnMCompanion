@@ -17,7 +17,7 @@ internal sealed class CommunityReader(Settings settings, HistoryData history, Co
     private readonly Dictionary<string, (DateTime At, object? Data)> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Whether figures may be asked for at all: only for a player who shares their own.</summary>
-    public bool Enabled => CommunityPolicy.MayUseCommunityData(settings.ShareWithCommunity);
+    public bool Enabled => CommunityPolicy.MayUseCommunityData(settings.Sharing);
 
     public Task<CommunityDrops?> DropsAsync(string mob) => Cached("drop:" + mob, id => client.DropsAsync(id, mob));
 

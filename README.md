@@ -402,7 +402,7 @@ The game's diary tells each player only a little about how the world works. Pool
 |---|---|---|
 | Your totals | shared **for you, automatically**, and kept up to date | stay on your PC; **nothing is sent** |
 | Community data | **you can use it** | **the app doesn't download or show it** |
-| Being asked | never again | **every time you start the app**, until you say Yes |
+| Being asked | not again, unless what is shared grows (see below) | **every time you start the app**, until you say Yes |
 
 The first time you start the app (and every time after, while the answer is No) a small window asks. **Yes** turns sharing on and it stops asking. **No**, or closing the window, keeps everything private and asks again next time. You can change your answer at any time: click the **ⓘ** in the title bar and tick or untick **Share my data with the community**.
 
@@ -412,9 +412,12 @@ The first time you start the app (and every time after, while the answer is No) 
 - what vendors paid and charged you, per item and zone (the game doesn't record which vendor);
 - what you gathered, per item and zone;
 - item names with the game's own ids;
-- what NPCs said to you, as distinct lines with your own character's name replaced by `{player}` (no times and no characters).
+- what NPCs said to you, as distinct lines with your own character's name replaced by `{player}` (no times and no characters);
+- **running totals, counted by week**: how many corpses you looted (the game doesn't record kills, so this is the kill count), the coin in their purses, the items taken, what you gathered, how many stacks you sold to and bought from vendors and for how much coin, and how many trades you made with other players (only the number). These are kept as one row for each of the last 53 weeks plus one row for everything older, so they never grow into a list of events. A week is only its Monday's date, never a day or a time.
 
-It **never** contains your character names, any other player's name, individual loot lines, trades, or when anything happened (only the day). The NPC lines carry no time and no character, and your own character's name in them is replaced by `{player}`. Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
+It **never** contains your character names, any other player's name, individual loot lines or trades, or when anything happened (only the day the file was made, and which weeks the running totals fall in). The NPC lines carry no time and no character, and your own character's name in them is replaced by `{player}`. Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
+
+**A Yes covers what you were shown.** If a new version shares more than the one you said Yes to (the weekly running totals were the first such addition), your earlier Yes no longer covers it: sharing pauses, the question comes back saying what was added, and nothing is sent until you say Yes again.
 
 **No means no community data:** if the answer is No, nothing is sent, and Companion doesn't ask for or show the combined figures.
 

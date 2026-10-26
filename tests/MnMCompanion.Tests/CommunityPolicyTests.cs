@@ -6,6 +6,29 @@ namespace MnMCompanion.Tests;
 public class CommunityPolicyTests
 {
     [Fact]
+    public void A_yes_covers_only_the_file_the_player_was_shown()
+    {
+        // a Yes from before the layout was recorded (0) is a Yes to layout 1
+        Assert.True(CommunityPolicy.Consented(true, answeredSchema: 0, currentSchema: 1));
+        Assert.False(CommunityPolicy.Consented(true, answeredSchema: 0, currentSchema: 2));
+        Assert.False(CommunityPolicy.Consented(true, answeredSchema: 1, currentSchema: 2));
+        Assert.True(CommunityPolicy.Consented(true, answeredSchema: 2, currentSchema: 2));
+        Assert.True(CommunityPolicy.Consented(true, answeredSchema: 3, currentSchema: 2));
+        Assert.False(CommunityPolicy.Consented(false, answeredSchema: 2, currentSchema: 2));
+
+        // only a Yes that has lapsed needs renewing; a No never does
+        Assert.True(CommunityPolicy.NeedsRenewal(true, 0, 2));
+        Assert.False(CommunityPolicy.NeedsRenewal(true, 2, 2));
+        Assert.False(CommunityPolicy.NeedsRenewal(false, 0, 2));
+    }
+
+    [Fact]
+    public void The_current_file_layout_is_the_one_a_yes_is_given_to()
+    {
+        Assert.Equal(2, ContributionBuilder.Schema);
+    }
+
+    [Fact]
     public void Only_a_yes_may_send_or_use_community_data()
     {
         Assert.False(CommunityPolicy.MaySend(false));
