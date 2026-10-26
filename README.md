@@ -47,7 +47,7 @@ them and turns them into something you can look at:
 - **What you sold and bought**, what vendors pay for each item, and how much you made.
 - **What you gathered**, how fast, and what it's worth.
 - **Your trades**, and what you dropped, picked up or destroyed.
-- **A yes/no choice to add your own numbers to a community-run, open database** of drop rates and prices, and to use it (see [Sharing](#sharing-with-the-community-data)).
+- **A yes/no choice to add your own numbers to a combined community database** of drop rates and prices (kept privately by the project), and to use it (see [Sharing](#sharing-with-the-community-data)).
 - **A copy button** that turns any of it into text you can paste into chat.
 
 It only *reads*. It never touches the game, never reads the game's memory, and never presses a key for you.
@@ -390,7 +390,7 @@ how to look inside the file, is written up in [docs/ledger-notes.md](docs/ledger
 
 ## Sharing with the community data
 
-The game's diary tells each player only a little about how the world works. Pooled across many players it tells a lot: how often each monster drops each item, what vendors really pay, what gathering yields. That is what the **community data** is: an open database, kept in a public project on GitHub ([ExploreTheFloor/MnMData](https://github.com/ExploreTheFloor/MnMData)), that anyone can use for non-commercial purposes ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
+The game's diary tells each player only a little about how the world works. Pooled across many players it tells a lot: how often each monster drops each item, what vendors really pay, what gathering yields. That is what the **community data** is: one combined database of drop rates, prices and gathering yields, built from the totals players choose to share. **It is kept privately by the project and is never published**: there is no download. The source code of this program is public, so you can read exactly what it sends.
 
 **It's one question, Yes or No: "Share my data with the community?"**
 
@@ -411,9 +411,11 @@ The first time you start the app (and every time after, while the answer is No) 
 
 It **never** contains your character names, any other player's name, individual loot lines, trades, or when anything happened (only the day). Other players' loot is left out on purpose, so a corpse isn't counted once per party member. It's filed under a random id made on your PC, which isn't linked to your name or characters; each time your totals are shared they **replace** your last ones, so nothing is counted twice, and you can ask to have yours removed.
 
-**An honest note about "No means no community data":** the community data lives in a public project under an open licence, so anyone can still download it by hand. What "No" means is that *Companion* won't fetch or use it for you.
+**No means no community data:** if the answer is No, nothing is sent, and Companion doesn't ask for or show the combined figures.
 
-> **Status:** the Yes/No question, the reminder and the rule are in. The part that actually sends a Yes player's totals needs a small community "drop box" to be set up first, so for now saying Yes saves your answer and the ⓘ window says "Sending isn't connected yet". Nothing is sent until it is. Until then, `MnMCompanion.exe --contribute <folder>` saves your totals as a file you can read or upload to the community project yourself.
+**Where it goes.** A Yes sends your totals to a small service run by the project, on Cloudflare's network. Like any website, it sees your internet address while you send; the project does not store it. The totals are only used to build the combined figures, which sharing players get back inside Companion. They are not published.
+
+> **Status:** the Yes/No question, the reminder and the rule are in. The part that sends a Yes player's totals (and brings the combined figures back) is not connected yet, so for now saying Yes saves your answer and the ⓘ window says "Sending isn't connected yet". Nothing is sent until it is. Until then, `MnMCompanion.exe --contribute <folder>` saves your totals as a file you can read.
 
 ---
 
@@ -489,7 +491,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items or Harvest). |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
-| `--contribute <folder or file>` | Save the file you can share with the community data (named by your random id) and quit, without a window. |
+| `--contribute <folder or file>` | Save the file that sharing would send (named by your random id) and quit, without a window. |
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
 | `--about [--report <file>]` | Write the version, whether this copy can update itself, and where its files are, to a file, and quit. |
 | `--snapshot <png> [--view Value\|Items\|Mobs\|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]` | Draw the panel to a picture and quit (how the pictures in this README were made). |
@@ -547,4 +549,7 @@ back out if the new one won't start) are all tested without a network.
 - There is no combined "net" figure across pages. The ledger records your own coin purses whole even when you're in a party, so
   adding them to vendor sales would mislead. The Vendors page shows sold, bought and net *from vendors*, which is certain.
 - The Loot page and the small panel still read the game's files directly; they could move onto the saved copy later.
-- No licence has been chosen, so for now it is all rights reserved.
+
+### Licence
+
+MIT: see [LICENSE](LICENSE). The maps on the Map page are not part of this project; they belong to the community atlas (CC BY-SA 4.0).

@@ -8,8 +8,8 @@ namespace MnMCompanion.Community;
 public static class CommunityPolicy
 {
     /// <summary>
-    /// Whether the app may download or show community data for this player: only if they share theirs. (The data itself is public on
-    /// GitHub under an open licence, so this is the app's rule about what it does for the player, not a lock on the data.)
+    /// Whether the app may ask for or show community data for this player: only if they share theirs. (The data is kept privately by the
+    /// project, never published; this is the app's own rule about what it does for the player.)
     /// </summary>
     public static bool MayUseCommunityData(bool sharing) => sharing;
 
@@ -26,5 +26,5 @@ public static class CommunityPolicy
     public static string Status(bool sharing, bool sendingConnected) =>
         !sharing ? "Not sharing. Nothing leaves your PC, and community data isn't used."
         : sendingConnected ? "Sharing is on. Your totals are sent automatically and kept up to date, and community data is available to you."
-        : "Sharing is on. Sending isn't connected yet: your Yes is saved, and it starts once the community drop box is online.";
+        : "Sharing is on. Sending isn't connected yet: your Yes is saved, and it starts once the community intake is connected.";
 }

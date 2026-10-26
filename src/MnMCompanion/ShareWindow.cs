@@ -68,7 +68,7 @@ internal sealed class ShareWindow : Window
             FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap,
             FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"),
         });
-        _stack.Children.Add(Text("Players pool their own totals into an open database of drop rates, vendor prices and gathering yields. " +
+        _stack.Children.Add(Text("Players pool their own totals into one combined database of drop rates, vendor prices and gathering yields, kept privately by the project and never published. " +
             "Saying Yes adds yours for you, automatically, and lets you use what everyone has shared.", 10, Palette.Muted));
         _stack.Children.Add(Bullet("Yes", "your totals are shared for you, and you can use the community data."));
         _stack.Children.Add(Bullet("No", mode == ShareMode.Ask
@@ -116,7 +116,7 @@ internal sealed class ShareWindow : Window
         })
             _details.Children.Add(Line(line, Palette.Text, "✕  "));
         _details.Children.Add(_id);
-        _details.Children.Add(Text($"What you share is given under {CommunityData.LicenseName}: free for anyone to use for non-commercial purposes, with credit.", 8, Palette.Muted, 11.5));
+        _details.Children.Add(Text("Your totals are only used to build the combined figures that sharing players get back. They are kept privately and are not published.", 8, Palette.Muted, 11.5));
         _details.Children.Add(_saved);
 
         _save = Pill("Save a copy of my file…", 16, tip: "Saves what would be shared, so you can read it");
@@ -256,7 +256,7 @@ internal sealed class ShareWindow : Window
     }
 }
 
-/// <summary>Whether the part that sends a sharing player's totals is connected yet. It isn't: the community drop box isn't online.</summary>
+/// <summary>Whether the part that sends a sharing player's totals is connected yet. It isn't: the community intake isn't connected.</summary>
 internal static class Sharing
 {
     public static bool Connected => false;
