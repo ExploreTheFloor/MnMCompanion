@@ -42,6 +42,9 @@ internal sealed class PanelWindow : Window
     /// <summary>The player chose "What does sharing include?" in the ⓘ menu.</summary>
     public event Action? ShareRequested;
 
+    /// <summary>The player pressed the timers button in the title bar.</summary>
+    public event Action? TimersRequested;
+
     /// <summary>A row of the Vendor, Trades, Items or Harvest page was clicked: the History window page ("Vendors", "Trades", "Changes", "Harvest") that shows it in full.</summary>
     public event Action<string>? HistoryPageRequested;
 
@@ -91,17 +94,20 @@ internal sealed class PanelWindow : Window
         var close = TitleButton("", "Close", Close);
         _about = TitleButton("", "About Companion, and updates", OpenAboutMenu);
         var historyButton = TitleButton("\uE81C", "History: every day and every page, for this character or for everyone", OpenHistory);
+        var timersButton = TitleButton("\uE916", "Timers: buff and cooldown timers you start yourself (the game does not tell Companion when you cast)", () => TimersRequested?.Invoke());
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 24, Cursor = Cursors.SizeAll, LastChildFill = false };
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(_pin, Dock.Right);
         DockPanel.SetDock(_about, Dock.Right);
         DockPanel.SetDock(historyButton, Dock.Right);
+        DockPanel.SetDock(timersButton, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         DockPanel.SetDock(_who, Dock.Left);
         title.Children.Add(close);
         title.Children.Add(_pin);
         if (updates is not null) title.Children.Add(_about);
         title.Children.Add(historyButton);
+        title.Children.Add(timersButton);
         title.Children.Add(caption);
         title.Children.Add(_who);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };

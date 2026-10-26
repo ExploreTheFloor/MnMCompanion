@@ -41,6 +41,11 @@ public sealed class Settings
     public Bounds? Panel { get; set; }
     public Bounds? Breakdown { get; set; }
 
+    /// <summary>The timers window's place, whether it was open when the app closed (it comes back the same way), and whether it beeps.</summary>
+    public Bounds? Timers { get; set; }
+    public bool TimersOpen { get; set; }
+    public bool TimerSound { get; set; } = true;
+
     /// <summary>The page of the History window that was open last ("Loot", "Trades", "Vendors", "Changes" or "Harvest").</summary>
     public string? HistoryPage { get; set; }
 

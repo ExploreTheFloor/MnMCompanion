@@ -32,12 +32,13 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 4. [Finding your way around](#finding-your-way-around)
 5. [The History window](#the-history-window)
 6. [Sessions: starting a fresh tally](#sessions-starting-a-fresh-tally)
-7. [How the numbers are worked out](#how-the-numbers-are-worked-out)
-8. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
-9. [Sharing with the community data](#sharing-with-the-community-data)
-10. [Updates](#updates)
-11. [Something looks wrong](#something-looks-wrong)
-12. [For the curious](#for-the-curious)
+7. [Timers: buff and cooldown timers you start yourself](#timers-buff-and-cooldown-timers-you-start-yourself)
+8. [How the numbers are worked out](#how-the-numbers-are-worked-out)
+9. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
+10. [Sharing with the community data](#sharing-with-the-community-data)
+11. [Updates](#updates)
+12. [Something looks wrong](#something-looks-wrong)
+13. [For the curious](#for-the-curious)
 
 More: the [**FAQ**](docs/FAQ.md) answers the common questions in a few lines each, and [docs/ledger-notes.md](docs/ledger-notes.md) is what the game's ledger does and doesn't hold.
 
@@ -314,6 +315,27 @@ mixed in with the whole day.
 - The saved text files are in `%LOCALAPPDATA%\MnMCompanion\<server>-<character>\sessions\`.
 
 Sessions start only when you press the button; they don't start by themselves when the group changes.
+
+---
+
+## Timers: buff and cooldown timers you start yourself
+
+<img src="docs/images/window-timers.png" alt="The Timers window: running timers in each stage, the timers kept to hand, and the form for a new one" width="300" align="right">
+
+The stopwatch in the title bar opens a small window of timers for buffs, cooldowns, respawns, anything you want counted down. Like the rest of the window it stays on top
+of the game.
+
+**You start every timer yourself.** Companion only reads the game's ledger and journal files, and the game writes nothing about your casts to either, so Companion cannot know
+when you cast a spell. (It also never looks at the game's memory or the screen, and it never sends a key press.) So:
+
+- **Click a timer you keep to hand** (the buttons under *Start*) and it starts, or starts over if it is already running.
+- **Or type a name and a length** and press **Start** for a one-off, or **Keep** to add it to the buttons and start it. A length is `90`, `1:30`, `5m` or `1h30m`, up to 24 hours.
+- Right-click a kept timer to start, edit or remove it; right-click a running one to start it over; the **×** stops it.
+
+A running timer shows its time left and a bar that drains. It turns **gold for its last half minute**, and **flashes red for its last ten seconds**, and shows **Ended** for a few seconds
+when it is over. Tick **Sound** for a short beep at the half-minute warning and when it ends. The timers are kept for each character as the moment they end, in
+`%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and beeping).
+Nothing about them is ever sent anywhere.
 
 ---
 
