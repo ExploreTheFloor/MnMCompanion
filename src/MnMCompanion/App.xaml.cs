@@ -90,7 +90,7 @@ public partial class App : Application
         {
             // Made at once, shown only if it was open: the keys that start timers work while it is hidden
             var timers = Timers();
-            if (_settings.TimersOpen && !args.NoSharePrompt) timers.Toggle();
+            if (_settings.TimersOpen) timers.Toggle();
         }
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
         if (args.Share) OpenShare();
