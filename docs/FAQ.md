@@ -99,19 +99,24 @@ game's memory could do it automatically; Companion deliberately never does that.
 ## Sharing with the community
 
 ### What is sharing?
-A yes/no choice. **Yes** adds your own totals (how often each monster you looted dropped each item, what vendors paid you, what you gathered, item names, what NPCs said to you, and running
+A yes/no choice. **Yes** adds your own totals (how often each monster you looted dropped each item, what vendors paid you, what you gathered, item names, what NPCs said to you, your trades with other players, and running
 totals counted by week) to a combined database that every sharing player gets figures back from. **No** (the default) means nothing leaves your PC and the community figures aren't used.
 Details in [Sharing with the community data](../README.md#sharing-with-the-community-data).
 
 <img src="images/window-sharing.png" alt="The sharing window, listing exactly what would be shared" width="300" align="right">
 
 ### Can I see exactly what would be sent before I decide?
-Yes. **ⓘ → What does sharing include?** lists it in plain words (the picture on the right), and **Save a copy of my file…** writes exactly what would be sent so you can read it (the totals, and what NPCs said to you as a second small file; they are sent as two small uploads, without indentation). From a command line,
+Yes. **ⓘ → What does sharing include?** lists it in plain words (the picture on the right), and **Save a copy of my file…** writes exactly what would be sent so you can read it (the totals, what NPCs said to you as a second small file, and your trades as a third; they are sent as separate small uploads, without indentation). From a command line,
 `MnMCompanion.exe --contribute <folder>` does the same.
 
 ### What is never sent?
-Your character names or any other player's name, individual loot lines or trades, when anything happened (only the day the file was made, and the weeks the running totals fall in), and
-anything from other players' ledgers. Your character's name inside what NPCs said to you is replaced before it is sent.
+Your character names or any other player's name or number (a trade says what each side handed over, never who the other player was), individual loot lines, the time of day of anything (only
+the day the file was made, the weeks the running totals fall in, and the day of each trade), and anything from other players' ledgers. Your character's name inside what NPCs said to you is replaced before it is sent.
+
+### Are my trades with other players shared?
+Yes, if you say Yes to sharing: for each trade, the day it happened, the zone, and what each side handed over (the coin, and the items with how many). The ledger gives the other player only as
+a number, and that number is left out, so nothing in the file says who you traded with. The newest 3,000 trades are sent. You see them in the sharing window before you decide, and a Yes you gave
+before trades were added has to be given again.
 
 ### Is it published?
 No. The combined database is kept privately by the project and is not published. It is only used to build the figures sharing players get back.

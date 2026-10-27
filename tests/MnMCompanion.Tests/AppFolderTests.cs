@@ -67,4 +67,22 @@ public class AppFolderTests
         Assert.Equal(Path.Combine(root.Path, "LootWindow"), folder);
         Assert.False(Directory.Exists(Path.Combine(root.Path, "MnMCompanion")));
     }
+
+    [Fact]
+    public void A_folder_named_for_a_test_or_a_picture_is_used_instead_and_nothing_is_made_or_moved()
+    {
+        using var root = new Scratch();
+        root.Write(@"LootWindow\settings.json", "{}");   // the player's own, which must stay where it is
+        var elsewhere = Path.Combine(root.Path, "scratch-run");
+
+        Assert.Equal(elsewhere, AppFolder.Choose(elsewhere, root.Path));
+        Assert.Equal(elsewhere, AppFolder.Choose("  " + elsewhere + "  ", root.Path));
+        Assert.True(Directory.Exists(Path.Combine(root.Path, "LootWindow")));
+        Assert.False(Directory.Exists(Path.Combine(root.Path, "MnMCompanion")));
+        Assert.False(Directory.Exists(elsewhere));
+
+        // none named: the usual rules (here the old folder moves across)
+        Assert.Equal(Path.Combine(root.Path, "MnMCompanion"), AppFolder.Choose(null, root.Path));
+        Assert.Equal(Path.Combine(root.Path, "MnMCompanion"), AppFolder.Choose("   ", root.Path));
+    }
 }

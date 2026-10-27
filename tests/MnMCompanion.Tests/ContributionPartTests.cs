@@ -39,7 +39,7 @@ public class ContributionPartTests
         using var doc = JsonDocument.Parse(core);
         var keys = doc.RootElement.EnumerateObject().Select(p => p.Name).ToList();
         Assert.Equal(["schema", "contributor", "app", "generated", "license", "totals", "drops", "prices", "harvest", "items", "counts"], keys);
-        Assert.Equal(2, doc.RootElement.GetProperty("schema").GetInt32());
+        Assert.Equal(3, doc.RootElement.GetProperty("schema").GetInt32());
         Assert.True(core.Length < c.ToJson().Length * 0.7, "much smaller than the indented whole");
     }
 
@@ -52,7 +52,7 @@ public class ContributionPartTests
 
         var root = doc.RootElement;
         Assert.Equal(["schema", "part", "contributor", "app", "generated", "license", "npcs"], root.EnumerateObject().Select(p => p.Name));
-        Assert.Equal((2, "npcs", Id, "2026-10-25", "CC-BY-NC-SA-4.0"),
+        Assert.Equal((3, "npcs", Id, "2026-10-25", "CC-BY-NC-SA-4.0"),
             (root.GetProperty("schema").GetInt32(), root.GetProperty("part").GetString(), root.GetProperty("contributor").GetString(), root.GetProperty("generated").GetString(), root.GetProperty("license").GetString()));
         var npcs = root.GetProperty("npcs").EnumerateArray().ToList();
         Assert.Equal(["Abbot Harrow", "Hull Orbel"], npcs.Select(n => n.GetProperty("name").GetString()));

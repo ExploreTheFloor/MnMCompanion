@@ -44,9 +44,9 @@ public static class SharePlan
         return ShareStep.Send;
     }
 
-    /// <summary>No loot, sale, harvest or NPC line in it: not worth a request.</summary>
+    /// <summary>No loot, sale, harvest, trade or NPC line in it: not worth a request.</summary>
     public static bool Nothing(Contribution file) =>
-        file.Totals is { Corpses: 0, Sales: 0, Purchases: 0, Harvests: 0 } && file.Npcs.Count == 0;
+        file.Totals is { Corpses: 0, Sales: 0, Purchases: 0, Harvests: 0 } && file.Npcs.Count == 0 && (file.Trades ?? []).Count == 0;
 
     /// <summary>
     /// A fingerprint of what the file says, leaving out the day it was made, so a file that only differs by its date counts as unchanged.
@@ -57,6 +57,18 @@ public static class SharePlan
     /// <summary>The same for the NPC dialogue, which is sent as its own document and so is judged unchanged on its own.</summary>
     public static string NpcFingerprint(Contribution file) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes((file with { Generated = "" }).ToNpcPartJson())));
+
+    /// <summary>The same for the trades, which are sent as a document of their own too.</summary>
+    public static string TradesFingerprint(Contribution file) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes((file with { Generated = "" }).ToTradesPartJson())));
+
+    /// <summary>What to do with the trades document: nothing to send when there are no trades, nothing new when it is the one last sent, else send it.</summary>
+    public static ShareStep DecideTrades(Contribution file, string? lastFingerprint, DateTime now, DateTime? lastSent)
+    {
+        if ((file.Trades ?? []).Count == 0) return ShareStep.NothingToShare;
+        if (lastFingerprint is not null && lastFingerprint == TradesFingerprint(file) && lastSent is { } sent && now - sent < Refresh) return ShareStep.Unchanged;
+        return ShareStep.Send;
+    }
 
     /// <summary>What to do with the dialogue document: nothing to send when there are no NPC lines, nothing new when it is the one last sent, else send it.</summary>
     public static ShareStep DecidePart(Contribution file, string? lastFingerprint, DateTime now, DateTime? lastSent)

@@ -274,6 +274,12 @@ public partial class App : Application
                 File.WriteAllText(partPath, contribution.ToNpcPartJson(indented: true));
                 lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  wrote {partPath} ({new FileInfo(partPath).Length:N0} bytes; sent compact it is {contribution.ToNpcPartJson().Length:N0})");
             }
+            if ((contribution.Trades ?? []).Count > 0)
+            {
+                var tradesPath = Path.ChangeExtension(path, null) + ".trades.json";
+                File.WriteAllText(tradesPath, contribution.ToTradesPartJson(indented: true));
+                lines.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  wrote {tradesPath} ({new FileInfo(tradesPath).Length:N0} bytes; sent compact it is {contribution.ToTradesPartJson().Length:N0})");
+            }
             lines.AddRange(Community.ContributionBuilder.Describe(contribution).Select(l => "  " + l));
         }
         catch (Exception ex)

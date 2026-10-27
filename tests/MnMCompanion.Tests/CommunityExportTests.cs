@@ -85,6 +85,6 @@ public class CommunityExportTests
         Assert.Empty(c.Drops);
         Assert.Equal(db.ContributorId(), c.Contributor);
         Assert.Equal("CC-BY-NC-SA-4.0", c.License);
-        Assert.Equal(2, c.Schema);
+        Assert.Equal(3, c.Schema);
     }
 }

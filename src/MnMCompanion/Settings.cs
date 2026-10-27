@@ -79,6 +79,10 @@ public sealed class Settings
     /// <summary>The same two for the NPC dialogue, which is sent as a second, separate document.</summary>
     public DateTime? LastNpcSharedUtc { get; set; }
     public string? SharedNpcFingerprint { get; set; }
+
+    /// <summary>The same two for the trades with other players, which are sent as a third, separate document.</summary>
+    public DateTime? LastTradesSharedUtc { get; set; }
+    public string? SharedTradesFingerprint { get; set; }
     public string ShareNote { get; set; } = "";
 
     /// <summary>Look for a newer version on GitHub when the app starts and every few hours. It only ever offers; nothing installs by itself.</summary>

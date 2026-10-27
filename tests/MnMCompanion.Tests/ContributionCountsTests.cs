@@ -192,7 +192,7 @@ public class ContributionCountsTests
         var week = Assert.Single(counts.GetProperty("weeks").EnumerateArray());
         Assert.Equal(["week", .. metrics], week.EnumerateObject().Select(p => p.Name));
         Assert.Equal("2026-10-19", week.GetProperty("week").GetString());
-        Assert.Equal(2, doc.RootElement.GetProperty("schema").GetInt32());
+        Assert.Equal(3, doc.RootElement.GetProperty("schema").GetInt32());
     }
 
     [Fact]

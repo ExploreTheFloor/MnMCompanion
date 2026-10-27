@@ -25,7 +25,7 @@ public class CommunityPolicyTests
     [Fact]
     public void The_current_file_layout_is_the_one_a_yes_is_given_to()
     {
-        Assert.Equal(2, ContributionBuilder.Schema);
+        Assert.Equal(3, ContributionBuilder.Schema);
     }
 
     [Fact]

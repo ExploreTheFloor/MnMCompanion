@@ -74,8 +74,8 @@ internal sealed class ShareWindow : Window
         _stack.Children.Add(Text("Players pool their own totals into one combined database of drop rates, vendor prices and gathering yields, kept privately by the project and never published. " +
             "Saying Yes adds yours for you, automatically, and lets you use what everyone has shared.", 10, Palette.Muted));
         if (settings.ConsentNeedsRenewal)
-            _stack.Children.Add(Text("You said Yes before. Companion now also shares running totals counted by week (corpses looted, coin, items, gathering, sales and trades), " +
-                "so sharing is paused until you say Yes again. \"What is shared\" lists them.", 10, Palette.Text));
+            _stack.Children.Add(Text("You said Yes before. Companion now also shares your trades with other players: what each side handed over, the items and the coin, with the day " +
+                "and the zone, and never who the other player was. Sharing is paused until you say Yes again. \"What is shared\" lists everything.", 10, Palette.Text));
         _stack.Children.Add(Bullet("Yes", "your totals are shared for you, and you can use the community data."));
         _stack.Children.Add(Bullet("No", mode == ShareMode.Ask
             ? "nothing leaves your PC and the community data stays off. You'll be asked again next time."
@@ -110,14 +110,15 @@ internal sealed class ShareWindow : Window
             ShowStatus();
         }
 
-        _details.Children.Add(Heading("Included: only totals of your own play"));
+        _details.Children.Add(Heading("Included: only your own play"));
         _details.Children.Add(_preview);
         _preview.Children.Add(Line("Working out your totals…", Palette.Muted));
         _details.Children.Add(Heading("Never included"));
         foreach (var line in new[]
         {
             "Your character names, or any other player's name",
-            "Individual loot lines or trades, or when anything happened (only the day the file was made, and the weeks the running totals fall in)",
+            "Individual loot lines, or when anything happened (only the day the file was made, the weeks the running totals fall in, and the day of each trade)",
+            "Who you traded with: the other player's name or number is left out of every trade",
             "Anything from other players' ledgers: only what you looted, sold and gathered",
             "Your character's name in what NPCs said to you (it is replaced), or when they said it",
         })
@@ -213,6 +214,7 @@ internal sealed class ShareWindow : Window
             File.WriteAllText(dialog.FileName, _contribution.ToCoreJson(indented: true));
             // The dialogue is sent as a second, separate file, so the copy has it beside the first
             if (_contribution.Npcs.Count > 0) File.WriteAllText(Path.ChangeExtension(dialog.FileName, null) + ".npcs.json", _contribution.ToNpcPartJson(indented: true));
+            if ((_contribution.Trades ?? []).Count > 0) File.WriteAllText(Path.ChangeExtension(dialog.FileName, null) + ".trades.json", _contribution.ToTradesPartJson(indented: true));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -220,6 +222,7 @@ internal sealed class ShareWindow : Window
             return;
         }
         _saved.Text = $"Saved to {dialog.FileName}" + (_contribution.Npcs.Count > 0 ? $" and {Path.GetFileName(Path.ChangeExtension(dialog.FileName, null))}.npcs.json (what NPCs said to you, sent as a second small file)" : "")
+            + ((_contribution.Trades ?? []).Count > 0 ? $" and {Path.GetFileName(Path.ChangeExtension(dialog.FileName, null))}.trades.json (your trades with other players, sent as another small file)" : "")
             + ". It's only a copy to read; sharing is the Yes | No switch above.";
         _saved.Visibility = Visibility.Visible;
     }

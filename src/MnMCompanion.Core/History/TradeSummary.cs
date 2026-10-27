@@ -7,7 +7,7 @@ namespace MnMCompanion.History;
 /// side, in the same second, naming the same partner).
 /// </summary>
 public sealed record TradeEntry(DateTime Time, string Character, string Partner, long GaveCoin, IReadOnlyList<TradeLine> GaveItems,
-    long ReceivedCoin, IReadOnlyList<TradeLine> ReceivedItems)
+    long ReceivedCoin, IReadOnlyList<TradeLine> ReceivedItems, string Zone = "")
 {
     public int GaveCount => GaveItems.Sum(i => i.Qty);
     public int ReceivedCount => ReceivedItems.Sum(i => i.Qty);
@@ -32,7 +32,8 @@ public static class TradeSummary
                 var gave = current.Where(r => r.Gave).ToList();
                 var got = current.Where(r => !r.Gave).ToList();
                 entries.Add(new TradeEntry(current[0].Time, current[0].Character, current[0].Partner,
-                    gave.Sum(r => r.Coin), Merge(gave.SelectMany(r => r.Items)), got.Sum(r => r.Coin), Merge(got.SelectMany(r => r.Items))));
+                    gave.Sum(r => r.Coin), Merge(gave.SelectMany(r => r.Items)), got.Sum(r => r.Coin), Merge(got.SelectMany(r => r.Items)),
+                    current.Select(r => r.Zone).FirstOrDefault(z => z.Length > 0) ?? ""));
                 current.Clear();
             }
             foreach (var r in ordered)

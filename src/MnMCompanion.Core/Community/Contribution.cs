@@ -28,6 +28,18 @@ public sealed record ContributionName(string Name, string Id);
 /// <summary>What one NPC said to the player, as distinct lines with the player's own name replaced by {player}: no times, no characters.</summary>
 public sealed record ContributionNpc(string Name, IReadOnlyList<string> Lines);
 
+/// <summary>One item on one side of a trade, and how many.</summary>
+public sealed record ContributionTradeItem(string Item, int Qty);
+
+/// <summary>What one side of a trade handed over: coin (copper) and items.</summary>
+public sealed record ContributionTradeSide(long Coin, IReadOnlyList<ContributionTradeItem> Items);
+
+/// <summary>
+/// One trade with another player (schema 3): the day (UTC) and zone, what the player <see cref="Gave"/> and what they <see cref="Got"/>. It never says who
+/// the other player was: the ledger's number for them is left out, and so is the time of day.
+/// </summary>
+public sealed record ContributionTrade(string Day, string Zone, ContributionTradeSide Gave, ContributionTradeSide Got);
+
 /// <summary>Headline counts of a contribution, for the preview.</summary>
 public sealed record ContributionTotals(int Monsters, int Corpses, int Sales, int Purchases, int Harvests, int Items);
 
@@ -61,7 +73,7 @@ public sealed record ContributionCounts(CountRow Before, IReadOnlyList<CountRow>
 public sealed record Contribution(
     int Schema, string Contributor, string App, string Generated, string License, ContributionTotals Totals,
     IReadOnlyList<ContributionDrop> Drops, IReadOnlyList<ContributionPrice> Prices, IReadOnlyList<ContributionHarvest> Harvest, IReadOnlyList<ContributionName> Items,
-    IReadOnlyList<ContributionNpc> Npcs, ContributionCounts Counts)
+    IReadOnlyList<ContributionNpc> Npcs, ContributionCounts Counts, IReadOnlyList<ContributionTrade> Trades)
 {
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -74,17 +86,18 @@ public sealed record Contribution(
     private static readonly JsonSerializerOptions Compact = new(Options) { WriteIndented = false, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private static readonly JsonSerializerOptions Indented = new(Options) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    /// <summary>The whole contribution, indented, dialogue included (a picture of everything in it; what is sent is <see cref="ToCoreJson"/> and <see cref="ToNpcPartJson"/>).</summary>
+    /// <summary>The whole contribution, indented, dialogue and trades included (a picture of everything in it; what is sent is <see cref="ToCoreJson"/>, <see cref="ToNpcPartJson"/> and <see cref="ToTradesPartJson"/>).</summary>
     public string ToJson() => JsonSerializer.Serialize(this, Options);
 
     /// <summary>
-    /// The file that is sent: everything but the NPC dialogue, which travels as a document of its own (<see cref="ToNpcPartJson"/>) so no single upload is large.
-    /// Compact by default; <paramref name="indented"/> is the same file laid out to be read (the saved copy).
+    /// The file that is sent: everything but the NPC dialogue and the trades, which travel as documents of their own (<see cref="ToNpcPartJson"/>,
+    /// <see cref="ToTradesPartJson"/>) so no single upload is large. Compact by default; <paramref name="indented"/> is the same file laid out to be read (the saved copy).
     /// </summary>
     public string ToCoreJson(bool indented = false)
     {
         var node = JsonSerializer.SerializeToNode(this, Options)!.AsObject();
         node.Remove("npcs");
+        node.Remove("trades");
         return node.ToJsonString(indented ? Indented : Compact);
     }
 
@@ -99,8 +112,19 @@ public sealed record Contribution(
         return part.ToJsonString(indented ? Indented : Compact);
     }
 
-    /// <summary>The name of the one part there is: the NPC dialogue.</summary>
-    public const string NpcPart = "npcs";
+    /// <summary>The trades as a "part" document: the same id, app, day and licence, and the trades, and nothing else.</summary>
+    public string ToTradesPartJson(bool indented = false)
+    {
+        var part = new JsonObject
+        {
+            ["schema"] = Schema, ["part"] = TradesPart, ["contributor"] = Contributor, ["app"] = App, ["generated"] = Generated, ["license"] = License,
+            ["trades"] = JsonSerializer.SerializeToNode(Trades ?? [], Options),
+        };
+        return part.ToJsonString(indented ? Indented : Compact);
+    }
+
+    /// <summary>The names of the two parts: the NPC dialogue and the trades.</summary>
+    public const string NpcPart = "npcs", TradesPart = "trades";
 
     public static Contribution? FromJson(string json) => JsonSerializer.Deserialize<Contribution>(json, Options);
 }
@@ -108,10 +132,11 @@ public sealed record Contribution(
 public static class ContributionBuilder
 {
     /// <summary>
-    /// The version of the file layout; the community service refuses layouts it doesn't know. 2 added the running counters (<see cref="CountRow"/>).
-    /// A player's Yes is tied to the layout they saw (<see cref="CommunityPolicy.Consented"/>), so raising this asks everyone again.
+    /// The version of the file layout; the community service refuses layouts it doesn't know. 2 added the running counters (<see cref="CountRow"/>); 3 added
+    /// the trades with other players (<see cref="ContributionTrade"/>). A player's Yes is tied to the layout they saw (<see cref="CommunityPolicy.Consented"/>),
+    /// so raising this asks everyone again.
     /// </summary>
-    public const int Schema = 2;
+    public const int Schema = 3;
 
     /// <summary>The weekly rows of the counters: the current week and the 52 before it. Older weeks are folded into the "before" row.</summary>
     public const int MaxWeeks = 53;
@@ -120,6 +145,14 @@ public static class ContributionBuilder
     public const string License = "CC-BY-NC-SA-4.0";
 
     private const int MaxName = 80;
+
+    /// <summary>The service refuses more than this: a file holds the newest <see cref="MaxTrades"/> trades, a side at most <see cref="MaxTradeItems"/> kinds of item and <see cref="MaxTradeQty"/> of one.</summary>
+    public const int MaxTrades = 3000, MaxTradeItems = 40, MaxTradeQty = 9999;
+
+    /// <summary>The most coin (copper) a side of a trade may hold in the file.</summary>
+    public const long MaxTradeCoin = 1_000_000_000_000;
+
+    private static readonly DateOnly EarliestTrade = new(2025, 1, 1);
 
     /// <summary>The community service refuses more than this: lines longer than <see cref="MaxLine"/> are left out, an NPC keeps at most <see cref="MaxLinesPerNpc"/>, a file at most <see cref="MaxNpcs"/> NPCs.</summary>
     public const int MaxLine = 2000, MaxLinesPerNpc = 500, MaxNpcs = 5000;
@@ -134,6 +167,7 @@ public static class ContributionBuilder
         IEnumerable<ContributionName> names, string contributor, string app, DateOnly generated, IEnumerable<ContributionNpc>? npcs = null,
         IEnumerable<TradeRow>? trades = null)
     {
+        var tradeRows = (trades ?? []).ToList();
         var loot = ownLoot as IReadOnlyList<LootEvent> ?? ownLoot.ToList();
         var drops = DropRates.ByMob(loot)
             .Where(m => Ok(m.Mob))
@@ -164,9 +198,10 @@ public static class ContributionBuilder
         // The counters count exactly what the lists above list (the same corpses, stacks and harvests, the same name rule), so the service can check they add up
         var looted = LootSummary.Corpses(loot).Where(c => c.Mob && Ok(c.Source)).ToList();
         var gatheredRows = harvest.Where(h => Ok(h.Item)).ToList();
-        var counts = CountsOf(looted, rows, gatheredRows, trades ?? [], generated);
+        var counts = CountsOf(looted, rows, gatheredRows, tradeRows, generated);
+        var tradeList = TradesOf(tradeRows, generated);
 
-        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue, counts);
+        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue, counts, tradeList);
     }
 
     // The slots of one row of counters, in the order of CountRow
@@ -225,6 +260,37 @@ public static class ContributionBuilder
         static CountRow Row(string? week, long[] m) => new(week, m[KCorpses], m[KPurses], m[KCopper], m[KUnits], m[KHarvests], m[KHarvestUnits], m[KSold], m[KSoldCopper], m[KBought], m[KBoughtCopper], m[KTrades]);
     }
 
+    /// <summary>
+    /// The trades with other players, newest first, at most <see cref="MaxTrades"/>: each is both sides of it put together (see <see cref="TradeSummary.Pair"/>), on the day it
+    /// happened (UTC) and in the zone, with the coin and the items each side handed over. The other player is not in it, and neither is the time of day. A trade with nothing on
+    /// either side, or from before 2025, is left out.
+    /// </summary>
+    private static IReadOnlyList<ContributionTrade> TradesOf(IReadOnlyList<TradeRow> rows, DateOnly generated)
+    {
+        var list = new List<ContributionTrade>();
+        foreach (var entry in TradeSummary.Pair(rows))
+        {
+            var gave = Side(entry.GaveCoin, entry.GaveItems);
+            var got = Side(entry.ReceivedCoin, entry.ReceivedItems);
+            if (gave.Coin == 0 && gave.Items.Count == 0 && got.Coin == 0 && got.Items.Count == 0) continue;
+            var day = DateOnly.FromDateTime(entry.Time.Kind == DateTimeKind.Utc ? entry.Time : entry.Time.ToUniversalTime());
+            if (day > generated) day = generated;   // a clock a little ahead of the file's date
+            if (day < EarliestTrade) continue;
+            var zone = Clean(entry.Zone);
+            if (zone.Length == 0 || zone.Any(char.IsControl)) zone = "unknown";
+            list.Add(new ContributionTrade(day.ToString("yyyy-MM-dd"), zone, gave, got));
+            if (list.Count == MaxTrades) break;
+        }
+        return list;
+
+        static ContributionTradeSide Side(long coin, IReadOnlyList<TradeLine> lines) => new(
+            Math.Clamp(coin, 0, MaxTradeCoin),
+            lines.Where(l => l.Qty > 0 && Ok(l.Name) && !Clean(l.Name).Any(char.IsControl))
+                .GroupBy(l => Clean(l.Name).ToLowerInvariant())
+                .Select(g => new ContributionTradeItem(Clean(g.First().Name), Math.Min(MaxTradeQty, g.Sum(l => l.Qty))))
+                .OrderByDescending(i => i.Qty).ThenBy(i => i.Item, StringComparer.OrdinalIgnoreCase).Take(MaxTradeItems).ToList());
+    }
+
     /// <summary>The counters added up over every row: the player's lifetime figures as the file states them.</summary>
     public static CountRow Lifetime(ContributionCounts counts)
     {
@@ -262,6 +328,7 @@ public static class ContributionBuilder
             $"{c.Harvest.Count:N0} things gathered by zone, from {t.Harvests:N0} harvests",
             $"{t.Items:N0} item names with their game ids",
             $"{c.Npcs.Count:N0} NPCs with {c.Npcs.Sum(n => n.Lines.Count):N0} lines of what they said to you (your character's name replaced, no times)",
+            $"{(c.Trades ?? []).Count:N0} trades with other players: what each side handed over, the items and the coin, with the day and the zone. Never who the other player was",
         ];
     }
 }
