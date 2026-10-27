@@ -20,7 +20,8 @@ internal sealed class DropRatesView : UserControl
     private bool _byItem;
     private MobDrops? _mob;
     private DroppedItem? _item;
-    private string _search = "";   // typed into the box over the By item list; kept when an item is opened and the reader comes back
+    private string _search = "";      // typed into the box over the By item list; kept when an item is opened and the reader comes back
+    private string _mobSearch = "";   // the same over the By monster list
 
     // What the community's players have for the monster or item on show (asked for once each, only if the player shares their own totals)
     private readonly Dictionary<string, CommunityDrops?> _communityDrops = new(StringComparer.OrdinalIgnoreCase);
@@ -92,7 +93,7 @@ internal sealed class DropRatesView : UserControl
     private FrameworkElement MobList()
     {
         if (_mobs.Count == 0) return Nothing();
-        return Table.Build("drop-mobs", _mobs, new Col<MobDrops>[]
+        return Table.Searchable(_mobs, m => m.Mob + " " + m.Zone, "Search monsters by name or zone", () => _mobSearch, s => _mobSearch = s, rows => Table.Build("drop-mobs", rows, new Col<MobDrops>[]
         {
             new("Monster", 0, m => m.Mob, m => m.Mob, Right: false),
             new("Zone", 104, m => m.Zone, m => m.Zone, Right: false),
@@ -100,7 +101,7 @@ internal sealed class DropRatesView : UserControl
             new("Coin each", 100, m => m.Copper > 0 ? LootSummary.Coin((long)m.CopperEach) : "—", m => m.CopperEach),
             new("Items each", 90, m => m.ItemsEach.ToString("0.0", CultureInfo.CurrentCulture), m => m.ItemsEach),
             new("Likeliest item", 215, m => m.Drops.Count == 0 ? "—" : $"{m.Drops[0].Item}  {Fmt.Pct(m.Drops[0].Share)}", m => m.Drops.Count == 0 ? 0 : m.Drops[0].Share, Right: false),
-        }, Build, defaultSort: 2, bar: m => m.Corpses, color: _ => Palette.Taken, click: m => { _mob = m; Build(); });
+        }, Build, defaultSort: 2, bar: m => m.Corpses, color: _ => Palette.Taken, click: m => { _mob = m; Build(); }));
     }
 
     private FrameworkElement MobDetail(MobDrops m)

@@ -278,6 +278,12 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
     /// <summary>True when the rows can belong to different characters, so a table needs to say whose each is.</summary>
     protected bool ShowWho => !Subject.Scope.IsOneCharacter;
 
+    /// <summary>
+    /// The character a row belongs to, as text for the filter to look through: only when rows can be several characters' (with one character in
+    /// view their own name would match every row).
+    /// </summary>
+    protected string Who(string character) => ShowWho ? character : "";
+
     /// <summary>A table's id, kept apart from the one-character layout when it has the extra Character column.</summary>
     protected string TableId(string id) => ShowWho ? id + "-all" : id;
 

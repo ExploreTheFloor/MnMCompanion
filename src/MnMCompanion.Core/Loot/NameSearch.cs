@@ -20,6 +20,22 @@ public static class NameSearch
         return true;
     }
 
+    /// <summary>
+    /// A search over several columns of one row: every word has to be in at least one of the <paramref name="fields"/> (not all in the same
+    /// one), so "orrin scraps" finds a row whose character is Orrin and whose item is Iron Scraps.
+    /// </summary>
+    public static bool MatchesAny(string? query, params string?[] fields)
+    {
+        foreach (var word in Words(query))
+        {
+            var found = false;
+            foreach (var field in fields)
+                if (field is not null && field.Contains(word, StringComparison.OrdinalIgnoreCase)) { found = true; break; }
+            if (!found) return false;
+        }
+        return true;
+    }
+
     /// <summary>The rows whose name matches, in their own order.</summary>
     public static IReadOnlyList<T> Filter<T>(IReadOnlyList<T> rows, Func<T, string?> name, string? query) =>
         Words(query).Length == 0 ? rows : rows.Where(r => Matches(name(r), query)).ToList();

@@ -19,7 +19,7 @@ internal sealed class ItemChangesPage(HistoryFocus focus, HistoryData data, Hist
 
     protected override void Render(ItemChangesData data)
     {
-        var rows = data.Rows.Where(r => View.Matches(r.Item, r.Zone)).ToList();
+        var rows = data.Rows.Where(r => View.Matches(r.Item, r.Zone, Who(r.Character))).ToList();
         if (rows.Count == 0) { Empty("Drops / Pickups / Destroys", Scope("nothing dropped, picked up or destroyed")); return; }
         var t = ItemChangeSummary.Totals(rows);
 

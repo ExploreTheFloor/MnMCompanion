@@ -20,7 +20,7 @@ internal sealed class TradesPage(HistoryFocus focus, HistoryData data, HistoryVi
     protected override void Render(TradesData data)
     {
         var trades = TradeSummary.Pair(data.Rows)
-            .Where(t => View.Matches(TradeSummary.Label(t.Partner), TradeSummary.Describe(t.GaveCoin, t.GaveItems), TradeSummary.Describe(t.ReceivedCoin, t.ReceivedItems))).ToList();
+            .Where(t => View.Matches(TradeSummary.Label(t.Partner), TradeSummary.Describe(t.GaveCoin, t.GaveItems), TradeSummary.Describe(t.ReceivedCoin, t.ReceivedItems), t.Zone, Who(t.Character))).ToList();
         if (trades.Count == 0) { Empty("Trades", Scope("no trades")); return; }
 
         var partners = trades.GroupBy(t => t.Partner).ToList();

@@ -18,7 +18,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding Coin}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                    <TextBlock Text="coin + items" FontSize="10" Foreground="{StaticResource Muted}" HorizontalAlignment="Right"/>
+                    <TextBlock Text="{Binding Caption}" FontSize="10" Foreground="{StaticResource Muted}" HorizontalAlignment="Right"/>
                 </StackPanel>
             </Grid>
         </DataTemplate>
@@ -71,8 +71,9 @@
                     </StackPanel>
                 </DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="4,0,4,10">
-                    <TextBox x:Name="SearchBox" Style="{StaticResource Field}" TextChanged="OnSearch"/>
-                    <TextBlock Text="Filter by player, item or mob" Foreground="{StaticResource Muted}" FontSize="11.5" Margin="9,0,0,0"
+                    <TextBox x:Name="SearchBox" Style="{StaticResource Field}" TextChanged="OnSearch"
+                             ToolTip="Narrows the days to the ones where a player, item or monster has every word typed (any order, any case, part of a word is enough); the first row, All days, adds up what was found across every day"/>
+                    <TextBlock Text="Search every day: player, item or mob" Foreground="{StaticResource Muted}" FontSize="11.5" Margin="9,0,0,0"
                                VerticalAlignment="Center" IsHitTestVisible="False" x:Name="SearchHint"/>
                 </Grid>
                 <ListBox x:Name="DayList" Style="{StaticResource NavList}" ItemTemplate="{StaticResource DayItem}"
@@ -131,7 +132,7 @@
 
                 <DockPanel Margin="0,0,0,10">
                     <StackPanel x:Name="CopyBar" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"/>
-                    <Border CornerRadius="8" Background="{StaticResource Subtle}" Padding="2" HorizontalAlignment="Left">
+                    <Border x:Name="TabHost" CornerRadius="8" Background="{StaticResource Subtle}" Padding="2" HorizontalAlignment="Left">
                         <StackPanel x:Name="TabBar" Orientation="Horizontal"/>
                     </Border>
                 </DockPanel>

@@ -22,7 +22,7 @@ internal sealed class VendorsPage(HistoryFocus focus, HistoryData data, HistoryV
 
     protected override void Render(VendorsData data)
     {
-        var rows = data.Rows.Where(r => View.Matches(r.Item)).ToList();
+        var rows = data.Rows.Where(r => View.Matches(r.Item, r.Zone, Who(r.Character))).ToList();
         if (rows.Count == 0 && data.Book.Count == 0) { Empty("Vendors", Scope("nothing sold or bought")); return; }
         var t = VendorSummary.Totals(rows);
 

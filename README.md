@@ -233,7 +233,7 @@ each). Characters on different servers are never merged: those are two separate 
 
 <img src="docs/images/history-vendors.png" alt="The Vendors page, with the period bar across the top" width="100%">
 
-The strip at the top chooses **when**: **Today**, **Yesterday**, **7 days**, **30 days**, **All time**, or **Pick a day** for any single day that has something on it. The box on the right **filters** by an item, trader or place (type "backpack" and every page shows only rows with a backpack in them). Your choice stays as you move between pages. Every page also has a **Copy summary** button, and every table sorts when you click a column heading.
+The strip at the top chooses **when**: **Today**, **Yesterday**, **7 days**, **30 days**, **All time**, or **Pick a day** for any single day that has something on it. The box on the right **searches** by item, trader or place, and by **character** when the page covers more than one (type "backpack" and every page shows only rows with a backpack in them; with **Everyone** picked, "orrin scraps" shows Orrin's scraps). Every word you type has to be in the row, in any order and any case, and a part of a word is enough. Your choice stays as you move between pages. Every page also has a **Copy summary** button, and every table sorts when you click a column heading.
 
 ### Loot
 
@@ -241,13 +241,23 @@ The strip at the top chooses **when**: **Today**, **Yesterday**, **7 days**, **3
 
 The Loot page has three columns:
 
-- **Left: the days.** Every day you have loot for, with the day's total, and a box to filter by player, item or monster.
+- **Left: the days.** Every day you have loot for, with the day's total, and a **search box** for a player, item or monster. Typing narrows the days to the ones that have it, and puts an **All days** row first that adds up what was found across *every* day (see below).
 - **Middle: the group.** *Everyone* at the top, then each player with a coloured bar.
 - **Right: the details** for whatever you picked, with tiles for the headline numbers (monsters looted, coin, item value, best item, and "your splits": your share of the coin purses) and tabs underneath.
 
 Click **Everyone** and the tabs are **Looters**, **Items**, **Mobs**, **Drop rates** and **Loot log**. Click a **player** and you see their own **Items** (how many they took, the price of each, their share of the group's, and which monster they mostly came from), **Mobs** and **Loot log**.
 
-Every **Items** list has a **search box** above it: type part of a name and only the matching items stay ("scraps", or "raw croc meat" for Raw Crocodile Meat). Every word you type has to be in the name, in any order and any case, and a part of a word is enough. It says how many of the items match, keeps what you typed while you sort a column or switch tabs, and **Esc** clears it. **Copy items** copies just the items that match.
+Every list on the Loot page has a **search box** above it: the **Items**, **Looters**, **Mobs** and **Loot log** tabs, a player's **Items** and **Mobs**, and Drop rates → **By monster** and **By item**. Type part of a name and only the matching rows stay ("scraps", or "raw croc meat" for Raw Crocodile Meat). Every word you type has to be in the name, in any order and any case, and a part of a word is enough. It says how many rows match, keeps what you typed while you sort a column or switch tabs, and **Esc** clears it. **Copy items** copies just the items that match.
+
+#### Searching every day at once
+
+Type in the box at the top of the day list ("iron scraps", "orrin scraps", "legionary") and the first row becomes **All days**: pick it (it is picked for you as you type) and the right-hand side is the **answer across every day** you have, for every character you are looking at, not a list of days to open one by one:
+
+- **Tiles:** how many were taken, how many kinds, on how many days, by how many players, from how many kinds of monster, and what a vendor pays for them.
+- **Items, Looters, Monsters, Days and Loot log** tabs: what was taken in total and who took it, who took how many (and on how many days), which monsters it came from (corpses, and how many per corpse), a line per day (click one to open that day), and every matching loot line with its date.
+- **Click a player** in the middle column to see only their share of the answer.
+
+A word can match the looter, the item or the monster, so "wolf" finds the wolf pelts and everything that came off wolves, and "orrin scraps" finds the scraps Orrin took. Only items are counted (a search is about what dropped, not coin). Clear the box and you are back on the day you had open.
 
 <img src="docs/images/history-player.png" alt="The Loot page showing one player's items" width="100%">
 

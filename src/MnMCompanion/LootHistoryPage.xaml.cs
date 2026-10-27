@@ -11,7 +11,7 @@ using MnMCompanion.Loot;
 
 namespace MnMCompanion;
 
-public sealed record LootDayItem(DateOnly Day, string Title, string Sub, string Coin, string Month, string Search);
+public sealed record LootDayItem(DateOnly Day, string Title, string Sub, string Coin, string Month, string Search, string Caption = "coin + items");
 
 public sealed record LootMemberItem(string? Key, string Name, string Value, string Sub, Brush Brush, GridLength Fill, GridLength Rest);
 
@@ -39,6 +39,14 @@ public partial class LootHistoryPage : UserControl
     private string? _pendingMember;   // a name asked for from the small window, kept until the ledger has been read and it can be found
     private string _tab = "";
     private bool _updatingLists;
+
+    // The search box: it narrows the days, and what it finds across all of them is the first row of the list ("All days"), shown on the right
+    // while that row is the one picked
+    private bool _answer;
+    private (string Query, long Version, ItemValues Values, LootDay? Day)? _found;   // the answer for the text in the box, kept until the ledger or the text changes
+    private LootDayItem? _answerItem;
+    private DispatcherTimer? _typing;
+    private readonly Dictionary<string, string> _searches = [];   // what is typed into the search above each kind of table (items, monsters, players, log)
 
     internal LootHistoryPage(LootStore store)
     {
@@ -76,6 +84,7 @@ public partial class LootHistoryPage : UserControl
     public void Tick()
     {
         RefreshDays();
+        if (_answer) return;   // the answer is drawn again by RefreshDays whenever the ledger changes
         // The day on screen is still filling: keep it current.
         if (_day is { } day && _shown is not null && _store.Events(day).Count != _shownRaw) RenderDay();
     }
@@ -105,16 +114,56 @@ public partial class LootHistoryPage : UserControl
             _tab = "";
         }
 
+        ShowList();
+    }
+
+    /// <summary>Draws the list of days (with the search's answer first, when there is one) and the right-hand side.</summary>
+    private void ShowList()
+    {
+        if (_answer && NameSearch.Words(SearchBox.Text).Length == 0) _answer = false;
         _updatingLists = true;
-        var view = new ListCollectionView(_items);
+        var view = new ListCollectionView(WithAnswer());
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LootDayItem.Month)));
         view.Filter = o => Matches((LootDayItem)o);
         DayList.ItemsSource = view;
-        if (_day is { } keep) DayList.SelectedItem = _items.FirstOrDefault(i => i.Day == keep);
+        if (_answer) DayList.SelectedItem = _answerItem;
+        else if (_day is { } keep) DayList.SelectedItem = _items.FirstOrDefault(i => i.Day == keep);
         _updatingLists = false;
         DayCount.Text = _items.Count == 0 ? "No loot in the ledger yet" : Plural(_items.Count, "day") + " with loot";
         if (_items.Count == 0) ShowNothing();
-        else if (_day is not null) RenderDay();
+        else if (_answer || _day is not null) RenderDay();
+    }
+
+    // ---- The search across every day ----------------------------------------------------------------------------
+
+    private string Query => SearchBox.Text.Trim();
+
+    /// <summary>What the box finds across every day of the characters in view, worked out like one day; null when nothing is typed or nothing matches.</summary>
+    private LootDay? Found()
+    {
+        var query = Query;
+        if (NameSearch.Words(query).Length == 0) return null;
+        var values = _store.Values;
+        if (_found is { } f && f.Query == query && f.Version == _store.Version && ReferenceEquals(f.Values, values)) return f.Day;
+        var day = LootSearch.Answer(_store.Days().SelectMany(d => _store.Events(d)), query, values);
+        _found = (query, _store.Version, values, day);
+        return day;
+    }
+
+    /// <summary>The days, with the row that stands for all of them first while something is typed and found.</summary>
+    private List<LootDayItem> WithAnswer()
+    {
+        var list = new List<LootDayItem>(_items.Count + 1);
+        _answerItem = null;
+        if (Found() is { } a)
+        {
+            var query = Query;
+            _answerItem = new LootDayItem(LootSearch.AnswerDay, "All days", $"{Plural(a.Totals.Items, "item")} taken · {Plural(LootSearch.Days(a.Events), "day")}",
+                LootSummary.Worth(a.ItemValue, a.Approximate, a.Unpriced > 0), $"Matching “{query}”", query, "items worth");
+            list.Add(_answerItem);
+        }
+        list.AddRange(_items);
+        return list;
     }
 
     private static string Plural(int n, string word) => n == 1 ? $"1 {word}" : $"{n:N0} {word}s";
@@ -123,22 +172,58 @@ public partial class LootHistoryPage : UserControl
     private static string DayName(DateOnly day) =>
         day == Today ? "Today" : day == Today.AddDays(-1) ? "Yesterday" : day.ToString(day.Year == Today.Year ? "ddd, MMM d" : "MMM d, yyyy", CultureInfo.CurrentCulture);
 
-    private bool Matches(LootDayItem i)
-    {
-        var q = SearchBox.Text.Trim();
-        return q.Length == 0 || i.Search.Contains(q, StringComparison.OrdinalIgnoreCase);
-    }
+    private bool Matches(LootDayItem i) => NameSearch.Matches(i.Search, SearchBox.Text);
 
     private void OnSearch(object sender, TextChangedEventArgs e)
     {
         SearchHint.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        (DayList.ItemsSource as ICollectionView)?.Refresh();
+        // Wait for a pause in the typing: the answer looks through every day, so each letter must not redo it
+        _typing ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _typing.Stop();
+        _typing.Tick -= OnTyped;
+        _typing.Tick += OnTyped;
+        _typing.Start();
+    }
+
+    private void OnTyped(object? sender, EventArgs e) => ApplySearch();
+
+    /// <summary>Types into the box (for a picture) and shows the result at once, optionally with one looter of the answer picked.</summary>
+    internal void SearchFor(string text, string? member = null)
+    {
+        SearchBox.Text = text;
+        ApplySearch();
+        if (member is not null && _answer) SelectMember(member);
+    }
+
+    /// <summary>
+    /// The text in the box changed: narrow the days and, when something is typed, show what it finds across all of them; when it is cleared,
+    /// go back to the day that was open. Refining a search keeps the tab and the looter that were picked.
+    /// </summary>
+    private void ApplySearch()
+    {
+        _typing?.Stop();
+        var was = _answer;
+        _answer = NameSearch.Words(SearchBox.Text).Length > 0;
+        if (was != _answer)
+        {
+            _tab = "";
+            _member = null;
+            _pendingMember = null;
+        }
+        _scopeStart = null;
+        ShowList();
+        DetailScroll.ScrollToTop();
     }
 
     private void OnDaySelected(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingLists || DayList.SelectedItem is not LootDayItem item) return;
-        _day = item.Day;
+        if (item.Day == LootSearch.AnswerDay) _answer = true;
+        else
+        {
+            _answer = false;
+            _day = item.Day;
+        }
         _member = null;
         _pendingMember = null;
         _scopeStart = null;
@@ -159,6 +244,7 @@ public partial class LootHistoryPage : UserControl
     /// <summary>Shows a day (from the panel), optionally one session of it and one player's breakdown.</summary>
     public void ShowDay(DateOnly day, string? member = null, LootSession? session = null)
     {
+        _answer = false;
         _signature = "";
         RefreshDays();
         // Nothing looted on that day (today, early on): show the newest day that has loot rather than an empty page
@@ -198,6 +284,7 @@ public partial class LootHistoryPage : UserControl
 
     private void RenderDay()
     {
+        if (_answer) { RenderAnswer(); return; }
         if (_day is not { } day) return;
         var session = ScopeSession();
         var d = _shown = Load(day, session);
@@ -295,18 +382,20 @@ public partial class LootHistoryPage : UserControl
         DetailScroll.ScrollToTop();
     }
 
-    private void ShowNothing()
+    private void ShowNothing(string title = "No loot yet", string name = "Nothing looted yet", string sub = "Loot shows up here as the game writes it to its ledger.")
     {
-        DayTitle.Text = "No loot yet";
+        DayTitle.Text = title;
         DayWhen.Text = "";
         MemberList.ItemsSource = null;
-        HeadName.Text = "Nothing looted yet";
-        HeadSub.Text = "Loot shows up here as the game writes it to its ledger.";
+        HeadName.Text = name;
+        HeadSub.Text = sub;
         HeadBig.Text = "";
         HeadBigCaption.Text = "";
         HeadSwatch.Background = Palette.Muted;
         Tiles.Children.Clear();
         TabBar.Children.Clear();
+        TabHost.Visibility = Visibility.Collapsed;
+        CopyBar.Children.Clear();
         TabContent.Content = null;
     }
 
@@ -320,8 +409,145 @@ public partial class LootHistoryPage : UserControl
         else RenderEveryone(d);
     }
 
+    // ---- What the search found across every day ------------------------------------------------------------------
+
+    private void RenderAnswer()
+    {
+        var query = Query;
+        var d = _shown = Found();
+        _shownRaw = -1;
+        ScopeHost.Visibility = Visibility.Collapsed;
+        if (d is null)
+        {
+            ShowNothing($"Matching “{query}”", $"Nothing matches “{query}”", "No item taken on any day has a player, item or monster with all of those words in it.");
+            return;
+        }
+        int days = LootSearch.Days(d.Events);
+        DayTitle.Text = $"Matching “{query}”";
+        DayWhen.Text = $"{d.First:d} to {d.Last:d} · {Plural(days, "day")} · {Plural(d.Members.Count, "looter")}";
+
+        _updatingLists = true;
+        double top = Math.Max(1, d.Members.Select(m => m.Items).DefaultIfEmpty(0).Max());
+        var rows = new List<LootMemberItem>
+        {
+            new(null, "Everyone", $"{d.Totals.Items:N0} taken", $"{Plural(d.Items.Count, "kind")} · {Plural(days, "day")}", Palette.Muted,
+                new GridLength(1, GridUnitType.Star), new GridLength(0.0001, GridUnitType.Star)),
+        };
+        foreach (var m in d.Members.OrderByDescending(m => m.Items).ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            double frac = m.Items / top;
+            rows.Add(new LootMemberItem(m.Name, m.Class.Length > 0 ? $"{m.Name} · {m.Class}" : m.Name, $"{m.Items:N0} taken",
+                $"{Plural(m.Taken.Count, "kind")} · {Plural(DaysOf(d, m.Name), "day")}", BrushOf(m),
+                new GridLength(Math.Max(frac, 0.0001), GridUnitType.Star), new GridLength(Math.Max(1 - frac, 0.0001), GridUnitType.Star)));
+        }
+        MemberList.ItemsSource = rows;
+        if (_member != null && d.Member(_member) is null) _member = null;
+        MemberList.SelectedItem = rows.FirstOrDefault(r => string.Equals(r.Key, _member, StringComparison.OrdinalIgnoreCase));
+        _updatingLists = false;
+        RenderDetail();
+    }
+
+    private static int DaysOf(LootDay d, string who) =>
+        d.Events.Where(e => e.Who.Equals(who, StringComparison.OrdinalIgnoreCase)).Select(e => e.Day).Distinct().Count();
+
+    private void RenderAnswerEveryone(LootDay d)
+    {
+        var t = d.Totals;
+        int days = LootSearch.Days(d.Events);
+        HeadSwatch.Background = Palette.Muted;
+        HeadName.Text = $"Matching “{_found?.Query ?? Query}” · all days";
+        HeadSub.Text = $"{d.First:d} to {d.Last:d} · {Plural(days, "day")} · {Plural(d.Members.Count, "looter")}";
+        HeadBig.Text = LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0);
+        HeadBigCaption.Text = "items worth";
+
+        Tiles.Children.Clear();
+        AddTile("Taken", $"{t.Items:N0}", Plural(d.Items.Count, "kind"));
+        AddTile("Days", $"{days:N0}", $"{d.First:MMM d} to {d.Last:MMM d}");
+        AddTile("Looters", $"{d.Members.Count:N0}", d.Members.MaxBy(m => m.Items) is { } most ? $"most: {most.Name}" : "");
+        AddTile("From", $"{d.Mobs.Count:N0}", d.Mobs.Count == 1 ? "kind of monster" : "kinds of monster");
+        AddTile("Items worth", LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0), ItemsNote(d.Priced, d.Estimated, d.Unpriced));
+        if (d.ItemsWorth.FirstOrDefault(i => i.Value.Known) is { } best) AddTile("Best item", best.Item, $"{(best.Value.Estimated ? "~" : "")}{LootSummary.Coin(best.Value.Each)} each · {best.Count:N0} taken");
+
+        var query = _found?.Query ?? Query;
+        Tabs(["Items", "Looters", "Monsters", "Days", "Loot log"], tab => tab switch
+        {
+            "Items" => ItemsTable(d, search: false),
+            "Looters" => AnswerLootersTable(d),
+            "Monsters" => AnswerMobsTable(d),
+            "Days" => AnswerDaysTable(d),
+            _ => Log(d.Events, withDate: true),
+        }, _ => [("Copy items", () => LootSearch.Text(query, d))]);
+    }
+
+    private void RenderAnswerMember(LootDay day, LootMember m)
+    {
+        var t = day.Totals;
+        var brush = BrushOf(m);
+        HeadSwatch.Background = brush;
+        HeadName.Text = m.Name;
+        HeadSub.Text = (m.ClassLevel.Length > 0 ? m.ClassLevel + " · " : "") + $"matching “{_found?.Query ?? Query}” · taken {m.First:d} to {m.Last:d}";
+        HeadBig.Text = LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0);
+        HeadBigCaption.Text = "items worth";
+
+        string Of(double part, double whole) => whole > 0 ? $"{Fmt.Pct(part / whole)} of all found" : "—";
+        Tiles.Children.Clear();
+        AddTile("Taken", $"{m.Items:N0}", Of(m.Items, t.Items), brush);
+        AddTile("Kinds", $"{m.Taken.Count:N0}", $"of {Plural(day.Items.Count, "kind")} found");
+        AddTile("Days", $"{DaysOf(day, m.Name):N0}", $"{m.First:MMM d} to {m.Last:MMM d}");
+        AddTile("Corpses", $"{m.Mobs:N0}", "looted that gave one");
+        AddTile("Items worth", LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0), ItemsNote(m.Priced, m.Estimated, m.Unpriced));
+        if (m.Taken.OrderByDescending(x => x.Total).FirstOrDefault(x => x.Value.Known) is { } best) AddTile("Best item", best.Item, $"{(best.Value.Estimated ? "~" : "")}{LootSummary.Coin(best.Value.Each)} each · {best.Count:N0} taken");
+
+        Tabs(["Items", "Monsters", "Loot log"], tab => tab switch
+        {
+            "Items" => MemberItemsTable(m, search: false),
+            "Monsters" => MemberMobsTable(m, coin: false),
+            _ => Log(day.Events.Where(e => e.Who.Equals(m.Name, StringComparison.OrdinalIgnoreCase)), withDate: true),
+        }, _ => [("Copy summary", () => LootSummary.MemberText(m))]);
+    }
+
+    private FrameworkElement AnswerLootersTable(LootDay d)
+    {
+        var days = d.Events.GroupBy(e => e.Who, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(e => e.Day).Distinct().Count(), StringComparer.OrdinalIgnoreCase);
+        double total = Math.Max(1, d.Totals.Items);
+        return Table.Build("answer-looters", d.Members, new Col<LootMember>[]
+        {
+            new("Player", 0, m => m.ClassLevel.Length > 0 ? $"{m.Name} · {m.ClassLevel}" : m.Name, m => m.Name, Right: false),
+            new("Taken", 66, m => $"{m.Items:N0}", m => m.Items, Tip: "How many of the matching items they took"),
+            new("Kinds", 60, m => $"{m.Taken.Count:N0}", m => m.Taken.Count),
+            new("Worth", 100, m => m.ItemValue > 0 || m.Unpriced > 0 ? LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0) : "—", m => m.ItemValue,
+                Tip: "What a vendor would pay for them. ~ = some valued by their family, + = some with no known price (not counted)"),
+            new("Share", 60, m => Fmt.Pct(m.Items / total), m => m.Items, Tip: "Of everything the search found"),
+            new("Days", 56, m => $"{days.GetValueOrDefault(m.Name):N0}", m => days.GetValueOrDefault(m.Name), Tip: "Days they took one"),
+            new("Last", 90, m => m.Last.ToString("MMM d", CultureInfo.CurrentCulture), m => m.Last, Right: false),
+        }, Rebuild, defaultSort: 1, bar: m => m.Items, color: BrushOf, click: m => SelectMember(m.Name));
+    }
+
+    private FrameworkElement AnswerMobsTable(LootDay d) =>
+        Table.Build("answer-mobs", d.Mobs, new Col<MobLoot>[]
+        {
+            new("Monster", 0, m => m.Mob, m => m.Mob, Right: false),
+            new("Taken", 66, m => $"{m.Items:N0}", m => m.Items, Tip: "How many of the matching items came off this kind of monster"),
+            new("Corpses", 74, m => $"{m.Looted:N0}", m => m.Looted, Tip: "Looted corpses that gave one"),
+            new("Per corpse", 86, m => m.ItemsEach.ToString("0.0", CultureInfo.CurrentCulture), m => m.ItemsEach, Tip: "Matching items per corpse that gave one"),
+            new("Taken most by", 150, m => m.TopLooter, m => m.TopLooter, Right: false),
+        }, Rebuild, bar: m => m.Items, color: _ => Palette.Taken);
+
+    private FrameworkElement AnswerDaysTable(LootDay d) =>
+        Table.Build("answer-days", LootSearch.ByDay(d.Events, _store.Values), new Col<DayTaken>[]
+        {
+            new("Day", 0, r => DayName(r.Day), r => r.Day, Right: false),
+            new("Taken", 66, r => $"{r.Taken:N0}", r => r.Taken),
+            new("Kinds", 60, r => $"{r.Kinds:N0}", r => r.Kinds),
+            new("Looters", 66, r => $"{r.Looters:N0}", r => r.Looters),
+            new("Worth", 100, r => LootSummary.Worth(r.Worth, r.Estimated, r.Unpriced), r => r.Worth),
+        }, Rebuild, defaultSort: 0, bar: r => r.Taken, color: _ => Palette.You, click: r => ShowDay(r.Day),
+        rowTip: _ => "Open this day");
+
     private void RenderEveryone(LootDay d)
     {
+        if (LootSearch.IsAnswer(d)) { RenderAnswerEveryone(d); return; }
         var t = d.Totals;
         HeadSwatch.Background = Palette.Muted;
         HeadName.Text = "Everyone · " + DayName(d.Day);
@@ -347,12 +573,13 @@ public partial class LootHistoryPage : UserControl
             "Drop rates" => DropRatesFor(),
             _ => Log(d.Events),
         }, tab => tab == "Items"
-            ? [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values)), ("Copy items", () => LootSummary.ItemsText(d.Day, NameSearch.Filter(d.ItemsWorth, i => i.Item, _itemSearch), ScopeText()))]
+            ? [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values)), ("Copy items", () => LootSummary.ItemsText(d.Day, NameSearch.Filter(d.ItemsWorth, i => i.Item, _searches.GetValueOrDefault("items", "")), ScopeText()))]
             : [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values))]);
     }
 
     private void RenderMember(LootDay day, LootMember m)
     {
+        if (LootSearch.IsAnswer(day)) { RenderAnswerMember(day, m); return; }
         var t = day.Totals;
         var brush = BrushOf(m);
         HeadSwatch.Background = brush;
@@ -423,6 +650,7 @@ public partial class LootHistoryPage : UserControl
     private void Tabs(IReadOnlyList<string> tabs, Func<string, FrameworkElement> content, Func<string, (string Label, Func<string> Text)[]>? copies = null)
     {
         if (!tabs.Contains(_tab)) _tab = tabs[0];
+        TabHost.Visibility = Visibility.Visible;
         void FillCopies(string tab)
         {
             CopyBar.Children.Clear();
@@ -476,7 +704,7 @@ public partial class LootHistoryPage : UserControl
     private FrameworkElement LootersTable(LootDay d)
     {
         double total = Math.Max(1, d.Total);
-        return Table.Build("loot-members", d.Members, new Col<LootMember>[]
+        return Searchable("looters", "Search players by name or class", true, d.Members, m => m.Name + " " + m.Class, rows => Table.Build("loot-members", rows, new Col<LootMember>[]
         {
             new("Player", 0, m => m.ClassLevel.Length > 0 ? $"{m.Name} · {m.ClassLevel}" : m.Name, m => m.Name, Right: false),
             new("Mobs", 56, m => $"{m.Mobs:N0}", m => m.Mobs, Tip: "Corpses they took loot from"),
@@ -487,11 +715,11 @@ public partial class LootHistoryPage : UserControl
             new("Total", 106, m => LootSummary.Worth(m.Total, m.Estimated > 0, m.Unpriced > 0), m => m.Total, Tip: "Coin plus items worth"),
             new("Share", 60, m => Fmt.Pct(m.Total / total), m => m.Total, Tip: "Of the day's total"),
             new("Coin / mob", 92, m => m.Mobs > 0 ? LootSummary.Coin((long)m.CopperPerMob) : "—", m => m.CopperPerMob),
-        }, Rebuild, defaultSort: 5, bar: m => m.Total, color: BrushOf, click: m => SelectMember(m.Name));
+        }, Rebuild, defaultSort: 5, bar: m => m.Total, color: BrushOf, click: m => SelectMember(m.Name)));
     }
 
-    private FrameworkElement ItemsTable(LootDay d) =>
-        Searchable(d.ItemsWorth, i => i.Item, rows => Table.Build("loot-items", rows, new Col<ItemWorth>[]
+    private FrameworkElement ItemsTable(LootDay d, bool search = true) =>
+        Searchable("items", "Search items by name", search, d.ItemsWorth, i => i.Item, rows => Table.Build("loot-items", rows, new Col<ItemWorth>[]
         {
             new("Item", 0, i => i.Item, i => i.Item, Right: false),
             new("Taken", 60, i => $"{i.Count:N0}", i => i.Count),
@@ -504,14 +732,16 @@ public partial class LootHistoryPage : UserControl
         }, Rebuild, defaultSort: 3, bar: i => i.Total, color: _ => Palette.You,
         rowTip: i => string.Join("\n", i.By.Select(b => $"{b.Who}: {b.Count}")), copy: LootSummary.ItemLine));
 
-    /// <summary>The search over the item lists of this page (the day's, and a player's): one text, kept as the reader moves between them.</summary>
-    private string _itemSearch = "";
-
-    private FrameworkElement Searchable<T>(IReadOnlyList<T> rows, Func<T, string> name, Func<IReadOnlyList<T>, FrameworkElement> table) =>
-        Table.Searchable(rows, name, "Search items by name", () => _itemSearch, s => _itemSearch = s, table);
+    /// <summary>
+    /// A table with a search box over it (<see cref="Table.Searchable"/>), or the bare table when <paramref name="search"/> is false. What is typed is
+    /// kept per <paramref name="key"/>, so the items tabs (the day's and a player's) share one text, and so do the monsters tabs, and each is
+    /// kept as the reader moves between tabs and days.
+    /// </summary>
+    private FrameworkElement Searchable<T>(string key, string hint, bool search, IReadOnlyList<T> rows, Func<T, string> name, Func<IReadOnlyList<T>, FrameworkElement> table) =>
+        search ? Table.Searchable(rows, name, hint, () => _searches.GetValueOrDefault(key, ""), s => _searches[key] = s, table) : table(rows);
 
     private FrameworkElement MobsTable(LootDay d) =>
-        Table.Build("loot-mobs", d.Mobs, new Col<MobLoot>[]
+        Searchable("mobs", "Search monsters by name", true, d.Mobs, m => m.Mob, rows => Table.Build("loot-mobs", rows, new Col<MobLoot>[]
         {
             new("Mob", 0, m => m.Mob, m => m.Mob, Right: false),
             new("Looted", 70, m => $"{m.Looted:N0}", m => m.Looted),
@@ -519,10 +749,10 @@ public partial class LootHistoryPage : UserControl
             new("Coin each", 100, m => m.Looted > 0 && m.Copper > 0 ? LootSummary.Coin(m.Copper / m.Looted) : "—", m => m.CopperEach),
             new("Items each", 92, m => m.ItemsEach.ToString("0.0", CultureInfo.CurrentCulture), m => m.ItemsEach),
             new("Looted most by", 150, m => m.TopLooter, m => m.TopLooter, Right: false),
-        }, Rebuild, bar: m => m.Looted, color: _ => Palette.Taken);
+        }, Rebuild, bar: m => m.Looted, color: _ => Palette.Taken));
 
-    private FrameworkElement MemberItemsTable(LootMember m) =>
-        Searchable(m.Taken, i => i.Item, rows => Table.Build("loot-member-items", rows, new Col<MemberItem>[]
+    private FrameworkElement MemberItemsTable(LootMember m, bool search = true) =>
+        Searchable("items", "Search items by name", search, m.Taken, i => i.Item, rows => Table.Build("loot-member-items", rows, new Col<MemberItem>[]
         {
             new("Item", 0, i => i.Item, i => i.Item, Right: false),
             new("Taken", 60, i => $"{i.Count:N0}", i => i.Count),
@@ -534,39 +764,52 @@ public partial class LootHistoryPage : UserControl
             new("Mostly from", 200, i => i.MostlyFrom, i => i.MostlyFrom, Right: false),
         }, Rebuild, defaultSort: 3, bar: i => i.Total, color: _ => BrushOf(m), copy: LootSummary.MemberItemLine));
 
-    private FrameworkElement MemberMobsTable(LootMember m) =>
-        Table.Build("loot-member-mobs", m.MobList, new Col<MemberMob>[]
-        {
-            new("Mob", 0, x => x.Mob, x => x.Mob, Right: false),
-            new("Looted", 70, x => $"{x.Looted:N0}", x => x.Looted),
-            new("Coin", 108, x => LootSummary.Coin(x.Copper), x => x.Copper),
-            new("Coin each", 100, x => x.Copper > 0 ? LootSummary.Coin((long)x.CopperEach) : "—", x => x.CopperEach),
-            new("Items", 64, x => $"{x.Items:N0}", x => x.Items),
-            new("Items each", 92, x => x.ItemsEach.ToString("0.0", CultureInfo.CurrentCulture), x => x.ItemsEach),
-        }, Rebuild, bar: x => x.Looted, color: _ => BrushOf(m));
+    /// <summary>A player's monsters; with <paramref name="coin"/> off (the answer to a search, which is about items) the purse columns are left out.</summary>
+    private FrameworkElement MemberMobsTable(LootMember m, bool coin = true) =>
+        Searchable("mobs", "Search monsters by name", true, m.MobList, x => x.Mob, rows => Table.Build(coin ? "loot-member-mobs" : "answer-member-mobs", rows,
+            coin
+                ? new Col<MemberMob>[]
+                {
+                    new("Mob", 0, x => x.Mob, x => x.Mob, Right: false),
+                    new("Looted", 70, x => $"{x.Looted:N0}", x => x.Looted),
+                    new("Coin", 108, x => LootSummary.Coin(x.Copper), x => x.Copper),
+                    new("Coin each", 100, x => x.Copper > 0 ? LootSummary.Coin((long)x.CopperEach) : "—", x => x.CopperEach),
+                    new("Items", 64, x => $"{x.Items:N0}", x => x.Items),
+                    new("Items each", 92, x => x.ItemsEach.ToString("0.0", CultureInfo.CurrentCulture), x => x.ItemsEach),
+                }
+                : new Col<MemberMob>[]
+                {
+                    new("Monster", 0, x => x.Mob, x => x.Mob, Right: false),
+                    new("Taken", 66, x => $"{x.Items:N0}", x => x.Items, Tip: "How many of the matching items they took off this kind of monster"),
+                    new("Corpses", 74, x => $"{x.Looted:N0}", x => x.Looted, Tip: "Looted corpses that gave one"),
+                    new("Per corpse", 86, x => x.ItemsEach.ToString("0.0", CultureInfo.CurrentCulture), x => x.ItemsEach),
+                }, Rebuild, bar: x => x.Looted, color: _ => BrushOf(m)));
 
     private sealed record LogRow(DateTime Time, string Who, string What, string From, Brush Brush);
 
-    private FrameworkElement Log(IEnumerable<LootEvent> events)
+    /// <summary>The loot lines, newest first, with a search box over them; <paramref name="withDate"/> when they can be from several days.</summary>
+    private FrameworkElement Log(IEnumerable<LootEvent> events, bool withDate = false)
     {
-        var all = events.OrderByDescending(e => e.Time).ToList();
-        var rows = all.Take(LogRows).Select(e => new LogRow(e.Time, e.Who,
+        var all = events.OrderByDescending(e => e.Time).Select(e => new LogRow(e.Time, e.Who,
             e.Kind == LootKind.Item ? $"[{e.Item}]" + (e.Count > 1 ? $" ×{e.Count}" : "") : LootSummary.Coin(e.Copper) + (e.Shared ? (e.Split > 0 ? $"  (split · your share {LootSummary.Coin(e.Split)})" : "  (split)") : ""),
             e.Source, e.Kind == LootKind.Item ? Palette.Text : Palette.Heal)).ToList();
-        var table = Table.Build("loot-log", rows, new Col<LogRow>[]
+        return Searchable("log", "Search the log by looter, item or monster", true, all, r => $"{r.Who} {r.What} {r.From}", shown =>
         {
-            new("Time", 80, r => r.Time.ToString("HH:mm:ss", CultureInfo.CurrentCulture), r => r.Time, Right: false),
-            new("Looter", 150, r => r.Who, r => r.Who, Right: false),
-            new("Loot", 0, r => r.What, r => r.What, Right: false),
-            new("From", 240, r => r.From, r => r.From, Right: false),
-        }, Rebuild, defaultSort: 0);
-        var panel = new StackPanel();
-        panel.Children.Add(new TextBlock
-        {
-            Text = all.Count > LogRows ? $"The latest {LogRows:N0} of {all.Count:N0} lines (the rest are in the ledger)" : $"{all.Count:N0} lines",
-            FontSize = 11.5, Foreground = Palette.Muted, Margin = new Thickness(8, 0, 0, 6),
+            var table = Table.Build("loot-log", shown.Take(LogRows).ToList(), new Col<LogRow>[]
+            {
+                new("Time", withDate ? 124 : 80, r => r.Time.ToString(withDate ? "MMM d  HH:mm" : "HH:mm:ss", CultureInfo.CurrentCulture), r => r.Time, Right: false),
+                new("Looter", 150, r => r.Who, r => r.Who, Right: false),
+                new("Loot", 0, r => r.What, r => r.What, Right: false),
+                new("From", 240, r => r.From, r => r.From, Right: false),
+            }, Rebuild, defaultSort: 0);
+            var panel = new StackPanel();
+            panel.Children.Add(new TextBlock
+            {
+                Text = shown.Count > LogRows ? $"The latest {LogRows:N0} of {shown.Count:N0} lines (the rest are in the ledger)" : $"{shown.Count:N0} lines",
+                FontSize = 11.5, Foreground = Palette.Muted, Margin = new Thickness(8, 0, 0, 6),
+            });
+            panel.Children.Add(table);
+            return panel;
         });
-        panel.Children.Add(table);
-        return panel;
     }
 }

@@ -40,6 +40,7 @@ public partial class HistoryWindow : Window
     private DispatcherTimer? _saveSoon;
     private DispatcherTimer? _typing;
     private TextBox? _filter;
+    private readonly TextBlock _filterHint = new() { Foreground = Palette.Muted, FontSize = 11.5, Margin = new Thickness(9, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
     private string _key = "Loot";
     private int _preset;                 // the quick period chosen, or -1 for a particular day
     private DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
@@ -149,6 +150,14 @@ public partial class HistoryWindow : Window
         if (at >= 0 && at < _presets.Count) _presets[at].IsChecked = true;
     }
 
+    /// <summary>Types into the search box of the open page, as typing would (for a picture): the Loot page's days and answer, or the filter of every other page.</summary>
+    public void Search(string text, string? member = null)
+    {
+        if (_key == "Loot") { ((LootHistoryPage)Page("Loot")).SearchFor(text, member); return; }
+        if (_filter is not null) _filter.Text = text;
+        _view.SetFilter(text);
+    }
+
     /// <summary>Opens one monster's drop table on the Loot page (for a picture).</summary>
     public void PickDrop(string mob)
     {
@@ -192,9 +201,9 @@ public partial class HistoryWindow : Window
     {
         var bar = new DockPanel();
 
-        var box = new Grid { Width = 280, VerticalAlignment = VerticalAlignment.Center };
-        _filter = new TextBox { Style = (Style)Ui.Theme["Field"], ToolTip = "Show only rows with this item, trader or place in them" };
-        var hint = new TextBlock { Text = "Filter by item, trader or place", Foreground = Palette.Muted, FontSize = 11.5, Margin = new Thickness(9, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        var box = new Grid { Width = 300, VerticalAlignment = VerticalAlignment.Center };
+        _filter = new TextBox { Style = (Style)Ui.Theme["Field"], ToolTip = "Show only the rows that have these words in them: every word has to be there, in any order and any case, and part of a word is enough" };
+        var hint = _filterHint;
         _filter.TextChanged += (_, _) =>
         {
             hint.Visibility = _filter.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -321,6 +330,8 @@ public partial class HistoryWindow : Window
     private void ShowScope()
     {
         var scope = _focus.Scope;
+        // The character's name is searched only when rows can belong to several (one character's own name would match every row)
+        _filterHint.Text = scope.IsOneCharacter ? "Search by item, trader or place" : "Search by item, trader, place or character";
         ServerButton.Content = (scope.IsEveryone ? "All servers" : LedgerLocator.Capitalize(scope.Server!)) + "  ▾";
         CharacterButton.Content = (scope.IsOneCharacter ? scope.Character : "Everyone") + "  ▾";
     }

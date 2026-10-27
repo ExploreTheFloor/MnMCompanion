@@ -29,7 +29,9 @@ public sealed class HistoryView
         Changed?.Invoke();
     }
 
-    /// <summary>Whether any of the texts contains the filter, ignoring case (always, when there is no filter).</summary>
-    public bool Matches(params string[] fields) =>
-        Filter.Length == 0 || fields.Any(f => f.Contains(Filter, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Whether the texts (the columns of one row) have every word of the filter between them, in any order and any case
+    /// (always, when there is no filter): see <see cref="Loot.NameSearch.MatchesAny"/>.
+    /// </summary>
+    public bool Matches(params string[] fields) => Loot.NameSearch.MatchesAny(Filter, fields);
 }

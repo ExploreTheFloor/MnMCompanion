@@ -20,7 +20,7 @@ internal sealed class HarvestPage(HistoryFocus focus, HistoryData data, HistoryV
 
     protected override void Render(HarvestData data)
     {
-        var rows = data.Rows.Where(r => View.Matches(r.Item, r.Zone)).ToList();
+        var rows = data.Rows.Where(r => View.Matches(r.Item, r.Zone, Who(r.Character))).ToList();
         if (rows.Count == 0) { Empty("Harvest", Scope("nothing gathered")); return; }
         var totals = HarvestSummary.Totals(rows);
         var items = HarvestSummary.ByItem(rows);
