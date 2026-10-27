@@ -40,6 +40,12 @@ public sealed record ContributionTradeSide(long Coin, IReadOnlyList<Contribution
 /// </summary>
 public sealed record ContributionTrade(string Day, string Zone, ContributionTradeSide Gave, ContributionTradeSide Got);
 
+/// <summary>
+/// What the player threw away of one item in one zone (schema 3), in units: <see cref="Dropped"/> on the ground, <see cref="Destroyed"/>, and of the dropped ones how many
+/// they picked up again soon after (<see cref="TakenBack"/>, never more than were dropped). Dropping and destroying are always the player's own choice.
+/// </summary>
+public sealed record ContributionDiscard(string Item, string Zone, int Dropped, int Destroyed, int TakenBack);
+
 /// <summary>Headline counts of a contribution, for the preview.</summary>
 public sealed record ContributionTotals(int Monsters, int Corpses, int Sales, int Purchases, int Harvests, int Items);
 
@@ -73,7 +79,7 @@ public sealed record ContributionCounts(CountRow Before, IReadOnlyList<CountRow>
 public sealed record Contribution(
     int Schema, string Contributor, string App, string Generated, string License, ContributionTotals Totals,
     IReadOnlyList<ContributionDrop> Drops, IReadOnlyList<ContributionPrice> Prices, IReadOnlyList<ContributionHarvest> Harvest, IReadOnlyList<ContributionName> Items,
-    IReadOnlyList<ContributionNpc> Npcs, ContributionCounts Counts, IReadOnlyList<ContributionTrade> Trades)
+    IReadOnlyList<ContributionNpc> Npcs, ContributionCounts Counts, IReadOnlyList<ContributionTrade> Trades, IReadOnlyList<ContributionDiscard> Discards)
 {
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -147,7 +153,7 @@ public static class ContributionBuilder
     private const int MaxName = 80;
 
     /// <summary>The service refuses more than this: a file holds the newest <see cref="MaxTrades"/> trades, a side at most <see cref="MaxTradeItems"/> kinds of item and <see cref="MaxTradeQty"/> of one.</summary>
-    public const int MaxTrades = 3000, MaxTradeItems = 40, MaxTradeQty = 9999;
+    public const int MaxTrades = 3000, MaxTradeItems = 40, MaxTradeQty = 9999, MaxDiscards = 5000;
 
     /// <summary>The most coin (copper) a side of a trade may hold in the file.</summary>
     public const long MaxTradeCoin = 1_000_000_000_000;
@@ -165,7 +171,7 @@ public static class ContributionBuilder
     /// </summary>
     public static Contribution Build(IEnumerable<LootEvent> ownLoot, IEnumerable<VendorRow> vendor, IEnumerable<HarvestRow> harvest,
         IEnumerable<ContributionName> names, string contributor, string app, DateOnly generated, IEnumerable<ContributionNpc>? npcs = null,
-        IEnumerable<TradeRow>? trades = null)
+        IEnumerable<TradeRow>? trades = null, IEnumerable<ItemMoveRow>? itemMoves = null)
     {
         var tradeRows = (trades ?? []).ToList();
         var loot = ownLoot as IReadOnlyList<LootEvent> ?? ownLoot.ToList();
@@ -192,7 +198,7 @@ public static class ContributionBuilder
         var dialogue = (npcs ?? []).Where(n => Ok(n.Name)).GroupBy(n => Clean(n.Name).ToLowerInvariant())
             .Select(g => new ContributionNpc(Clean(g.First().Name),
                 g.SelectMany(n => n.Lines).Select(l => l.Trim()).Where(l => l.Length > 0 && l.Length <= MaxLine && !l.Any(char.IsControl)).Distinct(StringComparer.Ordinal)
-                    .Order(StringComparer.Ordinal).Take(MaxLinesPerNpc).ToList()))
+                    .Take(MaxLinesPerNpc).ToList()))   // in the order they were first heard, so a quest's lines stay in sequence
             .Where(n => n.Lines.Count > 0).OrderBy(n => n.Name, StringComparer.OrdinalIgnoreCase).Take(MaxNpcs).ToList();
 
         // The counters count exactly what the lists above list (the same corpses, stacks and harvests, the same name rule), so the service can check they add up
@@ -200,8 +206,9 @@ public static class ContributionBuilder
         var gatheredRows = harvest.Where(h => Ok(h.Item)).ToList();
         var counts = CountsOf(looted, rows, gatheredRows, tradeRows, generated);
         var tradeList = TradesOf(tradeRows, generated);
+        var discards = DiscardsOf((itemMoves ?? []).ToList());
 
-        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue, counts, tradeList);
+        return new Contribution(Schema, contributor, app, generated.ToString("yyyy-MM-dd"), License, totals, drops, prices, gathered, catalogue, dialogue, counts, tradeList, discards);
     }
 
     // The slots of one row of counters, in the order of CountRow
@@ -291,6 +298,33 @@ public static class ContributionBuilder
                 .OrderByDescending(i => i.Qty).ThenBy(i => i.Item, StringComparer.OrdinalIgnoreCase).Take(MaxTradeItems).ToList());
     }
 
+    /// <summary>
+    /// What the player dropped and destroyed, per item and zone (schema 3): units dropped, units destroyed, and of the dropped units how many were picked up again within ten
+    /// minutes. The most thrown away first, at most <see cref="MaxDiscards"/>. An item that was only picked up is not here, and neither is anything without a name.
+    /// </summary>
+    private static IReadOnlyList<ContributionDiscard> DiscardsOf(IReadOnlyList<ItemMoveRow> moves)
+    {
+        var taken = ItemChangeSummary.TakenBackByItemAndZone(moves);
+        return moves.Where(m => m.Kind is ItemMoveKind.Dropped or ItemMoveKind.Destroyed && m.Qty > 0 && Ok(m.Item) && !Clean(m.Item).Any(char.IsControl))
+            .GroupBy(m => (Clean(m.Item).ToLowerInvariant(), ZoneOf(m.Zone).ToLowerInvariant()))
+            .Select(g =>
+            {
+                int dropped = g.Where(m => m.Kind == ItemMoveKind.Dropped).Sum(m => m.Qty);
+                int destroyed = g.Where(m => m.Kind == ItemMoveKind.Destroyed).Sum(m => m.Qty);
+                // taken back is counted by the raw zone and item the rows carry, so look it up the same way
+                int back = g.Select(m => (m.Item.ToLowerInvariant(), m.Zone.ToLowerInvariant())).Distinct().Sum(k => taken.GetValueOrDefault(k));
+                return new ContributionDiscard(Clean(g.First().Item), ZoneOf(g.First().Zone), dropped, destroyed, Math.Min(back, dropped));
+            })
+            .OrderByDescending(d => d.Dropped + d.Destroyed).ThenBy(d => d.Item, StringComparer.OrdinalIgnoreCase).ThenBy(d => d.Zone, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxDiscards).ToList();
+    }
+
+    private static string ZoneOf(string zone)
+    {
+        var clean = Clean(zone);
+        return clean.Length == 0 || clean.Any(char.IsControl) ? "unknown" : clean;
+    }
+
     /// <summary>The counters added up over every row: the player's lifetime figures as the file states them.</summary>
     public static CountRow Lifetime(ContributionCounts counts)
     {
@@ -329,6 +363,7 @@ public static class ContributionBuilder
             $"{t.Items:N0} item names with their game ids",
             $"{c.Npcs.Count:N0} NPCs with {c.Npcs.Sum(n => n.Lines.Count):N0} lines of what they said to you (your character's name replaced, no times)",
             $"{(c.Trades ?? []).Count:N0} trades with other players: what each side handed over, the items and the coin, with the day and the zone. Never who the other player was",
+            $"{(c.Discards ?? []).Count:N0} items you dropped or destroyed, by zone: how many of each, and how many you took back",
         ];
     }
 }

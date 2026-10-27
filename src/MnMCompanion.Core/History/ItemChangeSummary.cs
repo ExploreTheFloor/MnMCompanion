@@ -17,16 +17,25 @@ public static class ItemChangeSummary
     public static ItemChangeTotals Totals(IEnumerable<ItemMoveRow> rows)
     {
         var list = rows.OrderBy(r => r.Time).ToList();
-        int takenBack = 0;
+        return new ItemChangeTotals(Units(list, ItemMoveKind.Dropped), Units(list, ItemMoveKind.PickedUp), Units(list, ItemMoveKind.Destroyed), TakenBackByItemAndZone(list).Values.Sum());
+    }
+
+    /// <summary>
+    /// Units taken back, each counted against the item and zone it was dropped in (both in lower case): a pickup within <see cref="TakeBackWindow"/> of a drop of the
+    /// same item by the same character takes back what is left of the earliest such drop first.
+    /// </summary>
+    public static IReadOnlyDictionary<(string Item, string Zone), int> TakenBackByItemAndZone(IEnumerable<ItemMoveRow> rows)
+    {
+        var taken = new Dictionary<(string Item, string Zone), int>();
         // Drops still waiting to be matched by a pickup, per character and item
-        var open = new Dictionary<(string, string), List<(DateTime Time, int Left)>>();
-        foreach (var r in list)
+        var open = new Dictionary<(string, string), List<(DateTime Time, int Left, string Zone)>>();
+        foreach (var r in rows.OrderBy(r => r.Time))
         {
             var key = (r.Character.ToLowerInvariant(), r.Item.ToLowerInvariant());
             if (r.Kind == ItemMoveKind.Dropped)
             {
                 if (!open.TryGetValue(key, out var drops)) open[key] = drops = [];
-                drops.Add((r.Time, r.Qty));
+                drops.Add((r.Time, r.Qty, r.Zone.ToLowerInvariant()));
             }
             else if (r.Kind == ItemMoveKind.PickedUp && open.TryGetValue(key, out var waiting))
             {
@@ -36,12 +45,13 @@ public static class ItemChangeSummary
                     if (r.Time - waiting[i].Time > TakeBackWindow) continue;
                     int take = Math.Min(need, waiting[i].Left);
                     need -= take;
-                    takenBack += take;
-                    waiting[i] = (waiting[i].Time, waiting[i].Left - take);
+                    var zoneKey = (key.Item2, waiting[i].Zone);
+                    taken[zoneKey] = taken.GetValueOrDefault(zoneKey) + take;
+                    waiting[i] = (waiting[i].Time, waiting[i].Left - take, waiting[i].Zone);
                 }
             }
         }
-        return new ItemChangeTotals(Units(list, ItemMoveKind.Dropped), Units(list, ItemMoveKind.PickedUp), Units(list, ItemMoveKind.Destroyed), takenBack);
+        return taken;
     }
 
     private static int Units(List<ItemMoveRow> rows, ItemMoveKind kind) => rows.Where(r => r.Kind == kind).Sum(r => r.Qty);

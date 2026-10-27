@@ -178,7 +178,7 @@ public class JournalTests
         var contribution = CommunityExport.Build(db, "MnMCompanion 0.2.0", new DateOnly(2026, 10, 25));
 
         Assert.Equal(["Abbot Harrow", "Hull Orbel"], contribution.Npcs.Select(n => n.Name));
-        Assert.Equal(["Take this satchel.", "Well met, {player}."], contribution.Npcs[0].Lines);   // one line said to both is one line
+        Assert.Equal(["Well met, {player}.", "Take this satchel."], contribution.Npcs[0].Lines);   // one line said to both is one line, and the lines keep the order they were heard in
         Assert.Equal(["Mind the road, {player}!"], contribution.Npcs[1].Lines);
         var json = contribution.ToJson();
         Assert.DoesNotContain("Aldric", json, StringComparison.OrdinalIgnoreCase);
@@ -205,7 +205,7 @@ public class JournalTests
 
         var only = Assert.Single(c.Npcs);
         Assert.Equal("Abbot Harrow", only.Name);
-        Assert.Equal(["Another.", "Fine.", "padded"], only.Lines);
+        Assert.Equal(["Fine.", "padded", "Another."], only.Lines);   // in the order given: a quest's lines stay in sequence
 
         var many = Enumerable.Range(0, ContributionBuilder.MaxLinesPerNpc + 40).Select(n => $"line {n:D4}").ToList();
         var capped = ContributionBuilder.Build([], [], [], [], "a".PadLeft(32, 'a'), "MnMCompanion 0.2.0", new DateOnly(2026, 10, 25), [new ContributionNpc("Talker", many)]);

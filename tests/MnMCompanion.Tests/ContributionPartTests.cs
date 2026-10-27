@@ -38,7 +38,7 @@ public class ContributionPartTests
         Assert.DoesNotContain("  ", core);
         using var doc = JsonDocument.Parse(core);
         var keys = doc.RootElement.EnumerateObject().Select(p => p.Name).ToList();
-        Assert.Equal(["schema", "contributor", "app", "generated", "license", "totals", "drops", "prices", "harvest", "items", "counts"], keys);
+        Assert.Equal(["schema", "contributor", "app", "generated", "license", "totals", "drops", "prices", "harvest", "items", "counts", "discards"], keys);
         Assert.Equal(3, doc.RootElement.GetProperty("schema").GetInt32());
         Assert.True(core.Length < c.ToJson().Length * 0.7, "much smaller than the indented whole");
     }
@@ -57,7 +57,7 @@ public class ContributionPartTests
         var npcs = root.GetProperty("npcs").EnumerateArray().ToList();
         Assert.Equal(["Abbot Harrow", "Hull Orbel"], npcs.Select(n => n.GetProperty("name").GetString()));
         Assert.Equal(["name", "lines"], npcs[0].EnumerateObject().Select(p => p.Name));
-        Assert.Equal(["Brom's cart is late.", "Well met, {player}."], npcs[0].GetProperty("lines").EnumerateArray().Select(l => l.GetString()));
+        Assert.Equal(["Well met, {player}.", "Brom's cart is late."], npcs[0].GetProperty("lines").EnumerateArray().Select(l => l.GetString()));
         Assert.DoesNotContain("\n", c.ToNpcPartJson());
     }
 

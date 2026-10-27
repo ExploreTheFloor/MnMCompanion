@@ -49,19 +49,20 @@ public sealed partial class HistoryStore
     public IReadOnlyList<ContributionNpc> OwnNpcDialogue() => db.With(conn =>
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT n.name, l.character, l.text FROM npc_line l JOIN npc n ON n.id = l.npc_id";
-        var perNpc = new Dictionary<string, (string Name, HashSet<string> Lines)>(StringComparer.OrdinalIgnoreCase);
+        // Oldest first: an NPC's lines go out in the order they were first heard, so the lines of a quest stay in sequence
+        cmd.CommandText = "SELECT n.name, l.character, l.text FROM npc_line l JOIN npc n ON n.id = l.npc_id ORDER BY l.at_utc, l.id";
+        var perNpc = new Dictionary<string, (string Name, List<string> Lines, HashSet<string> Seen)>(StringComparer.OrdinalIgnoreCase);
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
             var name = r.GetString(0).Trim();
             var text = JournalParser.WithoutPlayerName(r.GetString(2), r.GetString(1)).Trim();
             if (name.Length == 0 || name.Length > 80 || text.Length == 0 || text.Length > ContributionBuilder.MaxLine) continue;
-            if (!perNpc.TryGetValue(name, out var entry)) perNpc[name] = entry = (name, new HashSet<string>(StringComparer.Ordinal));
-            entry.Lines.Add(text);
+            if (!perNpc.TryGetValue(name, out var entry)) perNpc[name] = entry = (name, [], new HashSet<string>(StringComparer.Ordinal));
+            if (entry.Seen.Add(text)) entry.Lines.Add(text);
         }
         return perNpc.Values.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(e => new ContributionNpc(e.Name, e.Lines.Order(StringComparer.Ordinal).Take(ContributionBuilder.MaxLinesPerNpc).ToList()))
+            .Select(e => new ContributionNpc(e.Name, e.Lines.Take(ContributionBuilder.MaxLinesPerNpc).ToList()))
             .Where(n => n.Lines.Count > 0).Take(ContributionBuilder.MaxNpcs).ToList();
     });
 }

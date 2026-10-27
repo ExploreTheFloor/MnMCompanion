@@ -13,7 +13,9 @@ public class LootStoreTests
 
     private static DateTime Recent()
     {
-        var t = DateTime.Now.AddHours(-1);
+        var now = DateTime.Now;
+        var t = now.AddHours(-1);
+        if (t.Date != now.Date) t = now.Date.AddMinutes(1);   // the first hour of the day: an hour ago is yesterday, but a session looks at today (the loot's few minutes need the clock past 00:04)
         return t.Hour == 23 && t.Minute >= 50 ? t.AddMinutes(-15) : t;
     }
 

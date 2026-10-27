@@ -99,7 +99,7 @@ game's memory could do it automatically; Companion deliberately never does that.
 ## Sharing with the community
 
 ### What is sharing?
-A yes/no choice. **Yes** adds your own totals (how often each monster you looted dropped each item, what vendors paid you, what you gathered, item names, what NPCs said to you, your trades with other players, and running
+A yes/no choice. **Yes** adds your own totals (how often each monster you looted dropped each item, what vendors paid you, what you gathered, item names, what NPCs said to you, what you dropped and destroyed, your trades with other players, and running
 totals counted by week) to a combined database that every sharing player gets figures back from. **No** (the default) means nothing leaves your PC and the community figures aren't used.
 Details in [Sharing with the community data](../README.md#sharing-with-the-community-data).
 
@@ -112,6 +112,10 @@ Yes. **ⓘ → What does sharing include?** lists it in plain words (the picture
 ### What is never sent?
 Your character names or any other player's name or number (a trade says what each side handed over, never who the other player was), individual loot lines, the time of day of anything (only
 the day the file was made, the weeks the running totals fall in, and the day of each trade), and anything from other players' ledgers. Your character's name inside what NPCs said to you is replaced before it is sent.
+
+### Is what I drop or destroy shared?
+Yes, if you say Yes to sharing: for each item and zone, how many units you dropped, how many you destroyed, and how many of the dropped ones you picked up again within ten minutes.
+Dropping and destroying are always your own choice, so it shows what players treat as junk. There is no time and nothing about anyone else.
 
 ### Are my trades with other players shared?
 Yes, if you say Yes to sharing: for each trade, the day it happened, the zone, and what each side handed over (the coin, and the items with how many). The ledger gives the other player only as

@@ -428,7 +428,8 @@ The first time you start the app (and every time after, while the answer is No) 
 - what vendors paid and charged you, per item and zone (the game doesn't record which vendor);
 - what you gathered, per item and zone;
 - item names with the game's own ids;
-- what NPCs said to you, as distinct lines with your own character's name replaced by `{player}` (no times and no characters);
+- what NPCs said to you, as distinct lines with your own character's name replaced by `{player}`, in the order you first heard them (so a quest's lines stay in sequence), with no times and no characters;
+- **what you dropped and destroyed**, per item and zone: how many units, and how many of the dropped ones you picked up again within ten minutes;
 - **running totals, counted by week**: how many corpses you looted (the game doesn't record kills, so this is the kill count), the coin in their purses, the items taken, what you gathered, how many stacks you sold to and bought from vendors and for how much coin, and how many trades you made with other players. These are kept as one row for each of the last 53 weeks plus one row for everything older, so they never grow into a list of events. A week is only its Monday's date, never a day or a time;
 - **your trades with other players**, one line for each (the newest 3,000): the **day** it happened (never the time of day), the zone, and what each side handed over: the coin, and the items with how many. The ledger gives the other player only as a number, and **that number is left out**: nothing in the file says who you traded with.
 

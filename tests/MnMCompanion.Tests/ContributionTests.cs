@@ -157,7 +157,7 @@ public class ContributionTests
 
         Assert.Empty(c.Drops);
         Assert.Equal(new ContributionTotals(0, 0, 0, 0, 0, 0), c.Totals);
-        Assert.Equal(7, ContributionBuilder.Describe(c).Count);   // monsters, running totals, prices, harvests, item names, NPC lines, trades
+        Assert.Equal(8, ContributionBuilder.Describe(c).Count);   // monsters, running totals, prices, harvests, item names, NPC lines, trades, discards
         Assert.Empty(c.Npcs);
     }
 
