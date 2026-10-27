@@ -5,16 +5,18 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shell;
 using System.Windows.Threading;
+using MnMCompanion.Loot;
 using MnMCompanion.Timers;
 
 namespace MnMCompanion;
 
 /// <summary>
-/// The timers window: buff and cooldown timers the player starts by clicking. Companion reads only the ledger and the journal and the game
-/// writes no cast to either, so it cannot know when a spell was cast; every timer is started by the player (a click on one they keep to hand, or a
-/// name and a length typed in). It then counts down, goes gold for the last half minute, flashes red for the last ten seconds, and can beep at
-/// both. Timers are kept per character, as the moment they end, so they carry on if the app is closed. Closing this window only hides it:
-/// the timers (and the beeps) keep going.
+/// The timers window: the timers the player started, counting down, and (when they have turned it on) one for every corpse looted. Companion reads
+/// only the ledger and the journal and the game writes no cast to either, so it cannot know when a spell was cast: the player starts a timer with a
+/// click or with the key they gave it (see <see cref="HotkeyHost"/>). Names, lengths, keys and the corpse timer are set in <see cref="TimerSetupWindow"/>.
+/// A timer goes gold for its last half minute, flashes red for the last ten seconds, and can beep at both (not the corpse ones, which are many).
+/// Timers are kept per character, as the moment they end, so they carry on if the app is closed. Closing this window only hides it: the timers
+/// (and the keys, and the beeps) keep going.
 /// </summary>
 internal sealed class TimersWindow : Window
 {
@@ -23,16 +25,21 @@ internal sealed class TimersWindow : Window
 
     private readonly Settings _settings;
     private readonly Func<string?> _folder;
+    private readonly Func<IReadOnlyList<LootedCorpse>>? _corpses;
+    private readonly HotkeyHost? _hotkeys;
     private TimerBook _book = new();
     private string? _loadedFolder;
     private bool _followed;
+    private TimerSetupWindow? _setup;
     private readonly StackPanel _rows = new();
     private readonly Dictionary<string, Row> _live = new(StringComparer.OrdinalIgnoreCase);
+    private readonly StackPanel _corpseRows = new();
+    private readonly Dictionary<string, Row> _corpseLive = new(StringComparer.Ordinal);
+    private readonly TextBlock _corpseHeader = new() { Text = "Corpses", Style = (Style)Ui.Theme["Label"], Margin = new Thickness(0, 8, 0, 4), Visibility = Visibility.Collapsed };
+    private readonly TextBlock _corpseMore = new() { FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(2, 0, 0, 4), Visibility = Visibility.Collapsed };
     private readonly WrapPanel _presets = new();
     private readonly TextBlock _empty;
     private readonly TextBlock _message = new() { FontSize = 11, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
-    private readonly TextBox _name = new() { Style = (Style)Ui.Theme["Field"], MaxLength = TimerBook.MaxName, ToolTip = "What the timer is for: a spell, a cooldown, a respawn" };
-    private readonly TextBox _length = new() { Style = (Style)Ui.Theme["Field"], MaxLength = 12, Width = 70, ToolTip = "How long: 90, 1:30, 5m, 1h30m" };
     private DispatcherTimer? _saveSoon;
 
     private sealed class Row
@@ -44,10 +51,15 @@ internal sealed class TimersWindow : Window
         public TimerPhase Phase;
     }
 
-    public TimersWindow(Settings settings, Func<string?> stateFolder)
+    /// <summary>The timers were read again (another character is being played): the setup window shows the new ones.</summary>
+    public event Action? BookReplaced;
+
+    /// <param name="corpses">The corpses looted lately, when asked for (only while the corpse timer is on); null for none (a picture, a test).</param>
+    public TimersWindow(Settings settings, Func<string?> stateFolder, Func<IReadOnlyList<LootedCorpse>>? corpses = null)
     {
         _settings = settings;
         _folder = stateFolder;
+        _corpses = corpses;
         Resources.MergedDictionaries.Add(Ui.Theme);
         Title = "Companion timers";
         WindowStyle = WindowStyle.None;
@@ -68,7 +80,7 @@ internal sealed class TimersWindow : Window
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
 
-        var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 300, 430);
+        var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 300, 400);
         Width = b.Width;
         Height = b.Height;
         var work = SystemParameters.WorkArea;
@@ -87,7 +99,8 @@ internal sealed class TimersWindow : Window
 
         _empty = new TextBlock
         {
-            Text = "Nothing running. Click a timer below to start it, or type one in. The game doesn't tell Companion when you cast something, so you start each timer yourself.",
+            Text = "Nothing running. Click a timer below, or press its key, to start it. Set up… adds timers and keys, and can start a timer on every corpse you loot. " +
+                   "The game doesn't tell Companion when you cast something, so you start those yourself.",
             FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 6),
         };
 
@@ -95,9 +108,12 @@ internal sealed class TimersWindow : Window
         var body = new StackPanel { Margin = new Thickness(12, 10, 12, 8) };
         body.Children.Add(_empty);
         body.Children.Add(_rows);
+        body.Children.Add(_corpseHeader);
+        body.Children.Add(_corpseRows);
+        body.Children.Add(_corpseMore);
         scroll.Content = body;
 
-        var bottom = BuildForm();
+        var bottom = BuildBottom();
         var root = new DockPanel();
         DockPanel.SetDock(title, Dock.Top);
         DockPanel.SetDock(bottom, Dock.Bottom);
@@ -106,8 +122,11 @@ internal sealed class TimersWindow : Window
         root.Children.Add(scroll);
         Content = root;
 
+        if (!settings.ReadOnly) _hotkeys = MakeHotkeys();
+
         LocationChanged += (_, _) => Remember();
         SizeChanged += (_, _) => Remember();
+        Closed += (_, _) => _hotkeys?.Dispose();
         var tick = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) => Tick(), Dispatcher);
         tick.Start();
         Tick();
@@ -135,41 +154,107 @@ internal sealed class TimersWindow : Window
         _settings.Save();
     }
 
-    // ------------------------------------------------------------------ the form at the bottom
+    // ------------------------------------------------------------------ the setup window and what it changes
 
-    private FrameworkElement BuildForm()
+    /// <summary>The timers of the character being played; the setup window edits this book and calls <see cref="BookEdited"/>.</summary>
+    internal TimerBook Book => _book;
+
+    /// <summary>Why keys can't be used on this PC (the listener couldn't be made), or null.</summary>
+    internal string? KeysUnavailable { get; private set; }
+
+    /// <summary>What Windows refused when the keys were taken (another program has them), one sentence each.</summary>
+    internal IReadOnlyList<string> KeyProblems { get; private set; } = [];
+
+    /// <summary>Opens the setup window, or brings it forward. Keys are let go while it is open, so a key can be pressed to be recorded.</summary>
+    public void OpenSetup()
     {
-        var start = Pill("Start", "Starts a timer with this name and length, without keeping it", () => StartTyped(save: false));
-        var keep = Pill("Keep", "Keeps it in the list above so it starts with one click, and starts it", () => StartTyped(save: true));
+        if (_setup is { } open)
+        {
+            open.Activate();
+            return;
+        }
+        _setup = new TimerSetupWindow(this, _settings);
+        _setup.Closed += (_, _) =>
+        {
+            _setup = null;
+            ResumeKeys();
+        };
+        SuspendKeys();
+        _setup.Show();
+        _setup.Activate();
+    }
+
+    /// <summary>The setup window changed the timers: keep them, show them, and take the keys again once it closes.</summary>
+    internal void BookEdited()
+    {
+        SaveBook();
+        RebuildPresets();
+        RegisterKeys();
+        Tick();
+    }
+
+    internal void SuspendKeys() => _hotkeys?.Suspend();
+
+    internal void ResumeKeys()
+    {
+        if (_hotkeys is null) return;
+        KeyProblems = _hotkeys.Resume().Values.ToList();
+        Say(string.Join(" ", KeyProblems));
+    }
+
+    // ------------------------------------------------------------------ keys
+
+    private HotkeyHost? MakeHotkeys()
+    {
+        try
+        {
+            var host = new HotkeyHost();
+            host.Pressed += name =>
+            {
+                if (_book.Presets.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { } preset) Start(preset.Name, preset.Seconds);
+            };
+            return host;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            KeysUnavailable = "Keys can't be used here (" + ex.GetType().Name + "). Timers can still be started by clicking them.";
+            return null;
+        }
+    }
+
+    /// <summary>Takes the keys of the timers that have one. Anything Windows refuses is said in the message line.</summary>
+    private void RegisterKeys()
+    {
+        if (_hotkeys is null) return;
+        var keys = _book.Presets
+            .Select(p => (p.Name, Key: Hotkey.TryParse(p.Key)))
+            .Where(k => k.Key is not null)
+            .Select(k => (k.Name, Key: k.Key!))
+            .ToList();
+        KeyProblems = _hotkeys.Apply(keys).Values.ToList();
+        Say(string.Join(" ", KeyProblems));
+    }
+
+    // ------------------------------------------------------------------ the bottom: the timers to hand
+
+    private FrameworkElement BuildBottom()
+    {
+        var setup = Pill("Set up…", "Name your timers, give them keys, and turn on a timer for every corpse you loot", OpenSetup);
         var sound = new CheckBox
         {
             Content = "Sound", IsChecked = _settings.TimerSound, Foreground = Palette.Muted, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Focusable = false,
-            ToolTip = "A short beep when a timer is down to its last half minute and when it ends",
+            ToolTip = "A short beep when a timer is down to its last half minute and when it ends (not for the corpse timers)",
         };
         sound.Click += (_, _) => { _settings.TimerSound = sound.IsChecked == true; _settings.Save(); };
-        _name.KeyDown += Enter;
-        _length.KeyDown += Enter;
-
-        var fields = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-        fields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        fields.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        _length.Margin = new Thickness(6, 0, 0, 0);
-        Grid.SetColumn(_length, 1);
-        fields.Children.Add(_name);
-        fields.Children.Add(_length);
 
         var buttons = new DockPanel { LastChildFill = false };
         DockPanel.SetDock(sound, Dock.Right);
         buttons.Children.Add(sound);
-        start.Margin = new Thickness(0, 0, 6, 0);
-        buttons.Children.Add(start);
-        buttons.Children.Add(keep);
+        buttons.Children.Add(setup);
 
         var stack = new StackPanel();
         stack.Children.Add(new TextBlock { Text = "Start", Style = (Style)Ui.Theme["Label"], Margin = new Thickness(0, 0, 0, 4) });
-        stack.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 96, Content = _presets, Margin = new Thickness(0, 0, 0, 2) });
-        stack.Children.Add(new TextBlock { Text = "New timer  (a name and a length: 90, 1:30, 5m, 1h30m)", FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(0, 6, 0, 4) });
-        stack.Children.Add(fields);
+        stack.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 120, Content = _presets, Margin = new Thickness(0, 0, 0, 4) });
         stack.Children.Add(buttons);
         stack.Children.Add(_message);
         return new Border
@@ -177,26 +262,6 @@ internal sealed class TimersWindow : Window
             Background = (Brush)Ui.Theme["Panel"], BorderBrush = (Brush)Ui.Theme["Stroke"], BorderThickness = new Thickness(0, 1, 0, 0),
             Padding = new Thickness(12, 8, 12, 8), Child = stack,
         };
-    }
-
-    private void Enter(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter) return;
-        e.Handled = true;
-        StartTyped(save: false);
-    }
-
-    /// <summary>Starts what is typed in the form; <paramref name="save"/> also keeps it in the list.</summary>
-    private void StartTyped(bool save)
-    {
-        if (TimerBook.CleanName(_name.Text) is not { } name) { Say("Type a name for the timer."); _name.Focus(); return; }
-        if (TimerClock.TryParse(_length.Text) is not { } seconds) { Say("Type a length such as 90, 1:30, 5m or 1h30m (up to 24h)."); _length.Focus(); return; }
-        if (save && !_book.AddPreset(name, seconds)) { Say($"The list is full ({TimerBook.MaxPresets})."); return; }
-        if (save) RebuildPresets();
-        if (!Start(name, seconds)) return;
-        Say(save ? $"Kept “{name}” and started it." : "");
-        _name.Clear();
-        _length.Clear();
     }
 
     private bool Start(string name, int seconds)
@@ -213,41 +278,38 @@ internal sealed class TimersWindow : Window
 
     private void Say(string text) => _message.Text = text;
 
-    // ------------------------------------------------------------------ the timers to hand
-
     private void RebuildPresets()
     {
         _presets.Children.Clear();
         foreach (var preset in _book.Presets.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
         {
             var p = preset;
+            var text = new TextBlock();
+            text.Inlines.Add(new System.Windows.Documents.Run($"{p.Name}   {TimerClock.Spell(p.Seconds)}"));
+            if (p.Key is not null) text.Inlines.Add(new System.Windows.Documents.Run("   " + p.Key) { Foreground = Palette.Muted, FontSize = 11 });
             var button = new Button
             {
-                Content = $"{p.Name}   {TimerClock.Spell(p.Seconds)}", Style = (Style)Ui.Theme["TextButton"], Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(9, 4, 9, 4),
-                ToolTip = "Click to start (or start over). Right-click to edit or remove.",
+                Content = text, Style = (Style)Ui.Theme["TextButton"], Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(9, 4, 9, 4),
+                ToolTip = p.Key is null ? "Click to start (or start over). Right-click to edit." : $"Click or press {p.Key} to start (or start over). Right-click to edit.",
             };
             button.Click += (_, _) => { Say(""); Start(p.Name, p.Seconds); };
             var menu = new ContextMenu();
             var again = new MenuItem { Header = "Start" };
             again.Click += (_, _) => Start(p.Name, p.Seconds);
-            var edit = new MenuItem { Header = "Edit…", ToolTip = "Puts it in the form below; Keep saves your change" };
-            edit.Click += (_, _) => { _name.Text = p.Name; _length.Text = TimerClock.Spell(p.Seconds); Say("Change it, then press Keep."); _length.Focus(); _length.SelectAll(); };
-            var remove = new MenuItem { Header = "Remove from the list" };
-            remove.Click += (_, _) => { _book.RemovePreset(p.Name); SaveBook(); RebuildPresets(); };
+            var edit = new MenuItem { Header = "Set up…" };
+            edit.Click += (_, _) => OpenSetup();
             menu.Items.Add(again);
             menu.Items.Add(edit);
-            menu.Items.Add(new Separator());
-            menu.Items.Add(remove);
             button.ContextMenu = menu;
             _presets.Children.Add(button);
         }
         if (_presets.Children.Count == 0)
-            _presets.Children.Add(new TextBlock { Text = "Nothing kept yet. Type a name and a length below and press Keep.", FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap });
+            _presets.Children.Add(new TextBlock { Text = "No timers yet. Press Set up… to name one, give it a length and, if you like, a key.", FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap });
     }
 
     // ------------------------------------------------------------------ the running timers
 
-    /// <summary>Twice a second or so: follows the character being played, tidies ended timers and redraws the running ones.</summary>
+    /// <summary>Four times a second: follows the character being played, tidies ended timers and redraws the running ones.</summary>
     private void Tick()
     {
         var now = DateTime.UtcNow;
@@ -265,40 +327,57 @@ internal sealed class TimersWindow : Window
         _loadedFolder = folder;
         _live.Clear();
         _rows.Children.Clear();
+        _corpseLive.Clear();
+        _corpseRows.Children.Clear();
         RebuildPresets();
+        RegisterKeys();
+        BookReplaced?.Invoke();
     }
 
-    private void Render(DateTime now)
+    private void Render(DateTime nowUtc)
     {
+        bool blinkOn = nowUtc.Ticks / (TimeSpan.TicksPerMillisecond * 400) % 2 == 0;
         var timers = _book.ByEnd();
-        var names = timers.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var gone in _live.Keys.Where(k => !names.Contains(k)).ToList())
-        {
-            _rows.Children.Remove(_live[gone].Box);
-            _live.Remove(gone);
-        }
-        _empty.Visibility = timers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        Sync(_rows, _live, timers.Select(t => (t.Name, t.Name, TimerBook.Remaining(t, nowUtc), t.Seconds)).ToList(), blinkOn, stoppable: true);
 
-        bool blinkOn = now.Ticks / (TimeSpan.TicksPerMillisecond * 400) % 2 == 0;
-        for (int i = 0; i < timers.Count; i++)
+        // The corpse timers are worked out from the loot each time; only while the player wants them
+        var nowLocal = DateTime.Now;
+        var corpses = _book.Corpse.On && _corpses is not null ? CorpseTimers.Active(_corpses(), _book.Corpse, nowLocal) : [];
+        var shown = corpses.Take(CorpseTimers.MaxShown).Select(c => (c.Id, c.Label, (c.EndsLocal - nowLocal).TotalSeconds, c.Seconds)).ToList();
+        Sync(_corpseRows, _corpseLive, shown, blinkOn, stoppable: false);
+        _corpseHeader.Visibility = shown.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _corpseMore.Visibility = corpses.Count > shown.Count ? Visibility.Visible : Visibility.Collapsed;
+        _corpseMore.Text = $"+{corpses.Count - shown.Count} more, ending later";
+        _empty.Visibility = timers.Count == 0 && shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Makes the rows of <paramref name="panel"/> match <paramref name="items"/> (in that order): new ones made, gone ones taken away, the rest redrawn.</summary>
+    private void Sync(StackPanel panel, Dictionary<string, Row> live, IReadOnlyList<(string Id, string Label, double Remaining, int Seconds)> items, bool blinkOn, bool stoppable)
+    {
+        var ids = items.Select(i => i.Id).ToHashSet(live.Comparer);
+        foreach (var gone in live.Keys.Where(k => !ids.Contains(k)).ToList())
         {
-            var t = timers[i];
-            double remaining = TimerBook.Remaining(t, now);
+            panel.Children.Remove(live[gone].Box);
+            live.Remove(gone);
+        }
+        for (int i = 0; i < items.Count; i++)
+        {
+            var (id, label, remaining, seconds) = items[i];
             var phase = TimerClock.Phase(remaining);
-            if (!_live.TryGetValue(t.Name, out var row))
+            if (!live.TryGetValue(id, out var row))
             {
-                row = MakeRow(t.Name);
+                row = MakeRow(id, stoppable);
                 row.Phase = phase;   // a timer met in the middle of its life (after a restart) doesn't beep for the stage it is already past
-                _live[t.Name] = row;
+                live[id] = row;
             }
-            if (_rows.Children.IndexOf(row.Box) != i)
+            if (panel.Children.IndexOf(row.Box) != i)
             {
-                _rows.Children.Remove(row.Box);
-                _rows.Children.Insert(Math.Min(i, _rows.Children.Count), row.Box);
+                panel.Children.Remove(row.Box);
+                panel.Children.Insert(Math.Min(i, panel.Children.Count), row.Box);
             }
             if (phase != row.Phase)
             {
-                if (_settings.TimerSound)
+                if (stoppable && _settings.TimerSound)
                 {
                     if (phase == TimerPhase.Warning && row.Phase == TimerPhase.Running) SystemSounds.Asterisk.Play();
                     else if (phase == TimerPhase.Done) SystemSounds.Exclamation.Play();
@@ -306,9 +385,9 @@ internal sealed class TimersWindow : Window
                 row.Phase = phase;
             }
 
-            row.Name.Text = t.Name;
+            row.Name.Text = label;
             row.Clock.Text = phase == TimerPhase.Done ? "Ended" : TimerClock.Format(remaining);
-            row.Bar.Value = phase == TimerPhase.Done ? 1 : Math.Clamp(remaining / Math.Max(1, t.Seconds), 0, 1);
+            row.Bar.Value = phase == TimerPhase.Done ? 1 : Math.Clamp(remaining / Math.Max(1, seconds), 0, 1);
             var colour = phase switch { TimerPhase.Warning => Amber, TimerPhase.Ending or TimerPhase.Done => Palette.Taken, _ => Palette.You };
             row.Bar.Foreground = colour;
             row.Clock.Foreground = phase == TimerPhase.Running ? Palette.Text : colour;
@@ -316,18 +395,22 @@ internal sealed class TimersWindow : Window
         }
     }
 
-    private Row MakeRow(string name)
+    /// <summary>One bar. A timer the player started can be stopped or started over; a corpse timer just runs out.</summary>
+    private Row MakeRow(string id, bool stoppable)
     {
         var label = new TextBlock { FontSize = 13, Foreground = Palette.Text, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-        var clock = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) };
-        var stop = TitleButton("", "Stop this timer", () => { _book.Stop(name); SaveBook(); Tick(); });
-        stop.Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x93, 0xA1));
+        var clock = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, stoppable ? 4 : 8, 0) };
         var bar = new ProgressBar { Height = 4, Minimum = 0, Maximum = 1, Background = BarBack, BorderThickness = new Thickness(0), Margin = new Thickness(0, 4, 0, 0), Foreground = Palette.You };
 
         var top = new DockPanel();
-        DockPanel.SetDock(stop, Dock.Right);
         DockPanel.SetDock(clock, Dock.Right);
-        top.Children.Add(stop);
+        if (stoppable)
+        {
+            var stop = TitleButton("", "Stop this timer", () => { _book.Stop(id); SaveBook(); Tick(); });
+            stop.Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x93, 0xA1));
+            DockPanel.SetDock(stop, Dock.Right);
+            top.Children.Add(stop);
+        }
         top.Children.Add(clock);
         top.Children.Add(label);
         var stack = new StackPanel();
@@ -336,16 +419,19 @@ internal sealed class TimersWindow : Window
         var box = new Border
         {
             Background = (Brush)Ui.Theme["Subtle"], CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 6, 6, 7), Margin = new Thickness(0, 0, 0, 5), Child = stack,
-            ToolTip = "Right-click to start it over",
         };
-        var menu = new ContextMenu();
-        var again = new MenuItem { Header = "Start over" };
-        again.Click += (_, _) =>
+        if (stoppable)
         {
-            if (_book.Running.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)) is { } running) Start(running.Name, running.Seconds);
-        };
-        menu.Items.Add(again);
-        box.ContextMenu = menu;
+            box.ToolTip = "Right-click to start it over";
+            var menu = new ContextMenu();
+            var again = new MenuItem { Header = "Start over" };
+            again.Click += (_, _) =>
+            {
+                if (_book.Running.FirstOrDefault(r => string.Equals(r.Name, id, StringComparison.OrdinalIgnoreCase)) is { } running) Start(running.Name, running.Seconds);
+            };
+            menu.Items.Add(again);
+            box.ContextMenu = menu;
+        }
         return new Row { Box = box, Name = label, Clock = clock, Bar = bar };
     }
 
@@ -360,7 +446,7 @@ internal sealed class TimersWindow : Window
         return button;
     }
 
-    private static Button TitleButton(string glyph, string tip, Action click)
+    internal static Button TitleButton(string glyph, string tip, Action click)
     {
         var b = new Button
         {

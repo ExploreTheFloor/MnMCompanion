@@ -3,8 +3,34 @@ using System.Text.Json;
 
 namespace MnMCompanion.Timers;
 
-/// <summary>A timer the player keeps to hand: a name (a buff, a cooldown, a respawn) and how long it runs.</summary>
-public sealed record TimerPreset(string Name, int Seconds);
+/// <summary>
+/// A timer the player keeps to hand: a name (a buff, a cooldown, a respawn), how long it runs, and optionally the key that starts it
+/// (<see cref="Hotkey"/> text such as "Ctrl+Alt+1").
+/// </summary>
+public sealed record TimerPreset(string Name, int Seconds, string? Key = null);
+
+/// <summary>
+/// The corpse timer: with <see cref="On"/>, every monster corpse that is looted gets a timer called <see cref="Name"/> that runs for
+/// <see cref="Seconds"/> from the loot (see <see cref="CorpseTimers"/>). <see cref="Group"/> also counts the corpses the rest of the group loots.
+/// </summary>
+public sealed class CorpseTimerSetting
+{
+    public const string DefaultName = "Corpse";
+    public const int DefaultSeconds = 600;
+
+    public bool On { get; set; }
+    public string Name { get; set; } = DefaultName;
+    public int Seconds { get; set; } = DefaultSeconds;
+    public bool Group { get; set; }
+
+    /// <summary>The same setting with a usable name and length (what a hand-edited or damaged file is brought to).</summary>
+    public CorpseTimerSetting Cleaned() => new()
+    {
+        On = On, Group = Group,
+        Name = TimerBook.CleanName(Name) ?? DefaultName,
+        Seconds = Seconds is >= 1 and <= TimerClock.MaxSeconds ? Seconds : DefaultSeconds,
+    };
+}
 
 /// <summary>
 /// A timer that is running. It holds when it ends, not how long is left, so it carries on across closing the app and a restart.
@@ -97,8 +123,9 @@ public static class TimerClock
 }
 
 /// <summary>
-/// One character's timers: the ones they keep to hand (<see cref="Presets"/>, started with a click) and the ones running. Nothing here knows
-/// when a buff is cast: the game writes no cast to any file Companion reads, so every timer is started by the player. Saved as
+/// One character's timers: the ones they keep to hand (<see cref="Presets"/>, started with a click or a key) and the ones running, and the
+/// <see cref="Corpse"/> timer. Nothing here knows when a buff is cast: the game writes no cast to any file Companion reads, so the player
+/// starts every timer except the corpse ones (those follow the ledger's loot, and are not kept here). Saved as
 /// <c>timers.json</c> in the character's folder under the app's own; nothing leaves the PC.
 /// </summary>
 public sealed class TimerBook
@@ -111,6 +138,9 @@ public sealed class TimerBook
     public List<TimerPreset> Presets { get; set; } = [];
     public List<RunningTimer> Running { get; set; } = [];
 
+    /// <summary>The timer every looted corpse gets, when the player wants one (off until they turn it on).</summary>
+    public CorpseTimerSetting Corpse { get; set; } = new();
+
     /// <summary>A name as it is kept: trimmed, one line, at most <see cref="MaxName"/> characters; null if nothing is left.</summary>
     public static string? CleanName(string? name)
     {
@@ -120,16 +150,61 @@ public sealed class TimerBook
         return name.Length == 0 ? null : name;
     }
 
-    /// <summary>Keeps (or replaces, by name) a timer to hand. False if the name or length isn't usable or the list is full.</summary>
-    public bool AddPreset(string? name, int seconds)
+    /// <summary>
+    /// Keeps (or replaces, by name) a timer to hand, with the key that starts it if one is given. False if the name, length or key isn't usable
+    /// (see <see cref="KeyProblem"/>) or the list is full.
+    /// </summary>
+    public bool AddPreset(string? name, int seconds, string? key = null)
     {
         if (CleanName(name) is not { } clean || seconds is < 1 or > TimerClock.MaxSeconds) return false;
         int at = Presets.FindIndex(p => Same(p.Name, clean));
         if (at < 0 && Presets.Count >= MaxPresets) return false;
-        var preset = new TimerPreset(clean, seconds);
+        if (KeyProblem(key, at) is not null) return false;
+        var preset = new TimerPreset(clean, seconds, KeyText(key));
         if (at >= 0) Presets[at] = preset; else Presets.Add(preset);
         return true;
     }
+
+    /// <summary>Why <paramref name="key"/> can't go on the timer at <paramref name="exceptIndex"/> (-1 for a new one): not a key, not allowed, or another timer has it. Null if it can, or there is none.</summary>
+    public string? KeyProblem(string? key, int exceptIndex = -1)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        if (Hotkey.TryParse(key) is not { } parsed) return "That isn't a key. Press the keys you want, such as Ctrl+Alt+1.";
+        if (Hotkey.Problem(parsed) is { } problem) return problem;
+        var text = parsed.ToString();
+        var other = Presets.Where((p, i) => i != exceptIndex && string.Equals(p.Key, text, StringComparison.Ordinal)).FirstOrDefault();
+        return other is null ? null : $"{text} already starts “{other.Name}”.";
+    }
+
+    /// <summary>What is wrong with changing the timer at <paramref name="index"/> (-1 for a new one) to this (a sentence to show), or null if it can be done.</summary>
+    public string? PresetProblem(int index, string? name, int seconds, string? key)
+    {
+        if (index < -1 || index >= Presets.Count) return "That timer is gone.";
+        if (CleanName(name) is not { } clean) return "Type a name for the timer.";
+        if (seconds is < 1 or > TimerClock.MaxSeconds) return "Type a length such as 90, 1:30, 5m or 1h30m (up to 24h).";
+        if (Presets.Where((p, i) => i != index && Same(p.Name, clean)).FirstOrDefault() is { } same) return $"There is already a timer called “{same.Name}”.";
+        return KeyProblem(key, index);
+    }
+
+    /// <summary>Changes the timer at <paramref name="index"/> (its name too). False, and nothing changed, if <see cref="PresetProblem"/> has something to say.</summary>
+    public bool SetPreset(int index, string? name, int seconds, string? key)
+    {
+        if (PresetProblem(index, name, seconds, key) is not null) return false;
+        Presets[index] = new TimerPreset(CleanName(name)!, seconds, KeyText(key));
+        return true;
+    }
+
+    /// <summary>Adds a timer to the end of the list; the problems are those of <see cref="PresetProblem"/>, plus a full list. False if it couldn't.</summary>
+    public bool AddNewPreset(string? name, int seconds, string? key, out string? problem)
+    {
+        problem = Presets.Count >= MaxPresets ? $"The list is full ({MaxPresets})." : PresetProblem(-1, name, seconds, key);
+        if (problem is not null) return false;
+        Presets.Add(new TimerPreset(CleanName(name)!, seconds, KeyText(key)));
+        return true;
+    }
+
+    /// <summary>The key written the one way it is kept ("Ctrl+Alt+1"); null for none.</summary>
+    private static string? KeyText(string? key) => Hotkey.TryParse(key)?.ToString();
 
     public bool RemovePreset(string name) => Presets.RemoveAll(p => Same(p.Name, name)) > 0;
 
@@ -173,7 +248,9 @@ public sealed class TimerBook
         if (read is null) return book;
 
         // Take each one through the same rules as a new one, so a hand-edited or damaged file can't hold anything the window can't show
-        foreach (var p in read.Presets ?? []) if (p is not null) book.AddPreset(p.Name, p.Seconds);
+        // A key that can't be used (or that another timer already has) is dropped, and the timer is kept without it
+        foreach (var p in read.Presets ?? []) if (p is not null && !book.AddPreset(p.Name, p.Seconds, p.Key)) book.AddPreset(p.Name, p.Seconds);
+        book.Corpse = (read.Corpse ?? new CorpseTimerSetting()).Cleaned();
         foreach (var t in (read.Running ?? []).Where(t => t is not null).OrderBy(t => t.EndsUtc))
         {
             if (CleanName(t.Name) is not { } clean || t.Seconds is < 1 or > TimerClock.MaxSeconds || book.Running.Count >= MaxRunning) continue;

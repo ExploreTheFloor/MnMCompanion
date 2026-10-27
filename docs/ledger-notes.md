@@ -60,7 +60,8 @@ Besides `Ledger\` and `journal\`, a character's folder holds `chats.json` (the c
 position and size of about fifty UI windows) and `journal_migration_checked` (a 20-byte marker). The game folder itself has `controls.json` (key bindings), `settings.json` (game
 options), an empty `notes.txt`, and `Player.log` / `Player-prev.log`, Unity's log: engine and network messages with **no clock time on any line**. Its only cast-related lines are
 "AbilityPrediction MISPREDICT" warnings with a stack trace (no ability name, no target, no time); it has nothing at all about buffs, effects, cooldowns, damage, deaths or experience.
-None of them says when anything was cast, so a buff or cooldown timer cannot be started from the files: the player would have to start it.
+None of them says when anything was cast, so a buff or cooldown timer cannot be started from the files: the player would have to start it. (The corpse timer is different: it starts
+from the loot row of a corpse, so it follows the ledger; the ledger has no death row, so it counts from the loot, which comes a little after the kill.)
 
 ## Things that bite when reading it
 

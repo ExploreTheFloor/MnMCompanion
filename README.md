@@ -32,7 +32,7 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 4. [Finding your way around](#finding-your-way-around)
 5. [The History window](#the-history-window)
 6. [Sessions: starting a fresh tally](#sessions-starting-a-fresh-tally)
-7. [Timers: buff and cooldown timers you start yourself](#timers-buff-and-cooldown-timers-you-start-yourself)
+7. [Timers](#timers)
 8. [How the numbers are worked out](#how-the-numbers-are-worked-out)
 9. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
 10. [Sharing with the community data](#sharing-with-the-community-data)
@@ -318,24 +318,35 @@ Sessions start only when you press the button; they don't start by themselves wh
 
 ---
 
-## Timers: buff and cooldown timers you start yourself
+## Timers
 
-<img src="docs/images/window-timers.png" alt="The Timers window: running timers in each stage, the timers kept to hand, and the form for a new one" width="300" align="right">
+<img src="docs/images/window-timers.png" alt="The Timers window: your timers counting down, a timer on each corpse you looted, and your timers with their keys" width="300" align="right">
 
-The stopwatch in the title bar opens a small window of timers for buffs, cooldowns, respawns, anything you want counted down. Like the rest of the window it stays on top
-of the game.
+The stopwatch in the title bar opens a small window of timers. Like the rest of Companion it stays on top of the game. There are two kinds.
 
-**You start every timer yourself.** Companion only reads the game's ledger and journal files, and the game writes nothing about your casts to either, so Companion cannot know
-when you cast a spell. (It also never looks at the game's memory or the screen, and it never sends a key press.) So:
+**Timers you name, each with a key if you like.** Press **Set up…**, name a timer ("Haste"), give it a length (`90`, `1:30`, `5m` or `1h30m`, up to 24 hours) and, if you want, a key
+such as `Ctrl+Alt+1`. Press the key (in the game or anywhere else) or click the timer's button and it starts counting down; press it again to start it over. Right-click a running
+timer to start it over, and the **×** stops it.
 
-- **Click a timer you keep to hand** (the buttons under *Start*) and it starts, or starts over if it is already running.
-- **Or type a name and a length** and press **Start** for a one-off, or **Keep** to add it to the buttons and start it. A length is `90`, `1:30`, `5m` or `1h30m`, up to 24 hours.
-- Right-click a kept timer to start, edit or remove it; right-click a running one to start it over; the **×** stops it.
+**A timer on every corpse you loot.** Under **Corpses** in the setup, turn on *Start a timer on every corpse that is looted* and give it a name and a length. Each corpse you loot then
+gets its own bar ("Corpse: a bog crawler") that starts at the moment you took the loot. The window shows the eight ending soonest and counts the rest. It comes straight from the ledger,
+so a corpse looted while Companion was closed still shows what is left of its time. Tick *Also corpses the rest of my group loots* to count theirs too. Your own corpse and other
+players' are not monsters and get none. Corpse timers don't beep.
 
-A running timer shows its time left and a bar that drains. It turns **gold for its last half minute**, and **flashes red for its last ten seconds**, and shows **Ended** for a few seconds
-when it is over. Tick **Sound** for a short beep at the half-minute warning and when it ends. The timers are kept for each character as the moment they end, in
-`%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and beeping).
-Nothing about them is ever sent anywhere.
+A running timer shows its time left and a bar that drains. It turns **gold for its last half minute**, **flashes red for its last ten seconds**, and shows **Ended** for a few seconds when
+it is over. Tick **Sound** for a short beep at the half-minute warning and when it ends. Your timers are kept for each character, as the moment they end, in
+`%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and beeping),
+and your keys keep working. Nothing about any of this is ever sent anywhere.
+
+<img src="docs/images/window-timer-setup.png" alt="The timer setup window: each timer with its name, length and key, and the corpse timer" width="460">
+
+**Companion can't start a buff timer for you.** It only reads the game's ledger and journal files, and the game writes nothing about your casts to either, so it can't know when you cast
+a spell: you start those timers, with a click or a key. (It never looks at the game's memory or the screen.)
+
+**About the keys.** A key you set is registered with Windows, so it works while the game has the focus, and Windows then gives that key to Companion: **the game does not receive it while
+Companion is running.** Choose combinations the game doesn't use, such as `Ctrl+Alt+1`. For that reason a letter or digit must have Ctrl or Alt with it; F1 to F24 and the keypad keys
+can be used on their own. Keys are off while the setup window is open, so you can press one to record it. Companion hears exactly the keys you set and nothing else you type, and it
+never sends a key press. If another program already uses a key, Companion says so under the timers. Keys have not been tried under Wine or Proton.
 
 ---
 
@@ -390,7 +401,7 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 **It reads files. That's all.** Companion:
 
 - reads two things the game writes, its ledger files and each character's journal (what NPCs have said to you), and nothing else it writes;
-- **never** touches the running game, its memory, your keyboard or your mouse;
+- **never** touches the running game or its memory, and never sends a key press or moves your mouse. The only keys it listens for are the ones *you* set for timers (see [Timers](#timers)); it can't see anything else you type;
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - **never** installs anything by itself. Updates are only ever *offered*.
 

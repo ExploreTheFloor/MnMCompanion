@@ -94,7 +94,7 @@ internal sealed class PanelWindow : Window
         var close = TitleButton("", "Close", Close);
         _about = TitleButton("", "About Companion, and updates", OpenAboutMenu);
         var historyButton = TitleButton("\uE81C", "History: every day and every page, for this character or for everyone", OpenHistory);
-        var timersButton = TitleButton("\uE916", "Timers: buff and cooldown timers you start yourself (the game does not tell Companion when you cast)", () => TimersRequested?.Invoke());
+        var timersButton = TitleButton("\uE916", "Timers: your own timers, started by a click or a key, and a timer for every corpse you loot", () => TimersRequested?.Invoke());
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 24, Cursor = Cursors.SizeAll, LastChildFill = false };
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(_pin, Dock.Right);

@@ -90,9 +90,14 @@ See [Sessions](../README.md#sessions-starting-a-fresh-tally).
 ### Can I paste any of it into chat?
 Yes: pages have **Copy** buttons that put the figures on the clipboard as text.
 
-### Does it have timers for my buffs?
-No. The game writes nothing about casts or buffs to any file, so the only way would be for you to start every timer by hand, which we decided wasn't worth the bother. (A tool that reads the
-game's memory could do it automatically; Companion deliberately never does that.)
+### Does it have timers?
+Yes, two kinds. You can name your own timers (a buff, a cooldown, food), give each a length and a key, and start them with a click or the key. And you can turn on a timer for **every corpse
+you loot**, with a name and length of your choice. What it can't do is start a buff timer by itself: the game writes nothing about casts or buffs to any file Companion reads, so you
+start those yourself. (A tool that reads the game's memory could do it automatically; Companion deliberately never does that.)
+
+### Will the key I give a timer stop working in the game?
+Yes, while Companion is running: Windows hands that key to Companion, so the game never receives it. Pick combinations the game doesn't use, such as `Ctrl+Alt+1`. (A letter or digit needs Ctrl or
+Alt with it for this reason.) Companion only hears the keys you set, can't see anything else you type, and never sends a key press.
 
 ---
 

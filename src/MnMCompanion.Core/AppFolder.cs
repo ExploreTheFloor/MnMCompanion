@@ -13,9 +13,20 @@ public static class AppFolder
     /// <summary>The folder's name before the rename.</summary>
     public const string PreviousName = "LootWindow";
 
-    private static readonly Lazy<string> InUse = new(() => Resolve(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
+    /// <summary>
+    /// Names a folder to use instead, for the whole app: its settings, database and timers. For tests and pictures of the app running, which must never
+    /// touch the player's own files. (Setting <c>LOCALAPPDATA</c> does not do this: Windows is asked for that folder directly, not through the variable.)
+    /// </summary>
+    public const string OverrideVariable = "MNMCOMPANION_DATA";
+
+    private static readonly Lazy<string> InUse = new(() =>
+        Choose(Environment.GetEnvironmentVariable(OverrideVariable), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
 
     public static string Folder => InUse.Value;
+
+    /// <summary>The folder to use: <paramref name="overrideFolder"/> when one was named (the variable above), otherwise the usual one under <paramref name="localAppData"/>.</summary>
+    public static string Choose(string? overrideFolder, string localAppData) =>
+        string.IsNullOrWhiteSpace(overrideFolder) ? Resolve(localAppData) : Path.GetFullPath(overrideFolder.Trim());
 
     /// <summary>The folder to use under <paramref name="localAppData"/>, moving the old one in first when only the old one exists.</summary>
     public static string Resolve(string localAppData)
