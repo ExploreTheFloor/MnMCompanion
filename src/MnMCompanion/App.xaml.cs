@@ -257,12 +257,12 @@ public partial class App : Application
     {
         var now = DateTime.UtcNow;
         var book = new Timers.TimerBook();
-        book.AddPreset("Haste", 90, "Ctrl+Alt+1");
-        book.AddPreset("Regeneration", 300, "Ctrl+Alt+2");
-        book.AddPreset("Bind Wound", 30, "Ctrl+Alt+3");
-        book.AddPreset("Shield", 600);
+        book.AddPreset("Haste", 90, "Ctrl+Alt+1", "system:Asterisk");
+        book.AddPreset("Regeneration", 300, "Ctrl+Alt+2", @"file:C:\Windows\Media\Alarm02.wav");
+        book.AddPreset("Bind Wound", 30, "Ctrl+Alt+3", "system:Beep");
+        book.AddPreset("Shield", 600, null, "system:Exclamation");
         book.AddPreset("Food", 1800, "Ctrl+Alt+F");
-        book.Corpse = new Timers.CorpseTimerSetting { On = true, Name = "Corpse", Seconds = 600 };
+        book.Corpse = new Timers.CorpseTimerSetting { On = true, Name = "Corpse", Seconds = 600, Sound = "system:Beep" };
         book.Start("Regeneration", 300, now.AddSeconds(-40));
         book.Start("Haste", 90, now.AddSeconds(-64));
         book.Start("Bind Wound", 30, now.AddSeconds(-24));
@@ -457,7 +457,7 @@ public partial class App : Application
             try
             {
                 var corpses = TimersSample(folder);
-                var settings = new Settings { ReadOnly = true, TimerSound = true };
+                var settings = new Settings { ReadOnly = true };
                 var timers = new TimersWindow(settings, () => folder, () => corpses);
                 Window window = args.TimersSetup
                     ? new TimerSetupWindow(timers, settings) { WindowStartupLocation = WindowStartupLocation.Manual, ShowInTaskbar = false }

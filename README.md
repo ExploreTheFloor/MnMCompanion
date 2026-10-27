@@ -20,7 +20,7 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 
 1. Download **MnMCompanion.exe** from the [latest release](https://github.com/ExploreTheFloor/MnMCompanion/releases/latest). If Windows warns you, click **More info**, then **Run anyway**.
 2. Run it. A narrow window sits beside the game and **follows the character you're playing**.
-3. Loot shows up within seconds. The clock in the title bar opens the **History** window: every day, every player, drop rates, vendors, harvests and trades.
+3. Loot shows up within seconds. The **History** button in the title bar opens the **History** window: every day, every player, drop rates, vendors, harvests and trades.
 
 ---
 
@@ -105,7 +105,8 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 
 <img src="docs/images/window-update.png" alt="The window with an update banner under the title bar" width="300" align="right">
 
-From left to right: the **name** of the program, the **character and server** it is showing, then on the right a **History** button (a clock), an **ⓘ** button
+From left to right: the **name** of the program, the **character and server** it is showing, then on the right a **Timers** button (a stopwatch) and a **History** button (a clock),
+each with its name beside it (the names drop away when the window is narrow), an **ⓘ** button
 (about, updates, the ledger folder, and where the game keeps its data), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
 
 There is nothing to pick: this window **follows the character you're playing**. The game rewrites the ledger of whoever is logged in, so when it
@@ -146,7 +147,7 @@ The bottom of the window has a button for each **page**.
 follow, so "what did this one run give me?" is the same question on every page. A click on a row of Vendor, Trades, Items or Harvest opens that
 page of the History window for the same character.
 
-The **History** button (a clock) is in the title bar, next to ⓘ and the pin: it opens the big window with every day, every page, for this
+The **History** button is in the title bar, next to **Timers** and ⓘ: it opens the big window with every day, every page, for this
 character or for everyone. **New session** is in the session menu (the *Whole day / This session* chip under the day) and starts every page again
 from nothing; the *Copy* buttons are on the Loot page's tabs; **Open the ledger folder** is in the ⓘ menu. The line above the page buttons says what
 just happened (a session archived, how many items are unpriced).
@@ -322,26 +323,30 @@ Sessions start only when you press the button; they don't start by themselves wh
 
 <img src="docs/images/window-timers.png" alt="The Timers window: your timers counting down, a timer on each corpse you looted, and your timers with their keys" width="300" align="right">
 
-The stopwatch in the title bar opens a small window of timers. Like the rest of Companion it stays on top of the game. There are two kinds.
+The **Timers** button (a stopwatch) in the title bar opens a small window of timers. Like the rest of Companion it stays on top of the game. It holds only the bars of the timers that are
+running and one button, **Set up…**, so it takes little room. There are two kinds of timer.
 
-**Timers you name, each with a key if you like.** Press **Set up…**, name a timer ("Haste"), give it a length (`90`, `1:30`, `5m` or `1h30m`, up to 24 hours) and, if you want, a key
-such as `Ctrl+Alt+1`. Press the key (in the game or anywhere else) or click the timer's button and it starts counting down; press it again to start it over. Right-click a running
-timer to start it over, and the **×** stops it.
+**Timers you name, each with a key and a sound.** Press **Set up…**, name a timer ("Haste"), give it a length (`90`, `1:30`, `5m` or `1h30m`, up to 24 hours) and, if you want, a **key** such as
+`Ctrl+Alt+1` and a **sound** for when it ends. Press the key, in the game or anywhere else, and the timer starts counting down; press it again to start it over. (The ▶ beside a timer in the
+setup starts it from there, for one you gave no key.) Right-click a running timer to start it over, and the **×** stops it.
 
 **A timer on every corpse you loot.** Under **Corpses** in the setup, turn on *Start a timer on every corpse that is looted* and give it a name and a length. Each corpse you loot then
 gets its own bar ("Corpse: a bog crawler") that starts at the moment you took the loot. The window shows the eight ending soonest and counts the rest. It comes straight from the ledger,
 so a corpse looted while Companion was closed still shows what is left of its time. Tick *Also corpses the rest of my group loots* to count theirs too. Your own corpse and other
-players' are not monsters and get none. Corpse timers don't beep.
+players' are not monsters and get none. The corpse timer can have a sound too, which plays when one of them ends (once, if several end together).
+
+**Sounds.** Pick from the sounds Windows plays for its own events, the alarms and rings that come with Windows, or any `.wav` file of your own. A sound plays when you pick it, so you can
+hear it before you keep it. A timer with no sound just ends quietly.
 
 A running timer shows its time left and a bar that drains. It turns **gold for its last half minute**, **flashes red for its last ten seconds**, and shows **Ended** for a few seconds when
-it is over. Tick **Sound** for a short beep at the half-minute warning and when it ends. Your timers are kept for each character, as the moment they end, in
-`%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and beeping),
+it is over, playing its sound if it has one. Your timers are kept for each character, as the moment they end, in
+`%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and playing their sounds),
 and your keys keep working. Nothing about any of this is ever sent anywhere.
 
 <img src="docs/images/window-timer-setup.png" alt="The timer setup window: each timer with its name, length and key, and the corpse timer" width="460">
 
 **Companion can't start a buff timer for you.** It only reads the game's ledger and journal files, and the game writes nothing about your casts to either, so it can't know when you cast
-a spell: you start those timers, with a click or a key. (It never looks at the game's memory or the screen.)
+a spell: you start those timers, with a key. (It never looks at the game's memory or the screen.)
 
 **About the keys.** A key you set is registered with Windows, so it works while the game has the focus, and Windows then gives that key to Companion: **the game does not receive it while
 Companion is running.** Choose combinations the game doesn't use, such as `Ctrl+Alt+1`. For that reason a letter or digit must have Ctrl or Alt with it; F1 to F24 and the keypad keys

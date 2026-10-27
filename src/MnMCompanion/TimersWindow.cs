@@ -1,4 +1,3 @@
-using System.Media;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,9 +11,10 @@ namespace MnMCompanion;
 
 /// <summary>
 /// The timers window: the timers the player started, counting down, and (when they have turned it on) one for every corpse looted. Companion reads
-/// only the ledger and the journal and the game writes no cast to either, so it cannot know when a spell was cast: the player starts a timer with a
-/// click or with the key they gave it (see <see cref="HotkeyHost"/>). Names, lengths, keys and the corpse timer are set in <see cref="TimerSetupWindow"/>.
-/// A timer goes gold for its last half minute, flashes red for the last ten seconds, and can beep at both (not the corpse ones, which are many).
+/// only the ledger and the journal and the game writes no cast to either, so it cannot know when a spell was cast: the player starts a timer with the
+/// key they gave it (see <see cref="HotkeyHost"/>) or from the setup window. Names, lengths, keys, sounds and the corpse timer are set in
+/// <see cref="TimerSetupWindow"/>; this window is only the bars and one button, which opens it. A timer goes gold for its last half minute, flashes
+/// red for the last ten seconds, and plays its own sound (if it has one) when it ends.
 /// Timers are kept per character, as the moment they end, so they carry on if the app is closed. Closing this window only hides it: the timers
 /// (and the keys, and the beeps) keep going.
 /// </summary>
@@ -37,9 +37,8 @@ internal sealed class TimersWindow : Window
     private readonly Dictionary<string, Row> _corpseLive = new(StringComparer.Ordinal);
     private readonly TextBlock _corpseHeader = new() { Text = "Corpses", Style = (Style)Ui.Theme["Label"], Margin = new Thickness(0, 8, 0, 4), Visibility = Visibility.Collapsed };
     private readonly TextBlock _corpseMore = new() { FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(2, 0, 0, 4), Visibility = Visibility.Collapsed };
-    private readonly WrapPanel _presets = new();
     private readonly TextBlock _empty;
-    private readonly TextBlock _message = new() { FontSize = 11, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
+    private readonly TextBlock _message = new() { FontSize = 11, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6), Visibility = Visibility.Collapsed };
     private DispatcherTimer? _saveSoon;
 
     private sealed class Row
@@ -74,13 +73,13 @@ internal sealed class TimersWindow : Window
         BorderThickness = new Thickness(1);
         Topmost = settings.OnTop;
         MinWidth = 250;
-        MinHeight = 190;
+        MinHeight = 110;
         UseLayoutRounding = true;
         ShowInTaskbar = false;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
 
-        var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 300, 400);
+        var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 300, 300);
         Width = b.Width;
         Height = b.Height;
         var work = SystemParameters.WorkArea;
@@ -99,8 +98,7 @@ internal sealed class TimersWindow : Window
 
         _empty = new TextBlock
         {
-            Text = "Nothing running. Click a timer below, or press its key, to start it. Set up… adds timers and keys, and can start a timer on every corpse you loot. " +
-                   "The game doesn't tell Companion when you cast something, so you start those yourself.",
+            Text = "Nothing running. Press a timer's key to start it. Set up… is where timers, keys and sounds are made, and where a timer on every corpse you loot is turned on.",
             FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 6),
         };
 
@@ -188,9 +186,15 @@ internal sealed class TimersWindow : Window
     internal void BookEdited()
     {
         SaveBook();
-        RebuildPresets();
         RegisterKeys();
         Tick();
+    }
+
+    /// <summary>Starts the timer called <paramref name="name"/> (or starts it over), as its key does. False if there is no such timer or too many are running.</summary>
+    internal bool StartByName(string name)
+    {
+        if (_book.Presets.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is not { } preset) return false;
+        return Start(preset.Name, preset.Seconds);
     }
 
     internal void SuspendKeys() => _hotkeys?.Suspend();
@@ -209,10 +213,7 @@ internal sealed class TimersWindow : Window
         try
         {
             var host = new HotkeyHost();
-            host.Pressed += name =>
-            {
-                if (_book.Presets.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { } preset) Start(preset.Name, preset.Seconds);
-            };
+            host.Pressed += name => StartByName(name);
             return host;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -235,32 +236,20 @@ internal sealed class TimersWindow : Window
         Say(string.Join(" ", KeyProblems));
     }
 
-    // ------------------------------------------------------------------ the bottom: the timers to hand
+    // ------------------------------------------------------------------ the bottom
 
+    /// <summary>The bottom of the window: one button, which opens the setup. (A line above it says what Windows refused, if it refused a key.)</summary>
     private FrameworkElement BuildBottom()
     {
-        var setup = Pill("Set up…", "Name your timers, give them keys, and turn on a timer for every corpse you loot", OpenSetup);
-        var sound = new CheckBox
-        {
-            Content = "Sound", IsChecked = _settings.TimerSound, Foreground = Palette.Muted, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Focusable = false,
-            ToolTip = "A short beep when a timer is down to its last half minute and when it ends (not for the corpse timers)",
-        };
-        sound.Click += (_, _) => { _settings.TimerSound = sound.IsChecked == true; _settings.Save(); };
-
-        var buttons = new DockPanel { LastChildFill = false };
-        DockPanel.SetDock(sound, Dock.Right);
-        buttons.Children.Add(sound);
-        buttons.Children.Add(setup);
-
+        var setup = Pill("Set up…", "Name your timers, give them keys and sounds, and turn on a timer for every corpse you loot", OpenSetup);
+        setup.HorizontalAlignment = HorizontalAlignment.Left;
         var stack = new StackPanel();
-        stack.Children.Add(new TextBlock { Text = "Start", Style = (Style)Ui.Theme["Label"], Margin = new Thickness(0, 0, 0, 4) });
-        stack.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 120, Content = _presets, Margin = new Thickness(0, 0, 0, 4) });
-        stack.Children.Add(buttons);
         stack.Children.Add(_message);
+        stack.Children.Add(setup);
         return new Border
         {
             Background = (Brush)Ui.Theme["Panel"], BorderBrush = (Brush)Ui.Theme["Stroke"], BorderThickness = new Thickness(0, 1, 0, 0),
-            Padding = new Thickness(12, 8, 12, 8), Child = stack,
+            Padding = new Thickness(10, 6, 10, 6), Child = stack,
         };
     }
 
@@ -276,35 +265,10 @@ internal sealed class TimersWindow : Window
         return true;
     }
 
-    private void Say(string text) => _message.Text = text;
-
-    private void RebuildPresets()
+    private void Say(string text)
     {
-        _presets.Children.Clear();
-        foreach (var preset in _book.Presets.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            var p = preset;
-            var text = new TextBlock();
-            text.Inlines.Add(new System.Windows.Documents.Run($"{p.Name}   {TimerClock.Spell(p.Seconds)}"));
-            if (p.Key is not null) text.Inlines.Add(new System.Windows.Documents.Run("   " + p.Key) { Foreground = Palette.Muted, FontSize = 11 });
-            var button = new Button
-            {
-                Content = text, Style = (Style)Ui.Theme["TextButton"], Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(9, 4, 9, 4),
-                ToolTip = p.Key is null ? "Click to start (or start over). Right-click to edit." : $"Click or press {p.Key} to start (or start over). Right-click to edit.",
-            };
-            button.Click += (_, _) => { Say(""); Start(p.Name, p.Seconds); };
-            var menu = new ContextMenu();
-            var again = new MenuItem { Header = "Start" };
-            again.Click += (_, _) => Start(p.Name, p.Seconds);
-            var edit = new MenuItem { Header = "Set up…" };
-            edit.Click += (_, _) => OpenSetup();
-            menu.Items.Add(again);
-            menu.Items.Add(edit);
-            button.ContextMenu = menu;
-            _presets.Children.Add(button);
-        }
-        if (_presets.Children.Count == 0)
-            _presets.Children.Add(new TextBlock { Text = "No timers yet. Press Set up… to name one, give it a length and, if you like, a key.", FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap });
+        _message.Text = text;
+        _message.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ------------------------------------------------------------------ the running timers
@@ -329,7 +293,6 @@ internal sealed class TimersWindow : Window
         _rows.Children.Clear();
         _corpseLive.Clear();
         _corpseRows.Children.Clear();
-        RebuildPresets();
         RegisterKeys();
         BookReplaced?.Invoke();
     }
@@ -338,13 +301,13 @@ internal sealed class TimersWindow : Window
     {
         bool blinkOn = nowUtc.Ticks / (TimeSpan.TicksPerMillisecond * 400) % 2 == 0;
         var timers = _book.ByEnd();
-        Sync(_rows, _live, timers.Select(t => (t.Name, t.Name, TimerBook.Remaining(t, nowUtc), t.Seconds)).ToList(), blinkOn, stoppable: true);
+        Sync(_rows, _live, timers.Select(t => (t.Name, t.Name, TimerBook.Remaining(t, nowUtc), t.Seconds)).ToList(), blinkOn, stoppable: true, soundOf: _book.SoundOf, throttled: false);
 
         // The corpse timers are worked out from the loot each time; only while the player wants them
         var nowLocal = DateTime.Now;
         var corpses = _book.Corpse.On && _corpses is not null ? CorpseTimers.Active(_corpses(), _book.Corpse, nowLocal) : [];
         var shown = corpses.Take(CorpseTimers.MaxShown).Select(c => (c.Id, c.Label, (c.EndsLocal - nowLocal).TotalSeconds, c.Seconds)).ToList();
-        Sync(_corpseRows, _corpseLive, shown, blinkOn, stoppable: false);
+        Sync(_corpseRows, _corpseLive, shown, blinkOn, stoppable: false, soundOf: _ => _book.Corpse.Sound, throttled: true);
         _corpseHeader.Visibility = shown.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         _corpseMore.Visibility = corpses.Count > shown.Count ? Visibility.Visible : Visibility.Collapsed;
         _corpseMore.Text = $"+{corpses.Count - shown.Count} more, ending later";
@@ -352,7 +315,7 @@ internal sealed class TimersWindow : Window
     }
 
     /// <summary>Makes the rows of <paramref name="panel"/> match <paramref name="items"/> (in that order): new ones made, gone ones taken away, the rest redrawn.</summary>
-    private void Sync(StackPanel panel, Dictionary<string, Row> live, IReadOnlyList<(string Id, string Label, double Remaining, int Seconds)> items, bool blinkOn, bool stoppable)
+    private void Sync(StackPanel panel, Dictionary<string, Row> live, IReadOnlyList<(string Id, string Label, double Remaining, int Seconds)> items, bool blinkOn, bool stoppable, Func<string, string?> soundOf, bool throttled)
     {
         var ids = items.Select(i => i.Id).ToHashSet(live.Comparer);
         foreach (var gone in live.Keys.Where(k => !ids.Contains(k)).ToList())
@@ -377,11 +340,7 @@ internal sealed class TimersWindow : Window
             }
             if (phase != row.Phase)
             {
-                if (stoppable && _settings.TimerSound)
-                {
-                    if (phase == TimerPhase.Warning && row.Phase == TimerPhase.Running) SystemSounds.Asterisk.Play();
-                    else if (phase == TimerPhase.Done) SystemSounds.Exclamation.Play();
-                }
+                if (phase == TimerPhase.Done) TimerSoundPlayer.Play(soundOf(id), throttled);
                 row.Phase = phase;
             }
 
