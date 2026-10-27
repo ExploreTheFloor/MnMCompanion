@@ -95,6 +95,10 @@ Yes, two kinds. You can name your own timers (a buff, a cooldown, food), give ea
 you loot**, with a name, a length and a sound of your choice. What it can't do is start a buff timer by itself: the game writes nothing about casts or buffs to any file Companion reads, so you
 start those yourself. (A tool that reads the game's memory could do it automatically; Companion deliberately never does that.)
 
+### Can the timers window stay on top and be see-through?
+Yes. It has its own pin (on by default) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding
+what is behind them. The game has to be in a window or borderless for any window to show on top of it.
+
 ### Will the key I give a timer stop working in the game?
 Yes, while Companion is running: Windows hands that key to Companion, so the game never receives it. Pick combinations the game doesn't use, such as `Ctrl+Alt+1`. (A letter or digit needs Ctrl or
 Alt with it for this reason.) Companion only hears the keys you set, can't see anything else you type, and never sends a key press.

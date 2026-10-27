@@ -338,6 +338,10 @@ players' are not monsters and get none. The corpse timer can have a sound too, w
 **Sounds.** Pick from the sounds Windows plays for its own events, the alarms and rings that come with Windows, or any `.wav` file of your own. A sound plays when you pick it, so you can
 hear it before you keep it. A timer with no sound just ends quietly.
 
+**On top, and see-through.** The window has its own **pin**, on by default, so it stays on top of the game like the main window does (the game has to be in a window or borderless: nothing can
+draw over a game that has the whole screen to itself). The **Opacity** button fades the window's background in steps down to 10%, so the game shows through behind it while the bars and the words
+stay solid. The title bar never fades away completely, so you can always find the window and drag it.
+
 A running timer shows its time left and a bar that drains. It turns **gold for its last half minute**, **flashes red for its last ten seconds**, and shows **Ended** for a few seconds when
 it is over, playing its sound if it has one. Your timers are kept for each character, as the moment they end, in
 `%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and playing their sounds),

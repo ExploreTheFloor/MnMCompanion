@@ -31,6 +31,9 @@ internal sealed class TimersWindow : Window
     private string? _loadedFolder;
     private bool _followed;
     private TimerSetupWindow? _setup;
+    private readonly Button _pin;
+    private readonly DockPanel _title;
+    private readonly Border _bottom;
     private readonly StackPanel _rows = new();
     private readonly Dictionary<string, Row> _live = new(StringComparer.OrdinalIgnoreCase);
     private readonly StackPanel _corpseRows = new();
@@ -63,6 +66,7 @@ internal sealed class TimersWindow : Window
         Title = "Companion timers";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResizeWithGrip;
+        AllowsTransparency = true;   // so the background can be faded (see ApplyLook); the bars and words stay solid
         WindowChrome.SetWindowChrome(this, new WindowChrome
         {
             CaptionHeight = 0, ResizeBorderThickness = new Thickness(5), GlassFrameThickness = new Thickness(0),
@@ -71,7 +75,7 @@ internal sealed class TimersWindow : Window
         Background = new SolidColorBrush(Color.FromRgb(0x12, 0x16, 0x1C));
         BorderBrush = new SolidColorBrush(Color.FromArgb(0x80, 0x90, 0xA0, 0xB0));
         BorderThickness = new Thickness(1);
-        Topmost = settings.OnTop;
+        Topmost = settings.TimersOnTop;
         MinWidth = 250;
         MinHeight = 110;
         UseLayoutRounding = true;
@@ -87,12 +91,19 @@ internal sealed class TimersWindow : Window
         Top = double.IsNaN(b.Top) ? work.Top + 80 : b.Top;
         KeepOnScreen();
 
-        var close = TitleButton("", "Hide this window. Timers keep running, and keep beeping if Sound is on.", HideWindow);
+        var close = TitleButton("\uE711", "Hide this window. Timers keep running and keep playing their sounds.", HideWindow);
+        _pin = TitleButton("\uE718", "Keep this window on top of the game", TogglePin);
+        var opacity = OpacityButton();
         var caption = new TextBlock { Text = "Timers", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
-        var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 24, Cursor = Cursors.SizeAll, LastChildFill = false };
+        var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 30, Cursor = Cursors.SizeAll, LastChildFill = false };
+        _title = title;
         DockPanel.SetDock(close, Dock.Right);
+        DockPanel.SetDock(_pin, Dock.Right);
+        DockPanel.SetDock(opacity, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         title.Children.Add(close);
+        title.Children.Add(_pin);
+        title.Children.Add(opacity);
         title.Children.Add(caption);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
 
@@ -112,6 +123,7 @@ internal sealed class TimersWindow : Window
         scroll.Content = body;
 
         var bottom = BuildBottom();
+        _bottom = (Border)bottom;
         var root = new DockPanel();
         DockPanel.SetDock(title, Dock.Top);
         DockPanel.SetDock(bottom, Dock.Bottom);
@@ -119,6 +131,7 @@ internal sealed class TimersWindow : Window
         root.Children.Add(bottom);
         root.Children.Add(scroll);
         Content = root;
+        ApplyLook();
 
         if (!settings.ReadOnly) _hotkeys = MakeHotkeys();
 
@@ -150,6 +163,68 @@ internal sealed class TimersWindow : Window
     {
         _settings.TimersOpen = open;
         _settings.Save();
+    }
+
+    // ------------------------------------------------------------------ on top, and how see-through
+
+    private void TogglePin()
+    {
+        Topmost = !Topmost;
+        _settings.TimersOnTop = Topmost;
+        _settings.Save();
+        ApplyLook();
+    }
+
+    /// <summary>The button of the title bar that opens the menu of opacity levels: a half-filled circle and its name.</summary>
+    private Button OpacityButton()
+    {
+        var picture = new TextBlock { Text = "◐", FontFamily = new FontFamily("Segoe UI Symbol"), FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
+        var words = new TextBlock { Text = "Opacity", FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"), FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 9, 0) };
+        content.Children.Add(picture);
+        content.Children.Add(words);
+        var button = new Button
+        {
+            Content = content, Style = (Style)Ui.Theme["IconButton"], Width = double.NaN, MinWidth = 30, Height = 24, Margin = new Thickness(1, 0, 1, 0),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "How see-through the window is behind its bars and words, so the game shows through",
+        };
+        button.Click += (_, _) =>
+        {
+            var menu = new ContextMenu { PlacementTarget = button, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            menu.Items.Add(new MenuItem { Header = "Background", IsEnabled = false });
+            int current = TimerLook.Nearest(_settings.TimersOpacity);
+            foreach (var level in TimerLook.OpacityLevels)
+            {
+                var item = new MenuItem { Header = level == 100 ? "Solid" : $"{level}% solid", IsChecked = level == current };
+                int chosen = level;
+                item.Click += (_, _) => SetOpacity(chosen);
+                menu.Items.Add(item);
+            }
+            menu.IsOpen = true;
+        };
+        return button;
+    }
+
+    private void SetOpacity(int percent)
+    {
+        _settings.TimersOpacity = percent;
+        _settings.Save();
+        ApplyLook();
+    }
+
+    /// <summary>
+    /// Paints the window for the pin and the opacity chosen: only the background fades. The title bar keeps enough of itself to be grabbed, and the pin is
+    /// the accent colour while the window is on top (as the main window's is).
+    /// </summary>
+    private void ApplyLook()
+    {
+        int percent = _settings.TimersOpacity;
+        Background = new SolidColorBrush(Color.FromArgb(TimerLook.Alpha(percent), 0x12, 0x16, 0x1C));
+        _bottom.Background = new SolidColorBrush(Color.FromArgb(TimerLook.Alpha(percent), 0x16, 0x19, 0x20));
+        _title.Background = new SolidColorBrush(Color.FromArgb(TimerLook.TitleAlpha(percent), 0x10, 0x14, 0x18));
+        _pin.Foreground = Topmost ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0x70, 0x7A, 0x88));
+        _pin.ToolTip = Topmost ? "On top of the game. Click to let other windows cover it." : "Not on top. Click to keep this window on top of the game.";
     }
 
     // ------------------------------------------------------------------ the setup window and what it changes
@@ -365,8 +440,7 @@ internal sealed class TimersWindow : Window
         DockPanel.SetDock(clock, Dock.Right);
         if (stoppable)
         {
-            var stop = TitleButton("", "Stop this timer", () => { _book.Stop(id); SaveBook(); Tick(); });
-            stop.Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x93, 0xA1));
+            var stop = RowButton("\uE711", "Stop this timer", () => { _book.Stop(id); SaveBook(); Tick(); });
             DockPanel.SetDock(stop, Dock.Right);
             top.Children.Add(stop);
         }
@@ -405,14 +479,22 @@ internal sealed class TimersWindow : Window
         return button;
     }
 
+    /// <summary>A button of a title bar: a picture big enough to see, with the theme's hover highlight.</summary>
     internal static Button TitleButton(string glyph, string tip, Action click)
     {
         var b = new Button
         {
-            Content = glyph, Width = 26, Padding = new Thickness(0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), FontSize = 10,
-            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), Foreground = new SolidColorBrush(Color.FromRgb(0xB0, 0xC0, 0xD0)),
-            Cursor = Cursors.Hand, Focusable = false, ToolTip = tip,
+            Content = glyph, Style = (Style)Ui.Theme["IconButton"], Width = 30, Height = 24, Margin = new Thickness(1, 0, 1, 0), FontSize = 14,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), ToolTip = tip, VerticalAlignment = VerticalAlignment.Center,
         };
+        b.Click += (_, _) => click();
+        return b;
+    }
+
+    /// <summary>The small button on a timer's bar.</summary>
+    private static Button RowButton(string glyph, string tip, Action click)
+    {
+        var b = new Button { Content = glyph, Style = (Style)Ui.Theme["IconButton"], Width = 24, Height = 22, FontSize = 11, ToolTip = tip, Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x93, 0xA1)) };
         b.Click += (_, _) => click();
         return b;
     }

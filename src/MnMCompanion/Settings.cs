@@ -45,6 +45,10 @@ public sealed class Settings
     public Bounds? Timers { get; set; }
     public bool TimersOpen { get; set; }
 
+    /// <summary>The timers window's own pin (on top of the game or not) and how solid its background is, in percent (see <c>TimerLook</c>).</summary>
+    public bool TimersOnTop { get; set; } = true;
+    public int TimersOpacity { get; set; } = 100;
+
     /// <summary>The page of the History window that was open last ("Loot", "Trades", "Vendors", "Changes" or "Harvest").</summary>
     public string? HistoryPage { get; set; }
 
