@@ -147,7 +147,7 @@ before trades were added has to be given again.
 No. The combined database is kept privately by the project and is not published. It is only used to build the figures sharing players get back.
 
 ### Why did it ask me again after I updated?
-A Yes covers what you were shown. When a new version shares more than the one you said Yes to (version 0.3.0 added the weekly running totals, version 0.4.0 your trades with other players and what you dropped and destroyed, and version 0.5.0 which server each row is from), your earlier Yes no longer covers it, so
+A Yes covers what you were shown. When a new version shares more than the one you said Yes to (version 0.3.0 added the weekly running totals, version 0.4.0 your trades with other players and what you dropped and destroyed, and version 0.4.3 which server each row is from), your earlier Yes no longer covers it, so
 sharing pauses and the question comes back saying what was added. Nothing is sent until you say Yes again.
 
 ### How do I stop sharing?

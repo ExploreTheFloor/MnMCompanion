@@ -43,7 +43,7 @@ public class ContributionServersTests
     private static ServerRows On(string server, IReadOnlyList<LootEvent>? loot = null, IReadOnlyList<VendorRow>? vendor = null, IReadOnlyList<HarvestRow>? harvest = null,
         IReadOnlyList<TradeRow>? trades = null, IReadOnlyList<ItemMoveRow>? moves = null) => new(server, loot ?? [], vendor ?? [], harvest ?? [], trades ?? [], moves ?? []);
 
-    private static Contribution Make(params ServerRows[] servers) => ContributionBuilder.Build(servers, [], Id, "MnMCompanion 0.5.0", Made);
+    private static Contribution Make(params ServerRows[] servers) => ContributionBuilder.Build(servers, [], Id, "MnMCompanion 0.4.3", Made);
 
     [Fact]
     public void Every_row_about_play_says_which_server_it_is_from_and_the_same_thing_on_two_servers_is_two_rows()
