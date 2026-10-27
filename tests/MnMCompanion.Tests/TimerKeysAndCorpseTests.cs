@@ -185,7 +185,7 @@ public class TimerKeysAndCorpseTests
         var book = new TimerBook();
         book.AddPreset("Haste", 90, "Ctrl+Alt+1");
         book.AddPreset("Shield", 600);
-        book.Corpse = new CorpseTimerSetting { On = true, Name = "Decays", Seconds = 420, Group = true };
+        book.Corpse = new CorpseTimerSetting { On = true, Name = "Decays", Seconds = 420 };
         Assert.True(book.Save(folder));
 
         var back = TimerBook.Load(folder, Now.ToUniversalTime());
@@ -193,12 +193,11 @@ public class TimerKeysAndCorpseTests
         Assert.True(back.Corpse.On);
         Assert.Equal("Decays", back.Corpse.Name);
         Assert.Equal(420, back.Corpse.Seconds);
-        Assert.True(back.Corpse.Group);
 
         File.WriteAllText(Path.Combine(folder, "timers.json"), """
             { "presets": [ {"name":"A","seconds":60,"key":"Ctrl+1"}, {"name":"B","seconds":60,"key":"ctrl+1"}, {"name":"C","seconds":60,"key":"Q"},
                            {"name":"D","seconds":60,"key":"nonsense"}, {"name":"E","seconds":60,"key":null}, {"name":"F","seconds":60} ],
-              "corpse": { "on": true, "name": "  ", "seconds": 0, "group": false } }
+              "corpse": { "on": true, "name": "  ", "seconds": 0, "group": true } }
             """);
         var hand = TimerBook.Load(folder, Now.ToUniversalTime());
         Assert.Equal(["A", "B", "C", "D", "E", "F"], hand.Presets.Select(p => p.Name));
@@ -267,7 +266,7 @@ public class TimerKeysAndCorpseTests
     }
 
     [Fact]
-    public void A_players_own_corpse_is_not_a_monster_and_a_groups_corpses_count_only_when_asked_for()
+    public void Every_monster_corpse_that_was_looted_gets_a_timer_whoever_looted_it_but_a_players_corpse_does_not()
     {
         var corpses = new[]
         {
@@ -276,13 +275,9 @@ public class TimerKeysAndCorpseTests
             Corpse("Brom's corpse", Now.AddSeconds(-10), you: false, mob: false, who: "Brom"),
             Corpse("a marsh wolf", Now.AddSeconds(-10), you: false, who: "Brom"),
         };
-        var mine = CorpseTimers.Active(corpses, new CorpseTimerSetting { On = true, Seconds = 600, Group = false }, Now);
-        Assert.Equal(["a bog crawler"], mine.Select(t => t.Monster));
-        Assert.All(mine, t => Assert.True(t.You));
-
-        var group = CorpseTimers.Active(corpses, new CorpseTimerSetting { On = true, Seconds = 600, Group = true }, Now);
-        Assert.Equal(["a bog crawler", "a marsh wolf"], group.Select(t => t.Monster).Order());
-        Assert.Equal([true, false], group.OrderByDescending(t => t.You).Select(t => t.You));
+        var timers = CorpseTimers.Active(corpses, new CorpseTimerSetting { On = true, Seconds = 600 }, Now);
+        Assert.Equal(["a bog crawler", "a marsh wolf"], timers.Select(t => t.Monster).Order());
+        Assert.Equal([true, false], timers.OrderByDescending(t => t.You).Select(t => t.You));
     }
 
     [Fact]

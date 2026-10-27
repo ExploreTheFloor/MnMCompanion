@@ -93,7 +93,8 @@ Yes: pages have **Copy** buttons that put the figures on the clipboard as text.
 ### Does it have timers?
 Yes, two kinds. You can name your own timers (a buff, a cooldown, food), give each a length, a key that starts it and a sound for when it ends. And you can turn on a timer for **every corpse
 you loot**, with a name, a length and a sound of your choice. What it can't do is start a buff timer by itself: the game writes nothing about casts or buffs to any file Companion reads, so you
-start those yourself. (A tool that reads the game's memory could do it automatically; Companion deliberately never does that.)
+start those yourself, with the key or, if you turn on **Buttons** in the Timers window, with a click on the timer's button (click it again to stop it). (A tool that reads the game's memory could
+do it automatically; Companion deliberately never does that.)
 
 ### Can the timers window stay on top and be see-through?
 Yes. It has its own pin (on by default) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding

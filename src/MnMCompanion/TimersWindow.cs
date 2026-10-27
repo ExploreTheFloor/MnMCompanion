@@ -32,6 +32,12 @@ internal sealed class TimersWindow : Window
     private bool _followed;
     private TimerSetupWindow? _setup;
     private readonly Button _pin;
+    private readonly Button _buttonsToggle;
+    private readonly List<TextBlock> _toolLabels = [];
+    private readonly Border _strip = new() { Visibility = Visibility.Collapsed, Padding = new Thickness(10, 8, 10, 2) };
+    private readonly WrapPanel _buttons = new();
+    private readonly Dictionary<string, TimerButton> _buttonOf = new(StringComparer.OrdinalIgnoreCase);
+    private string _buttonsBuiltFor = "";
     private readonly DockPanel _title;
     private readonly Border _bottom;
     private readonly StackPanel _rows = new();
@@ -43,6 +49,14 @@ internal sealed class TimersWindow : Window
     private readonly TextBlock _empty;
     private readonly TextBlock _message = new() { FontSize = 11, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6), Visibility = Visibility.Collapsed };
     private DispatcherTimer? _saveSoon;
+
+    /// <summary>One timer's button in the strip: lit, with a stop square, while the timer runs; with a start arrow while it doesn't.</summary>
+    private sealed class TimerButton
+    {
+        public required Button Button { get; init; }
+        public required Border Face { get; init; }
+        public required TextBlock Glyph { get; init; }
+    }
 
     private sealed class Row
     {
@@ -83,7 +97,7 @@ internal sealed class TimersWindow : Window
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
 
-        var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 300, 300);
+        var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 320, 300);
         Width = b.Width;
         Height = b.Height;
         var work = SystemParameters.WorkArea;
@@ -94,22 +108,25 @@ internal sealed class TimersWindow : Window
         var close = TitleButton("\uE711", "Hide this window. Timers keep running and keep playing their sounds.", HideWindow);
         _pin = TitleButton("\uE718", "Keep this window on top of the game", TogglePin);
         var opacity = OpacityButton();
+        _buttonsToggle = ToolButton("\uE80A", null, "Buttons", "Show each timer as a button across the top: click one to start it, click it again to stop it", ToggleButtons);
         var caption = new TextBlock { Text = "Timers", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 30, Cursor = Cursors.SizeAll, LastChildFill = false };
         _title = title;
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(_pin, Dock.Right);
         DockPanel.SetDock(opacity, Dock.Right);
+        DockPanel.SetDock(_buttonsToggle, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         title.Children.Add(close);
         title.Children.Add(_pin);
         title.Children.Add(opacity);
+        title.Children.Add(_buttonsToggle);
         title.Children.Add(caption);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
 
         _empty = new TextBlock
         {
-            Text = "Nothing running. Press a timer's key to start it. Set up… is where timers, keys and sounds are made, and where a timer on every corpse you loot is turned on.",
+            Text = "Nothing running. Press a timer's key to start it, or turn on Buttons above to start timers with a click. Set up… is where timers, keys and sounds are made, and where a timer on every corpse is turned on.",
             FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 6),
         };
 
@@ -126,8 +143,11 @@ internal sealed class TimersWindow : Window
         _bottom = (Border)bottom;
         var root = new DockPanel();
         DockPanel.SetDock(title, Dock.Top);
+        DockPanel.SetDock(_strip, Dock.Top);
         DockPanel.SetDock(bottom, Dock.Bottom);
+        _strip.Child = _buttons;
         root.Children.Add(title);
+        root.Children.Add(_strip);
         root.Children.Add(bottom);
         root.Children.Add(scroll);
         Content = root;
@@ -136,7 +156,7 @@ internal sealed class TimersWindow : Window
         if (!settings.ReadOnly) _hotkeys = MakeHotkeys();
 
         LocationChanged += (_, _) => Remember();
-        SizeChanged += (_, _) => Remember();
+        SizeChanged += (_, _) => { Remember(); ShowToolLabels(); };
         Closed += (_, _) => _hotkeys?.Dispose();
         var tick = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) => Tick(), Dispatcher);
         tick.Start();
@@ -175,20 +195,41 @@ internal sealed class TimersWindow : Window
         ApplyLook();
     }
 
-    /// <summary>The button of the title bar that opens the menu of opacity levels: a half-filled circle and its name.</summary>
-    private Button OpacityButton()
+    /// <summary>
+    /// A button of the title bar with a picture and its name beside it, so it says what it is. The name goes when the window is narrow (<see cref="ShowToolLabels"/>).
+    /// <paramref name="symbolFont"/> is the font of the picture; null for the icon font.
+    /// </summary>
+    private Button ToolButton(string glyph, string? symbolFont, string label, string tip, Action? click)
     {
-        var picture = new TextBlock { Text = "◐", FontFamily = new FontFamily("Segoe UI Symbol"), FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
-        var words = new TextBlock { Text = "Opacity", FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"), FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var picture = new TextBlock
+        {
+            Text = glyph, FontFamily = symbolFont is null ? (FontFamily)Ui.Theme["Icons"] : new FontFamily(symbolFont), FontSize = 14, VerticalAlignment = VerticalAlignment.Center,
+        };
+        var words = new TextBlock { Text = label, FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"), FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        _toolLabels.Add(words);
         var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 9, 0) };
         content.Children.Add(picture);
         content.Children.Add(words);
         var button = new Button
         {
             Content = content, Style = (Style)Ui.Theme["IconButton"], Width = double.NaN, MinWidth = 30, Height = 24, Margin = new Thickness(1, 0, 1, 0),
-            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = "How see-through the window is behind its bars and words, so the game shows through",
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), VerticalAlignment = VerticalAlignment.Center, ToolTip = tip,
         };
+        System.Windows.Automation.AutomationProperties.SetName(button, label);
+        if (click is not null) button.Click += (_, _) => click();
+        return button;
+    }
+
+    private void ShowToolLabels()
+    {
+        var visibility = ActualWidth >= 290 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var label in _toolLabels) label.Visibility = visibility;
+    }
+
+    /// <summary>The button of the title bar that opens the menu of opacity levels: a half-filled circle and its name.</summary>
+    private Button OpacityButton()
+    {
+        var button = ToolButton("◐", "Segoe UI Symbol", "Opacity", "How see-through the window is behind its bars and words, so the game shows through", null);
         button.Click += (_, _) =>
         {
             var menu = new ContextMenu { PlacementTarget = button, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
@@ -204,6 +245,14 @@ internal sealed class TimersWindow : Window
             menu.IsOpen = true;
         };
         return button;
+    }
+
+    private void ToggleButtons()
+    {
+        _settings.TimersButtons = !_settings.TimersButtons;
+        _settings.Save();
+        ApplyLook();
+        RenderButtons(DateTime.UtcNow);
     }
 
     private void SetOpacity(int percent)
@@ -224,6 +273,9 @@ internal sealed class TimersWindow : Window
         _bottom.Background = new SolidColorBrush(Color.FromArgb(TimerLook.Alpha(percent), 0x16, 0x19, 0x20));
         _title.Background = new SolidColorBrush(Color.FromArgb(TimerLook.TitleAlpha(percent), 0x10, 0x14, 0x18));
         _pin.Foreground = Topmost ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0x70, 0x7A, 0x88));
+        _buttonsToggle.Foreground = _settings.TimersButtons ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0));
+        _strip.BorderBrush = (Brush)Ui.Theme["Stroke"];
+        _strip.BorderThickness = new Thickness(0, 0, 0, 1);
         _pin.ToolTip = Topmost ? "On top of the game. Click to let other windows cover it." : "Not on top. Click to keep this window on top of the game.";
     }
 
@@ -316,7 +368,7 @@ internal sealed class TimersWindow : Window
     /// <summary>The bottom of the window: one button, which opens the setup. (A line above it says what Windows refused, if it refused a key.)</summary>
     private FrameworkElement BuildBottom()
     {
-        var setup = Pill("Set up…", "Name your timers, give them keys and sounds, and turn on a timer for every corpse you loot", OpenSetup);
+        var setup = Pill("Set up…", "Name your timers, give them keys and sounds, and turn on a timer for every corpse", OpenSetup);
         setup.HorizontalAlignment = HorizontalAlignment.Left;
         var stack = new StackPanel();
         stack.Children.Add(_message);
@@ -372,8 +424,75 @@ internal sealed class TimersWindow : Window
         BookReplaced?.Invoke();
     }
 
+    /// <summary>
+    /// The strip of buttons across the top, when the player has turned it on: one per timer, in the order of the setup. A click starts a timer that isn't running
+    /// and stops one that is (a right-click starts it over). A running timer's button is lit and shows a stop square; the others show a start arrow.
+    /// </summary>
+    private void RenderButtons(DateTime nowUtc)
+    {
+        bool on = _settings.TimersButtons;
+        _strip.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on) return;
+        var built = string.Join("\u0001", _book.Presets.Select(p => $"{p.Name}|{p.Seconds}|{p.Key}"));
+        if (built != _buttonsBuiltFor)
+        {
+            _buttonsBuiltFor = built;
+            _buttons.Children.Clear();
+            _buttonOf.Clear();
+            foreach (var preset in _book.Presets) AddTimerButton(preset);
+            if (_book.Presets.Count == 0)
+                _buttons.Children.Add(new TextBlock { Text = "No timers yet. Press Set up… to make some.", FontSize = 11.5, Foreground = Palette.Muted, Margin = new Thickness(0, 0, 0, 6) });
+        }
+        foreach (var (name, button) in _buttonOf)
+        {
+            bool running = _book.Running.Any(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase) && TimerBook.Remaining(r, nowUtc) > 0);
+            button.Face.Background = running ? new SolidColorBrush(Color.FromArgb(0x40, 0x5B, 0x9D, 0xFF)) : Brushes.Transparent;
+            button.Glyph.Text = running ? "\uE71A" : "\uE768";
+            button.Button.Foreground = running ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0));
+        }
+    }
+
+    private void AddTimerButton(TimerPreset preset)
+    {
+        string name = preset.Name;
+        var font = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        var glyph = new TextBlock { FontFamily = (FontFamily)Ui.Theme["Icons"], FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0) };
+        var label = new TextBlock { Text = name, FontFamily = font, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center };
+        var length = new TextBlock { Text = TimerClock.Spell(preset.Seconds), FontFamily = font, FontSize = 11, Opacity = 0.6, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(glyph);
+        content.Children.Add(label);
+        content.Children.Add(length);
+        var face = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 0, 11, 0), Child = content, VerticalAlignment = VerticalAlignment.Stretch };
+        var button = new Button
+        {
+            Content = face, Style = (Style)Ui.Theme["IconButton"], Width = double.NaN, MinWidth = 40, Height = 30, Margin = new Thickness(0, 0, 6, 6),
+            ToolTip = (preset.Key is null ? "" : preset.Key + ". ") + "Click to start it, click again to stop it. Right-click to start it over.",
+        };
+        System.Windows.Automation.AutomationProperties.SetName(button, name);
+        button.Click += (_, _) =>
+        {
+            bool running = _book.Running.Any(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase) && TimerBook.Remaining(r, DateTime.UtcNow) > 0);
+            if (running)
+            {
+                _book.Stop(name);
+                SaveBook();
+                Tick();
+            }
+            else StartByName(name);
+        };
+        var menu = new ContextMenu();
+        var again = new MenuItem { Header = "Start over" };
+        again.Click += (_, _) => StartByName(name);
+        menu.Items.Add(again);
+        button.ContextMenu = menu;
+        _buttonOf[name] = new TimerButton { Button = button, Face = face, Glyph = glyph };
+        _buttons.Children.Add(button);
+    }
+
     private void Render(DateTime nowUtc)
     {
+        RenderButtons(nowUtc);
         bool blinkOn = nowUtc.Ticks / (TimeSpan.TicksPerMillisecond * 400) % 2 == 0;
         var timers = _book.ByEnd();
         Sync(_rows, _live, timers.Select(t => (t.Name, t.Name, TimerBook.Remaining(t, nowUtc), t.Seconds)).ToList(), blinkOn, stoppable: true, soundOf: _book.SoundOf, throttled: false);
@@ -487,6 +606,7 @@ internal sealed class TimersWindow : Window
             Content = glyph, Style = (Style)Ui.Theme["IconButton"], Width = 30, Height = 24, Margin = new Thickness(1, 0, 1, 0), FontSize = 14,
             Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), ToolTip = tip, VerticalAlignment = VerticalAlignment.Center,
         };
+        System.Windows.Automation.AutomationProperties.SetName(b, tip);
         b.Click += (_, _) => click();
         return b;
     }

@@ -51,7 +51,7 @@ try {
     # The sharing window as someone who said Yes sees it (what would be shared is worked out from the demo ledger)
     Shot 'window-sharing' '--share'
     # The timers window and its setup, with made-up timers, keys, sounds and corpses
-    Shot 'window-timers'      '--timers', '--size', '340x650'
+    Shot 'window-timers'      '--timers', '--buttons', '--size', '340x720'
     Shot 'window-timer-setup' '--timers-setup', '--size', '660x720'
     # The History window
     $big = '--breakdown', '--size', '1560x900'

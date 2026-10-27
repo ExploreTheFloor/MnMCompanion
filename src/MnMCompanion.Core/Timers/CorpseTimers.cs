@@ -20,7 +20,7 @@ public static class CorpseTimers
 
     /// <summary>
     /// The corpse timers that are running, or ended less than <see cref="TimerClock.DoneShownSeconds"/> ago, the one ending soonest first. A player's
-    /// corpse is not a monster and gets none. Other looters' corpses (a group's) are counted only when the player chose <see cref="CorpseTimerSetting.Group"/>.
+    /// corpse is not a monster and gets none. Every other corpse that was looted does, whoever looted it.
     /// </summary>
     public static IReadOnlyList<CorpseTimer> Active(IEnumerable<LootedCorpse> corpses, CorpseTimerSetting setting, DateTime nowLocal)
     {
@@ -28,7 +28,7 @@ public static class CorpseTimers
         var name = TimerBook.CleanName(setting.Name) ?? CorpseTimerSetting.DefaultName;
         int seconds = Math.Clamp(setting.Seconds, 1, TimerClock.MaxSeconds);
         return corpses
-            .Where(c => c.Mob && (c.You || setting.Group))
+            .Where(c => c.Mob)
             .Select(c => new CorpseTimer($"{c.Start.Ticks}|{c.Who}|{c.Source}", $"{name}: {c.Source}", c.Source, c.Zone, c.Start.AddSeconds(seconds), seconds, c.You))
             .Where(t => (t.EndsLocal - nowLocal).TotalSeconds > -TimerClock.DoneShownSeconds)
             .OrderBy(t => t.EndsLocal).ThenBy(t => t.Monster, StringComparer.OrdinalIgnoreCase)

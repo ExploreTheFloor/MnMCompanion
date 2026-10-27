@@ -321,19 +321,21 @@ Sessions start only when you press the button; they don't start by themselves wh
 
 ## Timers
 
-<img src="docs/images/window-timers.png" alt="The Timers window: your timers counting down, a timer on each corpse you looted, and your timers with their keys" width="300" align="right">
+<img src="docs/images/window-timers.png" alt="The Timers window: the Buttons strip across the top, timers counting down, and a timer on each corpse" width="300" align="right">
 
 The **Timers** button (a stopwatch) in the title bar opens a small window of timers. Like the rest of Companion it stays on top of the game. It holds only the bars of the timers that are
-running and one button, **Set up…**, so it takes little room. There are two kinds of timer.
+running and one button, **Set up…**, so it takes little room (plus a row of buttons across the top, if you turn on **Buttons**). There are two kinds of timer.
 
 **Timers you name, each with a key and a sound.** Press **Set up…**, name a timer ("Haste"), give it a length (`90`, `1:30`, `5m` or `1h30m`, up to 24 hours) and, if you want, a **key** such as
-`Ctrl+Alt+1` and a **sound** for when it ends. Press the key, in the game or anywhere else, and the timer starts counting down; press it again to start it over. (The ▶ beside a timer in the
-setup starts it from there, for one you gave no key.) Right-click a running timer to start it over, and the **×** stops it.
+`Ctrl+Alt+1` and a **sound** for when it ends. Press the key, in the game or anywhere else, and the timer starts counting down; press it again to start it over. A timer with no key starts from its button
+(below) or from the ▶ beside it in the setup. Right-click a running timer to start it over, and the **×** stops it.
 
-**A timer on every corpse you loot.** Under **Corpses** in the setup, turn on *Start a timer on every corpse that is looted* and give it a name and a length. Each corpse you loot then
-gets its own bar ("Corpse: a bog crawler") that starts at the moment you took the loot. The window shows the eight ending soonest and counts the rest. It comes straight from the ledger,
-so a corpse looted while Companion was closed still shows what is left of its time. Tick *Also corpses the rest of my group loots* to count theirs too. Your own corpse and other
-players' are not monsters and get none. The corpse timer can have a sound too, which plays when one of them ends (once, if several end together).
+**Buttons.** Press **Buttons** in the title bar and every timer appears as a button across the top of the window. Click one to start it, and click it again to stop it. A running timer's
+button is lit and shows a stop square; one that isn't running shows a start arrow; a right-click starts it over. The switch stays as you left it.
+
+**A timer on every corpse.** Under **Corpses** in the setup, turn on *Start a timer on every corpse* and give it a name, a length and, if you like, a sound. Every monster corpse that is looted,
+by you or by your group, then gets its own bar ("Corpse: a bog crawler") that starts at the moment the loot was taken. The window shows the eight ending soonest and counts the rest. It comes
+straight from the ledger, so a corpse looted while Companion was closed still shows what is left of its time.
 
 **Sounds.** Pick from the sounds Windows plays for its own events, the alarms and rings that come with Windows, or any `.wav` file of your own. A sound plays when you pick it, so you can
 hear it before you keep it. A timer with no sound just ends quietly.

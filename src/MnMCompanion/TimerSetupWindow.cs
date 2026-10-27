@@ -21,8 +21,7 @@ internal sealed class TimerSetupWindow : Window
     private readonly TimersWindow _timers;
     private readonly StackPanel _list = new();
     private readonly TextBlock _status = new() { FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), MinHeight = 16 };
-    private readonly CheckBox _corpseOn = new() { Content = "Start a timer on every corpse that is looted", Foreground = Palette.Text, FontSize = 12.5, Focusable = false };
-    private readonly CheckBox _corpseGroup = new() { Content = "Also corpses the rest of my group loots", Foreground = Palette.Text, FontSize = 12, Focusable = false, Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _corpseOn = new() { Content = "Start a timer on every corpse", Foreground = Palette.Text, FontSize = 12.5, Focusable = false };
     private readonly TextBox _corpseName = new() { Style = (Style)Ui.Theme["Field"], MaxLength = TimerBook.MaxName, ToolTip = "What the timer is called. The bar says this, then the monster: “Corpse: a bog crawler”" };
     private readonly TextBox _corpseLength = new() { Style = (Style)Ui.Theme["Field"], MaxLength = 12, Width = 80, ToolTip = "How long it runs from the moment the corpse was looted: 90, 1:30, 5m, 1h30m" };
     private readonly SoundField _corpseSound = new();
@@ -98,7 +97,6 @@ internal sealed class TimerSetupWindow : Window
         _list.Children.Add(NewRow());
         var corpse = Book.Corpse;
         _corpseOn.IsChecked = corpse.On;
-        _corpseGroup.IsChecked = corpse.Group;
         _corpseName.Text = corpse.Name;
         _corpseLength.Text = TimerClock.Spell(corpse.Seconds);
         _corpseSound.Set(corpse.Sound);
@@ -409,9 +407,9 @@ internal sealed class TimerSetupWindow : Window
             }
             var next = new CorpseTimerSetting
             {
-                On = _corpseOn.IsChecked == true, Group = _corpseGroup.IsChecked == true, Name = _corpseName.Text, Seconds = seconds.Value, Sound = _corpseSound.Sound,
+                On = _corpseOn.IsChecked == true, Name = _corpseName.Text, Seconds = seconds.Value, Sound = _corpseSound.Sound,
             }.Cleaned();
-            if (next.On == setting.On && next.Group == setting.Group && next.Name == setting.Name && next.Seconds == setting.Seconds && next.Sound == setting.Sound) return;
+            if (next.On == setting.On && next.Name == setting.Name && next.Seconds == setting.Seconds && next.Sound == setting.Sound) return;
             Book.Corpse = next;
             _timers.BookEdited();
             Say("");
@@ -422,7 +420,6 @@ internal sealed class TimerSetupWindow : Window
         }
 
         _corpseOn.Click += (_, _) => Save();
-        _corpseGroup.Click += (_, _) => Save();
         _corpseName.LostFocus += (_, _) => Save();
         _corpseLength.LostFocus += (_, _) => Save();
         _corpseName.KeyDown += (_, e) => EnterCommits(e, Save);
@@ -442,14 +439,9 @@ internal sealed class TimerSetupWindow : Window
         Put(labels, Label("Sound at the end"), 3, span: 3);
 
         var stack = new StackPanel();
-        stack.Children.Add(Note("Every monster corpse you loot gets its own countdown, starting at the moment the loot was taken. It is worked out from the ledger, so a corpse looted while " +
-                                "Companion was closed still shows what is left."));
         stack.Children.Add(new Border { Margin = new Thickness(0, 8, 0, 0), Child = _corpseOn });
         stack.Children.Add(labels);
         stack.Children.Add(fields);
-        stack.Children.Add(_corpseGroup);
-        stack.Children.Add(Note($"The timers window shows up to {CorpseTimers.MaxShown} at a time, the ones ending soonest, and counts the rest. Your own corpse and other players' are not monsters and get none. " +
-                                "With the group option on, a corpse that two of you both loot gets two timers. The sound is none unless you pick one; when several end together it plays once."));
         return stack;
     }
 

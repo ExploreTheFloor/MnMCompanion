@@ -11,8 +11,7 @@ public sealed record TimerPreset(string Name, int Seconds, string? Key = null, s
 
 /// <summary>
 /// The corpse timer: with <see cref="On"/>, every monster corpse that is looted gets a timer called <see cref="Name"/> that runs for
-/// <see cref="Seconds"/> from the loot (see <see cref="CorpseTimers"/>). <see cref="Group"/> also counts the corpses the rest of the group loots.
-/// <see cref="Sound"/> is played when one of them ends (none unless the player picks one).
+/// <see cref="Seconds"/> from the loot (see <see cref="CorpseTimers"/>). <see cref="Sound"/> is played when one of them ends (none unless the player picks one).
 /// </summary>
 public sealed class CorpseTimerSetting
 {
@@ -22,13 +21,12 @@ public sealed class CorpseTimerSetting
     public bool On { get; set; }
     public string Name { get; set; } = DefaultName;
     public int Seconds { get; set; } = DefaultSeconds;
-    public bool Group { get; set; }
     public string? Sound { get; set; }
 
     /// <summary>The same setting with a usable name and length (what a hand-edited or damaged file is brought to).</summary>
     public CorpseTimerSetting Cleaned() => new()
     {
-        On = On, Group = Group, Sound = TimerSounds.Normalize(Sound),
+        On = On, Sound = TimerSounds.Normalize(Sound),
         Name = TimerBook.CleanName(Name) ?? DefaultName,
         Seconds = Seconds is >= 1 and <= TimerClock.MaxSeconds ? Seconds : DefaultSeconds,
     };
