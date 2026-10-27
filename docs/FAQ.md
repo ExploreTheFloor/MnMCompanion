@@ -116,7 +116,7 @@ Alt with it for this reason.) Companion only hears the keys you set, can't see a
 
 ### What is sharing?
 A yes/no choice. **Yes** adds your own totals (how often each monster you looted dropped each item, what vendors paid you, what you gathered, item names, what NPCs said to you, what you dropped and destroyed, your trades with other players, and running
-totals counted by week) to a combined database that every sharing player gets figures back from. **No** (the default) means nothing leaves your PC and the community figures aren't used.
+totals counted by week, with the server each of them is from) to a combined database that every sharing player gets figures back from. **No** (the default) means nothing leaves your PC and the community figures aren't used.
 Details in [Sharing with the community data](../README.md#sharing-with-the-community-data).
 
 <img src="images/window-sharing.png" alt="The sharing window, listing exactly what would be shared" width="300" align="right">
@@ -133,8 +133,13 @@ the day the file was made, the weeks the running totals fall in, and the day of 
 Yes, if you say Yes to sharing: for each item and zone, how many units you dropped, how many you destroyed, and how many of the dropped ones you picked up again within ten minutes.
 Dropping and destroying are always your own choice, so it shows what players treat as junk. There is no time and nothing about anyone else.
 
+### Is my server shared?
+Yes, if you say Yes to sharing: every row about your play (monsters, vendor prices, gathering, what you dropped and destroyed, and your trades) says which server it is from, by the game's own name for it. That is how the combined figures can be kept per server,
+which matters for what players pay each other because prices differ between servers. It is the name of the world, not of you: your character names are still never sent. Item names and what NPCs said are the game's own text, the same on every server, so they carry no server. A Yes you gave before servers were
+added has to be given again.
+
 ### Are my trades with other players shared?
-Yes, if you say Yes to sharing: for each trade, the day it happened, the zone, and what each side handed over (the coin, and the items with how many). The ledger gives the other player only as
+Yes, if you say Yes to sharing: for each trade, the day it happened, the zone, the server, and what each side handed over (the coin, and the items with how many). The ledger gives the other player only as
 a number, and that number is left out, so nothing in the file says who you traded with. The newest 3,000 trades are sent. You see them in the sharing window before you decide, and a Yes you gave
 before trades were added has to be given again.
 
@@ -142,7 +147,7 @@ before trades were added has to be given again.
 No. The combined database is kept privately by the project and is not published. It is only used to build the figures sharing players get back.
 
 ### Why did it ask me again after I updated?
-A Yes covers what you were shown. When a new version shares more than the one you said Yes to (version 0.3.0 added the weekly running totals, and version 0.4.0 your trades with other players and what you dropped and destroyed), your earlier Yes no longer covers it, so
+A Yes covers what you were shown. When a new version shares more than the one you said Yes to (version 0.3.0 added the weekly running totals, version 0.4.0 your trades with other players and what you dropped and destroyed, and version 0.5.0 which server each row is from), your earlier Yes no longer covers it, so
 sharing pauses and the question comes back saying what was added. Nothing is sent until you say Yes again.
 
 ### How do I stop sharing?

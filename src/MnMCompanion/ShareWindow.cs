@@ -74,8 +74,7 @@ internal sealed class ShareWindow : Window
         _stack.Children.Add(Text("Players pool their own totals into one combined database of drop rates, vendor prices and gathering yields, kept privately by the project and never published. " +
             "Saying Yes adds yours for you, automatically, and lets you use what everyone has shared.", 10, Palette.Muted));
         if (settings.ConsentNeedsRenewal)
-            _stack.Children.Add(Text("You said Yes before. Companion now also shares your trades with other players: what each side handed over, the items and the coin, with the day " +
-                "and the zone, and never who the other player was. Sharing is paused until you say Yes again. \"What is shared\" lists everything.", 10, Palette.Text));
+            _stack.Children.Add(Text(CommunityPolicy.RenewalNote(settings.ShareConsentSchema, ContributionBuilder.Schema), 10, Palette.Text));
         _stack.Children.Add(Bullet("Yes", "your totals are shared for you, and you can use the community data."));
         _stack.Children.Add(Bullet("No", mode == ShareMode.Ask
             ? "nothing leaves your PC and the community data stays off. You'll be asked again next time."

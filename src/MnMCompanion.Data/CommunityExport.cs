@@ -17,21 +17,37 @@ public static class CommunityExport
     public static Contribution Build(LedgerDb db, string app, DateOnly? generated = null)
     {
         var store = new HistoryStore(db);
-        return ContributionBuilder.Build(store.OwnLoot(), store.VendorAll(), store.HarvestsAll(), store.OwnNames(),
-            db.ContributorId(), app, generated ?? DateOnly.FromDateTime(DateTime.Now), store.OwnNpcDialogue(), store.Trades(null, null), store.ItemMoves(null, null));
+        // The rows of each server on their own, so each row of the file says which server it is from. Characters of one server are added together, as before.
+        var servers = store.Servers().Select(server => new ServerRows(server, store.OwnLoot(server), store.Vendor(server, null), store.Harvests(server, null),
+            store.Trades(server, null), store.ItemMoves(server, null))).ToList();
+        return ContributionBuilder.Build(servers, store.OwnNames(), db.ContributorId(), app, generated ?? DateOnly.FromDateTime(DateTime.Now), store.OwnNpcDialogue());
     }
 }
 
 public sealed partial class HistoryStore
 {
-    /// <summary>
-    /// Every loot row, items and purses, of every character's own Character file, as loot events (the looter is that character).
-    /// The rows are exactly the ones the player took, so a party's loot is not counted once for each member.
-    /// </summary>
-    public IReadOnlyList<LootEvent> OwnLoot() => db.With(conn =>
+    /// <summary>The servers this PC has ledger files for, by the name of the game's folder for each (case as the game wrote it).</summary>
+    public IReadOnlyList<string> Servers() => db.With(conn =>
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT character, at_utc, act, zone, name, detail FROM ledger_row WHERE kind = 'Character' AND act IN ('act_13', 'act_14') ORDER BY at_utc, id";
+        cmd.CommandText = "SELECT DISTINCT server FROM ledger_file ORDER BY server COLLATE NOCASE, server";
+        var list = new List<string>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add(r.GetString(0));
+        return list;
+    });
+
+    /// <summary>
+    /// Every loot row, items and purses, of every character's own Character file, as loot events (the looter is that character).
+    /// The rows are exactly the ones the player took, so a party's loot is not counted once for each member. <paramref name="server"/>
+    /// narrows it to the characters of one server (null: all of them).
+    /// </summary>
+    public IReadOnlyList<LootEvent> OwnLoot(string? server = null) => db.With(conn =>
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT character, at_utc, act, zone, name, detail FROM ledger_row WHERE kind = 'Character' AND act IN ('act_13', 'act_14')"
+            + (server is null ? "" : " AND server = $server") + " ORDER BY at_utc, id";
+        if (server is not null) cmd.Parameters.AddWithValue("$server", server);
         var list = new List<LootEvent>();
         using var r = cmd.ExecuteReader();
         while (r.Read())
@@ -60,17 +76,6 @@ public sealed partial class HistoryStore
                 }
             }
         }
-        return list;
-    });
-
-    /// <summary>Every harvest of every character on this PC.</summary>
-    public IReadOnlyList<HarvestRow> HarvestsAll() => db.With(conn =>
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT at_utc, character, item, qty, zone FROM harvest ORDER BY at_utc";
-        var list = new List<HarvestRow>();
-        using var r = cmd.ExecuteReader();
-        while (r.Read()) list.Add(new HarvestRow(Time(r.GetString(0)), r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4)));
         return list;
     });
 

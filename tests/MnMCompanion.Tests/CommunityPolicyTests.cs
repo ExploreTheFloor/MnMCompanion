@@ -23,9 +23,39 @@ public class CommunityPolicyTests
     }
 
     [Fact]
+    public void The_renewal_question_says_only_what_was_added_since_the_players_yes()
+    {
+        const int now = 4;
+        var fromTrades = CommunityPolicy.RenewalNote(3, now);
+        Assert.Contains("the server each of those is from", fromTrades);
+        Assert.DoesNotContain("trades with other players", fromTrades);   // they already agreed to those
+        Assert.DoesNotContain("running totals", fromTrades);
+        Assert.StartsWith("You said Yes before. Companion now also shares ", fromTrades);
+        Assert.Contains("Sharing is paused until you say Yes again", fromTrades);
+
+        var fromTotals = CommunityPolicy.RenewalNote(2, now);
+        Assert.Contains("trades with other players", fromTotals);
+        Assert.Contains("the server", fromTotals);
+        Assert.DoesNotContain("running totals", fromTotals);
+
+        // a Yes from before the layout was recorded is a Yes to layout 1: everything since is new
+        var fromTheStart = CommunityPolicy.RenewalNote(0, now);
+        Assert.Contains("running totals", fromTheStart);
+        Assert.Contains("trades with other players", fromTheStart);
+        Assert.Contains("the server", fromTheStart);
+        Assert.Equal(CommunityPolicy.NewSince(1, now), CommunityPolicy.NewSince(0, now));
+
+        // nothing to say when the Yes already covers the layout, and each note matches the renewal rule
+        Assert.Equal("", CommunityPolicy.RenewalNote(now, now));
+        Assert.Empty(CommunityPolicy.NewSince(now, now));
+        for (int answered = 0; answered <= now; answered++)
+            Assert.Equal(CommunityPolicy.NeedsRenewal(true, answered, now), CommunityPolicy.RenewalNote(answered, now).Length > 0);
+    }
+
+    [Fact]
     public void The_current_file_layout_is_the_one_a_yes_is_given_to()
     {
-        Assert.Equal(3, ContributionBuilder.Schema);
+        Assert.Equal(4, ContributionBuilder.Schema);
     }
 
     [Fact]

@@ -27,6 +27,30 @@ public static class CommunityPolicy
     public static bool NeedsRenewal(bool yes, int answeredSchema, int currentSchema) => yes && !Consented(yes, answeredSchema, currentSchema);
 
     /// <summary>
+    /// What each layout added to what is shared, in the words the question uses (it says "Companion now also shares ..."): the layout a Yes was given to has
+    /// everything up to it, so a player is told only what came after.
+    /// </summary>
+    private static readonly (int Schema, string Added)[] Additions =
+    [
+        (2, "your running totals, counted by week (never a day or a time)"),
+        (3, "your trades with other players (what each side handed over, the items and the coin, with the day and the zone, and never who the other player was) and what you dropped and destroyed"),
+        (4, "the server each of those is from (the game's own name for it), because what players pay each other differs between servers"),
+    ];
+
+    /// <summary>What a Yes given to layout <paramref name="answeredSchema"/> does not cover yet, up to <paramref name="currentSchema"/>; empty when it covers everything.</summary>
+    public static IReadOnlyList<string> NewSince(int answeredSchema, int currentSchema) =>
+        Additions.Where(a => a.Schema > Math.Max(1, answeredSchema) && a.Schema <= currentSchema).Select(a => a.Added).ToList();
+
+    /// <summary>The sentence the renewal question opens with, or "" when nothing has been added since the player's Yes.</summary>
+    public static string RenewalNote(int answeredSchema, int currentSchema)
+    {
+        var added = NewSince(answeredSchema, currentSchema);
+        return added.Count == 0
+            ? ""
+            : "You said Yes before. Companion now also shares " + string.Join(", and ", added) + ". Sharing is paused until you say Yes again. \"What is shared\" lists everything.";
+    }
+
+    /// <summary>
     /// Whether to ask at start-up: only while the answer is No, and never for a run with no window (a picture, a report, a headless
     /// export), which can't ask anyone.
     /// </summary>

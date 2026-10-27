@@ -77,17 +77,17 @@ public class ContributionTradesTests
 
         using var core = JsonDocument.Parse(c.ToCoreJson());
         Assert.False(core.RootElement.TryGetProperty("trades", out _));
-        Assert.Equal(3, core.RootElement.GetProperty("schema").GetInt32());
+        Assert.Equal(4, core.RootElement.GetProperty("schema").GetInt32());
 
         var part = c.ToTradesPartJson();
         Assert.DoesNotContain("\n", part);
         using var doc = JsonDocument.Parse(part);
         var root = doc.RootElement;
         Assert.Equal(["schema", "part", "contributor", "app", "generated", "license", "trades"], root.EnumerateObject().Select(p => p.Name));
-        Assert.Equal((3, "trades", Id, "2026-10-25", "CC-BY-NC-SA-4.0"),
+        Assert.Equal((4, "trades", Id, "2026-10-25", "CC-BY-NC-SA-4.0"),
             (root.GetProperty("schema").GetInt32(), root.GetProperty("part").GetString(), root.GetProperty("contributor").GetString(), root.GetProperty("generated").GetString(), root.GetProperty("license").GetString()));
         var trade = root.GetProperty("trades")[0];
-        Assert.Equal(["day", "zone", "gave", "got"], trade.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["day", "zone", "gave", "got", "server"], trade.EnumerateObject().Select(p => p.Name));
         Assert.Equal(["coin", "items"], trade.GetProperty("gave").EnumerateObject().Select(p => p.Name));
         Assert.Equal(["item", "qty"], trade.GetProperty("gave").GetProperty("items")[0].EnumerateObject().Select(p => p.Name));
 
@@ -211,7 +211,8 @@ public class ContributionTradesTests
     {
         Assert.False(CommunityPolicy.Consented(true, 2, ContributionBuilder.Schema));
         Assert.True(CommunityPolicy.NeedsRenewal(true, 2, ContributionBuilder.Schema));
-        Assert.True(CommunityPolicy.Consented(true, 3, ContributionBuilder.Schema));
+        Assert.False(CommunityPolicy.Consented(true, 3, ContributionBuilder.Schema), "schema 4 added the server, so a Yes to trades alone has lapsed too");
+        Assert.True(CommunityPolicy.Consented(true, ContributionBuilder.Schema, ContributionBuilder.Schema));
         Assert.False(CommunityPolicy.NeedsRenewal(false, 2, ContributionBuilder.Schema), "a No is not asked to renew: it is simply asked again");
         Assert.False(CommunityPolicy.MaySend(false));
     }

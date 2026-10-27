@@ -7,7 +7,7 @@ namespace MnMCompanion.Tests;
 /// <summary>What the player dropped and destroyed (schema 3): a tally per item and zone, with how much of the dropped was picked up again soon after.</summary>
 public class ContributionDiscardsTests
 {
-    private const string Id = "0123456789abcdef0123456789abcdef", Me = "Aldric";
+    private const string Id = "0123456789abcdef0123456789abcdef", Me = "Aldric", Server = ContributionBuilder.UnknownServer;   // rows built without a server are given this one
     private static readonly DateTime Noon = new(2026, 10, 24, 12, 0, 0, DateTimeKind.Utc);
 
     private static ItemMoveRow Move(ItemMoveKind kind, string item, int qty, string zone = "nightharborw", int minutes = 0, string who = Me) =>
@@ -27,7 +27,7 @@ public class ContributionDiscardsTests
             Move(ItemMoveKind.Dropped, "Raw Beetle Meat", 7, "z2"));
 
         Assert.Equal(
-            [new ContributionDiscard("Raw Beetle Meat", "z1", 6, 1, 0), new ContributionDiscard("Raw Beetle Meat", "z2", 7, 0, 0), new ContributionDiscard("Rusty Dagger", "z2", 0, 3, 0)],
+            [new ContributionDiscard("Raw Beetle Meat", "z1", 6, 1, 0, Server), new ContributionDiscard("Raw Beetle Meat", "z2", 7, 0, 0, Server), new ContributionDiscard("Rusty Dagger", "z2", 0, 3, 0, Server)],
             c.Discards.OrderBy(d => d.Item).ThenBy(d => d.Zone));
     }
 
@@ -99,7 +99,7 @@ public class ContributionDiscardsTests
 
         using var doc = JsonDocument.Parse(c.ToCoreJson());
         var entry = doc.RootElement.GetProperty("discards")[0];
-        Assert.Equal(["item", "zone", "dropped", "destroyed", "takenBack"], entry.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["item", "zone", "dropped", "destroyed", "takenBack", "server"], entry.EnumerateObject().Select(p => p.Name));
         Assert.Equal(1, entry.GetProperty("takenBack").GetInt32());
         using var part = JsonDocument.Parse(c.ToTradesPartJson());
         Assert.False(part.RootElement.TryGetProperty("discards", out _), "the trades part carries only trades");

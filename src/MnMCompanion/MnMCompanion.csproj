@@ -10,7 +10,7 @@
     <RootNamespace>MnMCompanion</RootNamespace>
     <AssemblyName>MnMCompanion</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.4.2</Version>
+    <Version>0.5.0</Version>
     <!-- the exe's ProductVersion is exactly <Version>: the code signing policy checks it, and the SDK would add "+<commit>" -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Companion for Monsters &amp; Memories</Product>
