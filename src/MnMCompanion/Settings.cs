@@ -45,8 +45,8 @@ public sealed class Settings
     public Bounds? Timers { get; set; }
     public bool TimersOpen { get; set; }
 
-    /// <summary>The timers window's own pin (on top of the game or not) and how solid its background is, in percent (see <c>TimerLook</c>).</summary>
-    public bool TimersOnTop { get; set; } = true;
+    /// <summary>The timers window's own pin (on top of the game or not; off until the player pins it) and how solid its background is, in percent (see <c>TimerLook</c>; 100 is no fading).</summary>
+    public bool TimersOnTop { get; set; }
     public int TimersOpacity { get; set; } = 100;
 
     /// <summary>Whether the timers window shows each timer as a button across its top, to start and stop it with a click.</summary>
@@ -96,8 +96,17 @@ public sealed class Settings
     public string? SharedTradesFingerprint { get; set; }
     public string ShareNote { get; set; } = "";
 
-    /// <summary>Look for a newer version on GitHub when the app starts and every few hours. It only ever offers; nothing installs by itself.</summary>
+    /// <summary>Look for a newer version on GitHub when the app starts and every few hours. Off: the app never asks GitHub by itself.</summary>
     public bool CheckForUpdates { get; set; } = true;
+
+    /// <summary>
+    /// Install a newer version without asking: download it, check it against the checksum published with it, and restart into it once no timer is running.
+    /// On by default; off, a newer version is only offered and the player presses Update now. Needs <see cref="CheckForUpdates"/>.
+    /// </summary>
+    public bool InstallUpdates { get; set; } = true;
+
+    /// <summary>The version this program last installed by itself. If the program that starts afterwards is still older than that, it is never installed unasked again (no restart loop).</summary>
+    public string? AutoInstalledVersion { get; set; }
 
     /// <summary>A version the player chose "Skip this version" for: not offered again (a newer one still is).</summary>
     public string? SkippedVersion { get; set; }

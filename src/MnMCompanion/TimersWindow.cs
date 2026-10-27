@@ -290,6 +290,16 @@ internal sealed class TimersWindow : Window
     /// <summary>What Windows refused when the keys were taken (another program has them), one sentence each.</summary>
     internal IReadOnlyList<string> KeyProblems { get; private set; } = [];
 
+    /// <summary>Whether a timer the player started is counting down (the corpse timers come back by themselves from the ledger after a restart, so they don't count). An update that installs by itself waits while this is true.</summary>
+    internal bool AnyRunning
+    {
+        get
+        {
+            var now = DateTime.UtcNow;
+            return _book.Running.Any(r => TimerBook.Remaining(r, now) > 0);
+        }
+    }
+
     /// <summary>Opens the setup window, or brings it forward. Keys are let go while it is open, so a key can be pressed to be recorded.</summary>
     public void OpenSetup()
     {

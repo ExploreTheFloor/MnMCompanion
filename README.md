@@ -10,7 +10,7 @@ Companion sits beside the game and keeps a running tally of your group's loot: e
 monster it came from, and roughly what a vendor would pay for it. At the end of a night it can tell you exactly who got what.
 
 > **Status: beta, free and open source (MIT).** Everything below works. The program isn't code-signed, so Windows may warn the first time you run it
-> (see [Install it](#install-it)). Once installed, it finds new versions by itself (see [Updates](#updates)).
+> (see [Install it](#install-it)). Once installed, it updates itself (see [Updates](#updates); one switch turns that off).
 
 **[Download the latest version](https://github.com/ExploreTheFloor/MnMCompanion/releases/latest)**  ·  Windows 10 or 11, 64-bit  ·  nothing to install  ·  [Questions? Read the FAQ](docs/FAQ.md)  ·  [Report a problem or ask for a feature](https://github.com/ExploreTheFloor/MnMCompanion/issues/new/choose)
 
@@ -323,7 +323,8 @@ Sessions start only when you press the button; they don't start by themselves wh
 
 <img src="docs/images/window-timers.png" alt="The Timers window: the Buttons strip across the top, timers counting down, and a timer on each corpse" width="300" align="right">
 
-The **Timers** button (a stopwatch) in the title bar opens a small window of timers. Like the rest of Companion it stays on top of the game. It holds only the bars of the timers that are
+The **Timers** button (a stopwatch) in the title bar opens a small window of timers. **Everything about timers starts switched off**: no timers, no keys, no sounds, no timer on corpses, no row of
+buttons, the window not pinned and not faded. Nothing happens until you turn something on. The window holds only the bars of the timers that are
 running and one button, **Set up…**, so it takes little room (plus a row of buttons across the top, if you turn on **Buttons**). There are two kinds of timer.
 
 **Timers you name, each with a key and a sound.** Press **Set up…**, name a timer ("Haste"), give it a length (`90`, `1:30`, `5m` or `1h30m`, up to 24 hours) and, if you want, a **key** such as
@@ -340,7 +341,7 @@ straight from the ledger, so a corpse looted while Companion was closed still sh
 **Sounds.** Pick from the sounds Windows plays for its own events, the alarms and rings that come with Windows, or any `.wav` file of your own. A sound plays when you pick it, so you can
 hear it before you keep it. A timer with no sound just ends quietly.
 
-**On top, and see-through.** The window has its own **pin**, on by default, so it stays on top of the game like the main window does (the game has to be in a window or borderless: nothing can
+**On top, and see-through.** The window has its own **pin**, off until you press it. Pinned, it stays on top of the game like the main window does (the game has to be in a window or borderless: nothing can
 draw over a game that has the whole screen to itself). The **Opacity** button fades the window's background in steps down to 10%, so the game shows through behind it while the bars and the words
 stay solid. The title bar never fades away completely, so you can always find the window and drag it.
 
@@ -414,12 +415,12 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 - reads two things the game writes, its ledger files and each character's journal (what NPCs have said to you), and nothing else it writes;
 - **never** touches the running game or its memory, and never sends a key press or moves your mouse. The only keys it listens for are the ones *you* set for timers (see [Timers](#timers)); it can't see anything else you type;
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
-- **never** installs anything by itself. Updates are only ever *offered*.
+- installs nothing but its own newer versions, from this project's GitHub releases, and only after checking the download against the checksum published with it. You can switch that off, and then updates are only *offered* (see [Updates](#updates)).
 
 The **journal** is a folder the game keeps for each character, `<character>\journal`: one text file per NPC, named for them, with everything that NPC has said to you (quest text and so on), each line stamped with the time. Companion reads those files too and keeps every line in its own saved database, one NPC once however many characters met them, and lined up with the monsters it has seen looted (an NPC who is also something you killed is marked as such). It doesn't show them on a page yet. It never opens anything else in that folder.
 
-The one thing it does over the internet by itself is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)). That's a plain
-request that carries only the program's name and version number. You can switch it off.
+The one thing it does over the internet by itself is ask GitHub *"is there a newer version of Companion?"* (see [Updates](#updates)), and fetch it when there is. That's a plain
+request that carries only the program's name and version number. You can switch the installing off, or the asking too.
 
 Only if you answered **Yes** to sharing, it also talks to the project's small community service (see [Sharing](#sharing-with-the-community-data)): it sends your totals, and asks for community figures by name, always with your random id and nothing else about you.
 
@@ -493,22 +494,33 @@ It **never** contains your character names, any other player's name or number (n
 
 <img src="docs/images/window-update.png" alt="The update banner" width="260" align="right">
 
-A few seconds after it starts, and every six hours while it's running, Companion asks GitHub whether a newer version has been released.
-If there is one, a strip appears under the title bar:
+A few seconds after it starts, and every six hours while it's running, Companion asks GitHub whether a newer version has been released. **If there is one, it installs it by itself**,
+unless you have switched that off:
+
+1. It downloads the new program and **checks it against the checksum published with the release**. If anything doesn't match (a damaged or swapped download), it throws the download away,
+   keeps your current version, and says why in a strip under the title bar.
+2. It replaces the old program and restarts into the new one. **If one of your own timers is counting down it waits until none is**, so no timer's end is missed during the restart.
+   The strip says so and has **Restart now** and **Not now**. (Your timers, keys and windows are all there again after the restart.)
+3. After the restart a strip says which version you have now, and where to switch automatic updating off.
+
+<img src="docs/images/window-update-waiting.png" alt="The strip while an update waits for a running timer" width="260">
+
+**To be asked first instead:** click the **ⓘ** in the title bar and untick **Install updates automatically**. A newer version is then only offered, in a strip that says
 
 > **Version 0.4.0 is ready (you have 0.3.0).**   `Update now`   `Later`   `Skip this version`
 
-- **Update now** downloads the new program, **checks it against the checksum published with the release**, and only if that matches replaces
-  the old one and restarts. If anything doesn't match (a damaged or tampered download), it throws the download away, keeps your current
-  version, and tells you why.
+- **Update now** does what the automatic update does (download, check, replace, restart).
 - **Later** hides the strip until the next check.
-- **Skip this version** stops it being offered again. A newer one after it still will be.
+- **Skip this version** stops it being offered again, and also stops it being installed by itself. A newer one after it still will be.
 - Hover over the message to read the release notes.
 
-Click the **ⓘ** in the title bar for **Check for updates now**, and an option to **switch automatic checking off**.
-Nothing is ever installed unless you press **Update now**.
+**To never ask GitHub at all:** untick **Check for updates automatically** as well. **Check for updates now** is there whenever you want to look.
 
-If you run Companion from somewhere it can't replace itself (a read-only folder, say), the button becomes **Open the download page** instead.
+The checksum comes from the same release page as the program, so it protects against a damaged or swapped download, not against someone who controls this project's GitHub account.
+If you would rather read every change before you run it, switch the automatic install off: the source is public and you can build it yourself (see [Building it yourself](#building-it-yourself)).
+
+If you run Companion from somewhere it can't replace itself (a read-only folder, say), it can't install by itself either: the strip's button becomes **Open the download page**.
+A new version that comes out the same as the one before is never installed twice in a row, so a bad release can't make it restart over and over.
 
 ---
 

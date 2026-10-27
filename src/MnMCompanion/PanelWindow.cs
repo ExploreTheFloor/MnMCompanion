@@ -295,9 +295,16 @@ internal sealed class PanelWindow : Window
         var check = new MenuItem { Header = "Check for updates now", ToolTip = "Asks GitHub whether a newer version has been released. Nothing is installed unless you say so." };
         check.Click += async (_, _) => await _updates.CheckAsync(manual: true);
         menu.Items.Add(check);
-        var auto = new MenuItem { Header = "Check for updates automatically", IsCheckable = true, IsChecked = _settings.CheckForUpdates, ToolTip = "When the app starts and every few hours. It only offers; it never installs by itself." };
-        auto.Click += (_, _) => { _settings.CheckForUpdates = auto.IsChecked; _settings.Save(); };
+        var auto = new MenuItem { Header = "Check for updates automatically", IsCheckable = true, IsChecked = _settings.CheckForUpdates, ToolTip = "When the app starts and every few hours. Untick it and the app never asks GitHub by itself." };
+        var install = new MenuItem
+        {
+            Header = "Install updates automatically", IsCheckable = true, IsChecked = _settings.InstallUpdates, IsEnabled = _settings.CheckForUpdates,
+            ToolTip = "A newer version is downloaded, checked against the checksum published with it, and installed; Companion restarts into it once none of your timers is running. Untick it and a newer version is only offered, and you press Update now.",
+        };
+        auto.Click += (_, _) => { _settings.CheckForUpdates = auto.IsChecked; _settings.Save(); install.IsEnabled = auto.IsChecked; };
+        install.Click += (_, _) => { _settings.InstallUpdates = install.IsChecked; _settings.Save(); };
         menu.Items.Add(auto);
+        menu.Items.Add(install);
         menu.Items.Add(new Separator());
         var share = new MenuItem
         {
@@ -360,6 +367,10 @@ internal sealed class PanelWindow : Window
                     _updates.CanInstall ? "Downloads the new version, checks it, and restarts into it." : "This copy can't replace itself; opens the page to download it."));
                 buttons.Children.Add(BannerButton("Later", _updates.Dismiss, "Ask again next time."));
                 buttons.Children.Add(BannerButton("Skip this version", _updates.Skip, "Don't offer this version again (a newer one still will be)."));
+                break;
+            case UpdateState.Waiting:
+                buttons.Children.Add(BannerButton("Restart now", _updates.RestartNow, "Restart into the new version now, without waiting for your timers."));
+                buttons.Children.Add(BannerButton("Not now", _updates.NotNow, "Don't install by itself for the rest of this run. It is offered with the ordinary buttons at the next check."));
                 break;
             case UpdateState.Failed:
                 if (offer is not null) buttons.Children.Add(BannerButton("Open the download page", _updates.OpenDownloadPage, "Download it by hand."));

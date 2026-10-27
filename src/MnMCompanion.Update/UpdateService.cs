@@ -52,8 +52,8 @@ public static class AppVersion
 /// <summary>
 /// Asks GitHub whether a newer Companion has been released, and downloads it when the player agrees. It talks to two places only
 /// (<c>api.github.com</c> for the release list, <c>github.com</c> for the files, which GitHub then serves from its own storage), sends
-/// nothing about the player or their ledgers (a plain GET with the program's name and version), never installs by itself, and refuses
-/// any download whose SHA-256 doesn't match the checksum published beside it.
+/// nothing about the player or their ledgers (a plain GET with the program's name and version), and refuses any download whose SHA-256
+/// doesn't match the checksum published beside it. Whether it installs by itself or waits for the player is decided by the app (<see cref="UpdatePolicy"/>).
 /// </summary>
 public sealed class UpdateService : IDisposable
 {
@@ -288,6 +288,30 @@ public sealed class UpdateService : IDisposable
         {
             Restore(old, currentExe);
             throw new UpdateException("The new version wouldn't start. The old one was put back.");
+        }
+    }
+
+    /// <summary>
+    /// For a program started by an update: waits (at most <paramref name="timeout"/>) until the previous program has exited. The previous
+    /// program's file was renamed to <c>.old</c> and Windows keeps it locked while that program runs, so waiting until it can be deleted is
+    /// waiting for the program to end, without looking at any process. Returns false if it was still running at the end.
+    /// </summary>
+    public static bool WaitForPreviousToExit(string? currentExe, TimeSpan timeout)
+    {
+        if (string.IsNullOrEmpty(currentExe)) return true;
+        var old = currentExe + ".old";
+        var deadline = DateTime.UtcNow + timeout;
+        while (true)
+        {
+            try
+            {
+                if (!File.Exists(old)) return true;
+                File.Delete(old);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            if (DateTime.UtcNow >= deadline) return false;
+            Thread.Sleep(100);
         }
     }
 

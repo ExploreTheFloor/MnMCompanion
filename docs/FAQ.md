@@ -46,10 +46,10 @@ If you want to be sure the file is the one that was published, check its checksu
 Single-file programs sometimes get flagged by cautious antivirus software. The same checksum check above applies, and building it yourself from the source is always an option.
 
 ### How do I update?
-It checks GitHub a few seconds after it starts and every six hours, and a strip appears under the title bar when there is a newer version: **Update now** downloads it,
-checks it against the checksum published with the release, and only then replaces the old one and restarts. Nothing is ever installed unless you press that button.
-You can also use **ⓘ → Check for updates now**. If you are still on **version 0.1.0** (when it was called Loot Goblin), that version can't see newer releases:
-download the current `MnMCompanion.exe` once and replace the old file; from then on it updates itself. See [Updates](../README.md#updates).
+It updates itself. It checks GitHub a few seconds after it starts and every six hours; when there is a newer version it downloads it, checks it against the checksum published with the release,
+and only then replaces the old one and restarts (waiting first if one of your timers is counting down). A strip under the title bar says what it is doing and which version you have afterwards.
+To be asked first instead, click **ⓘ** and untick **Install updates automatically**; untick **Check for updates automatically** too and it never asks GitHub by itself. You can also use **ⓘ → Check for updates now**. If you are still on **version 0.1.0** (when it was called Loot Goblin), that version can't see newer releases:
+download the current `MnMCompanion.exe` once and replace the old file; from then on it updates itself. So does **version 0.4.0**, which only offers the update: press **Update now** once, and every version after that installs by itself. See [Updates](../README.md#updates).
 
 ### How do I uninstall it?
 Close it and delete `MnMCompanion.exe`. Its settings and saved history are in `%LOCALAPPDATA%\MnMCompanion\` (paste that into the File Explorer address bar); delete that folder too
@@ -97,13 +97,13 @@ See [Sessions](../README.md#sessions-starting-a-fresh-tally).
 Yes: pages have **Copy** buttons that put the figures on the clipboard as text.
 
 ### Does it have timers?
-Yes, two kinds. You can name your own timers (a buff, a cooldown, food), give each a length, a key that starts it and a sound for when it ends. And you can turn on a timer for **every corpse
+Yes, two kinds, and every part of them starts switched off: nothing runs, no key is taken and no sound plays until you set something up. You can name your own timers (a buff, a cooldown, food), give each a length, a key that starts it and a sound for when it ends. And you can turn on a timer for **every corpse
 you loot**, with a name, a length and a sound of your choice. What it can't do is start a buff timer by itself: the game writes nothing about casts or buffs to any file Companion reads, so you
 start those yourself, with the key or, if you turn on **Buttons** in the Timers window, with a click on the timer's button (click it again to stop it). (A tool that reads the game's memory could
 do it automatically; Companion deliberately never does that.)
 
 ### Can the timers window stay on top and be see-through?
-Yes. It has its own pin (on by default) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding
+Yes. It has its own pin (off until you press it) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding
 what is behind them. The game has to be in a window or borderless for any window to show on top of it.
 
 ### Will the key I give a timer stop working in the game?
