@@ -237,7 +237,10 @@ public class ArchiveTests
 
         Assert.Equal("Item looted", Scalar<string>(db, "SELECT meaning FROM act_code WHERE act = 'act_13'"));
         Assert.Equal("confirmed", Scalar<string>(db, "SELECT certainty FROM act_code WHERE act = 'act_13'"));
-        Assert.Equal("unknown", Scalar<string>(db, "SELECT certainty FROM act_code WHERE act = 'act_02'"));
+        Assert.Equal("Death", Scalar<string>(db, "SELECT meaning FROM act_code WHERE act = 'act_02'"));
+        Assert.Equal("confirmed", Scalar<string>(db, "SELECT certainty FROM act_code WHERE act = 'act_02'"));
+        Assert.Equal("Party invite received", Scalar<string>(db, "SELECT meaning FROM act_code WHERE act = 'act_36'"));
+        Assert.Equal("unknown", Scalar<string>(db, "SELECT certainty FROM act_code WHERE act = 'act_21'"));   // one of three guild actions: which is not known
         Assert.Equal(ActCodes.All.Count, Scalar<int>(db, "SELECT count(*) FROM act_code"));
         Assert.Equal(ActCodes.All.Count, ActCodes.All.Select(a => a.Act).Distinct().Count());
     }

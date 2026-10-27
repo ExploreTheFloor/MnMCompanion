@@ -42,15 +42,16 @@ The `act_code` table holds the same list.
 | act_33 | Party disbanded | 46 | `d63` `PartyDisband` |
 | act_28 | Bought from a vendor | 30 | like act_24 |
 | act_31 | Party created | 15 | `d63` `PartyCreate` |
-| act_36 | **Unidentified** | 25 | Social; a player name and class, no detail. Nobody knows what it records |
-| act_02 | **Unidentified** | 13 | no detail, only a zone; not obviously a death |
+| act_36 | Party invite received | 32 | Social; `f02` the inviter's name (`name_` + Base64), `f06` their level, `f10` their class. The client's `PartyInviteReceived` |
+| act_02 | **Death** | 13 | the player's own death only: `f05` zone, `f06` level, `f02` the cause (`name_` + Base64; empty in every row seen). The client's `LogDeath`; the rows fall on the days the characters died |
 
-The game client also defines `act_04`, `act_05`, `act_17`–`act_19`, `act_21`–`act_23`; none has ever appeared in a file here.
+The game client also defines `act_04` (the quest item hand-in, `ItemTurnIn`), `act_05` (`Kill`), `act_17`–`act_19` (coins picked up, dropped, destroyed) and `act_21`–`act_23` (the three guild actions); none has ever appeared in a file here. (Names read from the client with Ghidra, 2026-10-27; the client's action table pairs 26 names with the 26 codes.)
 
 ## What the ledger does not record
 
-Deaths, zone changes, kills and experience, quest item hand-ins, and coin drops/pickups/destroys: the client has calls for them and
-none ever reaches a file. A guild ledger type exists in the client; there are no guild files. Loot quantity is always 1. There is no
+Zone changes, kills and experience, quest item hand-ins, and coin drops/pickups/destroys: the client has calls for them and none ever
+reaches a file (the hand-in window never calls its logger; quest messages go to the journal). Deaths **do** reach it, but only the player's own, with the zone, the
+level and the time, not who killed them. A guild ledger type exists in the client; there are no guild files. Loot quantity is always 1. There is no
 corpse id and no vendor name. Other players' sales, harvests, trades and drops are not in your files, and you see only your own share
 of a split. There is no combat, damage or chat.
 

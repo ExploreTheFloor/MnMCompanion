@@ -22,7 +22,13 @@ stop using it.
 Free, and open source under the [MIT licence](../LICENSE). The source is in this repository.
 
 ### Which computers does it run on?
-Windows 10 or 11, 64-bit. Nothing else has to be installed (it carries what it needs inside the one file).
+Windows 10 or 11, 64-bit. Nothing else has to be installed (it carries what it needs inside the one file). It also runs under Proton or Wine on Linux: see the next question.
+
+### Does it run on Linux?
+It is a Windows program, and one player has it running under Proton on Linux. Add `MnMCompanion.exe` to Steam as a non-Steam game and give it the same Proton version the game uses. When it starts it looks through the
+other Steam, UMU and Lutris prefixes for the game's data and uses the one played most recently; if it doesn't find yours, the window says how to pick the folder by hand (**ⓘ → Choose the game's data folder…**).
+The Map page needs Microsoft's web view, which Proton doesn't have, so it offers to open the map in your browser instead. Run it once with the launch option `--diagnose` and it writes `diagnose-report.txt`
+(counts only, your user name hidden) that you can paste into an issue if something doesn't work.
 
 ### Who makes it?
 An independent fan project. Questions and bug reports go through [GitHub issues](https://github.com/ExploreTheFloor/MnMCompanion/issues/new/choose).
@@ -72,7 +78,7 @@ Those are shares of **looted corpses**, not of kills (see the next question).
 
 ### Why is there no kill count, and no buffs, cooldowns, damage, chat or position?
 Because the game doesn't write them to any file Companion reads. The ledger records items looted, coin purses, vendor sales and purchases, harvests, trades, level-ups and
-party changes; it has no kills, deaths, casts, buffs, damage or position (we looked through the rest of the game's folders as well, and none of them has these either).
+party changes; it has no kills, casts, buffs, damage or position, and only your own deaths with the zone and level, not who killed you (we looked through the rest of the game's folders as well, and none of them has these either).
 The closest thing to a kill count is **corpses looted**, and that is what Companion counts, so a corpse nobody looted isn't counted.
 
 ### Why does some loot show "unpriced"?
@@ -126,7 +132,7 @@ before trades were added has to be given again.
 No. The combined database is kept privately by the project and is not published. It is only used to build the figures sharing players get back.
 
 ### Why did it ask me again after I updated?
-A Yes covers what you were shown. When a new version shares more than the one you said Yes to (version 0.3.0 added the weekly running totals), your earlier Yes no longer covers it, so
+A Yes covers what you were shown. When a new version shares more than the one you said Yes to (version 0.3.0 added the weekly running totals, and version 0.4.0 your trades with other players and what you dropped and destroyed), your earlier Yes no longer covers it, so
 sharing pauses and the question comes back saying what was added. Nothing is sent until you say Yes again.
 
 ### How do I stop sharing?
