@@ -42,6 +42,9 @@ internal sealed class PanelWindow : Window
     /// <summary>The player chose "What does sharing include?" in the ⓘ menu.</summary>
     public event Action? ShareRequested;
 
+    /// <summary>The player pressed the timers button in the title bar.</summary>
+    public event Action? TimersRequested;
+
     /// <summary>A row of the Vendor, Trades, Items or Harvest page was clicked: the History window page ("Vendors", "Trades", "Changes", "Harvest") that shows it in full.</summary>
     public event Action<string>? HistoryPageRequested;
 
@@ -90,21 +93,25 @@ internal sealed class PanelWindow : Window
         _pin = TitleButton("", "Keep on top of other windows", () => SetOnTop(!Topmost));
         var close = TitleButton("", "Close", Close);
         _about = TitleButton("", "About Companion, and updates", OpenAboutMenu);
-        var historyButton = TitleButton("\uE81C", "History: every day and every page, for this character or for everyone", OpenHistory);
-        var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 24, Cursor = Cursors.SizeAll, LastChildFill = false };
+        var historyButton = LabelledButton("\uE81C", "History", "History: every day and every page, for this character or for everyone", OpenHistory);
+        var timersButton = LabelledButton("\uE916", "Timers", "Timers: your own timers, started by a key, and a timer for every corpse", () => TimersRequested?.Invoke());
+        var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 32, Cursor = Cursors.SizeAll, LastChildFill = false };
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(_pin, Dock.Right);
         DockPanel.SetDock(_about, Dock.Right);
         DockPanel.SetDock(historyButton, Dock.Right);
+        DockPanel.SetDock(timersButton, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         DockPanel.SetDock(_who, Dock.Left);
         title.Children.Add(close);
         title.Children.Add(_pin);
         if (updates is not null) title.Children.Add(_about);
         title.Children.Add(historyButton);
+        title.Children.Add(timersButton);
         title.Children.Add(caption);
         title.Children.Add(_who);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
+        SizeChanged += (_, _) => ShowToolLabels();
 
         _session = new SessionScope(store);
         _panel = new LootPanel(store, _session, settings.View, view => { settings.View = view; settings.Save(); },
@@ -208,16 +215,42 @@ internal sealed class PanelWindow : Window
         return new Border { Background = (Brush)Ui.Theme["Panel"], BorderBrush = (Brush)Ui.Theme["Stroke"], BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(12, 8, 12, 8), Child = stack };
     }
 
+    /// <summary>A button of the title bar: a picture, big enough to see, with the theme's hover highlight.</summary>
     private static Button TitleButton(string glyph, string tip, Action click)
     {
         var b = new Button
         {
-            Content = glyph, Width = 26, Padding = new Thickness(0), Background = Brushes.Transparent, BorderThickness = new Thickness(0), FontSize = 10,
-            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), Foreground = new SolidColorBrush(Color.FromRgb(0xB0, 0xC0, 0xD0)),
-            Cursor = Cursors.Hand, Focusable = false, ToolTip = tip,
+            Content = glyph, Style = (Style)Ui.Theme["IconButton"], Width = 30, Height = 26, Margin = new Thickness(1, 0, 1, 0), FontSize = 14,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), ToolTip = tip, VerticalAlignment = VerticalAlignment.Center,
         };
         b.Click += (_, _) => click();
         return b;
+    }
+
+    private readonly List<TextBlock> _toolLabels = [];
+
+    /// <summary>A title bar button that opens a window: its picture and its name, so it says what it is. The name is left off when the window is narrow.</summary>
+    private Button LabelledButton(string glyph, string label, string tip, Action click)
+    {
+        var words = new TextBlock { Text = label, FontSize = 12.5, FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"), Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        _toolLabels.Add(words);
+        var picture = new TextBlock { Text = glyph, FontFamily = (FontFamily)Ui.Theme["Icons"], FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 10, 0) };
+        content.Children.Add(picture);
+        content.Children.Add(words);
+        var b = new Button
+        {
+            Content = content, Style = (Style)Ui.Theme["IconButton"], Width = double.NaN, MinWidth = 30, Height = 26, Margin = new Thickness(1, 0, 1, 0),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), ToolTip = tip, VerticalAlignment = VerticalAlignment.Center,
+        };
+        b.Click += (_, _) => click();
+        return b;
+    }
+
+    private void ShowToolLabels()
+    {
+        var visibility = ActualWidth >= 420 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var label in _toolLabels) label.Visibility = visibility;
     }
 
     private void SetOnTop(bool on)

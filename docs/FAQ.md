@@ -70,7 +70,7 @@ More in [Something looks wrong](../README.md#something-looks-wrong).
 
 ### The window shows a different character from the one I want.
 The small window **follows the character you are playing**: the game rewrites the ledger of whoever is logged in, and Companion switches to them. To look at another character,
-or at everyone together, open the **History** window (the clock in the title bar) and pick a server and character there.
+or at everyone together, open the **History** window (the **History** button in the title bar) and pick a server and character there.
 
 ### How do I see what a monster drops?
 Open **History → Loot → Drop rates**, then click a monster. It shows how often each item came off that monster, with a range that is honest about small samples.
@@ -96,9 +96,19 @@ See [Sessions](../README.md#sessions-starting-a-fresh-tally).
 ### Can I paste any of it into chat?
 Yes: pages have **Copy** buttons that put the figures on the clipboard as text.
 
-### Does it have timers for my buffs?
-No. The game writes nothing about casts or buffs to any file, so the only way would be for you to start every timer by hand, which we decided wasn't worth the bother. (A tool that reads the
-game's memory could do it automatically; Companion deliberately never does that.)
+### Does it have timers?
+Yes, two kinds. You can name your own timers (a buff, a cooldown, food), give each a length, a key that starts it and a sound for when it ends. And you can turn on a timer for **every corpse
+you loot**, with a name, a length and a sound of your choice. What it can't do is start a buff timer by itself: the game writes nothing about casts or buffs to any file Companion reads, so you
+start those yourself, with the key or, if you turn on **Buttons** in the Timers window, with a click on the timer's button (click it again to stop it). (A tool that reads the game's memory could
+do it automatically; Companion deliberately never does that.)
+
+### Can the timers window stay on top and be see-through?
+Yes. It has its own pin (on by default) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding
+what is behind them. The game has to be in a window or borderless for any window to show on top of it.
+
+### Will the key I give a timer stop working in the game?
+Yes, while Companion is running: Windows hands that key to Companion, so the game never receives it. Pick combinations the game doesn't use, such as `Ctrl+Alt+1`. (A letter or digit needs Ctrl or
+Alt with it for this reason.) Companion only hears the keys you set, can't see anything else you type, and never sends a key press.
 
 ---
 

@@ -20,6 +20,7 @@ public partial class App : Application
     private UpdateController? _updates;
     private CommunityClient? _community;
     private SharingController? _sharing;
+    private TimersWindow? _timers;
 
     private void OnStartup(object sender, StartupEventArgs e)
     {
@@ -82,8 +83,15 @@ public partial class App : Application
         _panel.Closed += (_, _) => Shutdown();
         _panel.BreakdownRequested += OpenBreakdown;
         _panel.ShareRequested += OpenShare;
+        _panel.TimersRequested += () => Timers().Toggle();
         _panel.HistoryPageRequested += OpenHistoryPage;
         _panel.Show();
+        if (!_settings.ReadOnly)
+        {
+            // Made at once, shown only if it was open: the keys that start timers work while it is hidden
+            var timers = Timers();
+            if (_settings.TimersOpen) timers.Toggle();
+        }
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
         if (args.Share) OpenShare();
         // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here)
@@ -236,6 +244,59 @@ public partial class App : Application
             yes: () => { _settings.SetSharing(true); _settings.Save(); }) { Owner = _panel };
         prompt.Show();
         prompt.Activate();
+    }
+
+    /// <summary>The timers window (made when the app starts, so its keys work while it is hidden). It follows the character the panel follows.</summary>
+    private TimersWindow Timers() => _timers ??= new TimersWindow(_settings, () => _store.StateFolder, RecentCorpses);
+
+    /// <summary>
+    /// What the pictures of the timers show: timers in each stage with keys on some, and a dozen corpses looted at different times (the first few nearly out of time).
+    /// The book is written to <paramref name="folder"/>; the corpses are returned.
+    /// </summary>
+    private static IReadOnlyList<LootedCorpse> TimersSample(string folder)
+    {
+        var now = DateTime.UtcNow;
+        var book = new Timers.TimerBook();
+        book.AddPreset("Haste", 90, "Ctrl+Alt+1", "system:Asterisk");
+        book.AddPreset("Regeneration", 300, "Ctrl+Alt+2", @"file:C:\Windows\Media\Alarm02.wav");
+        book.AddPreset("Bind Wound", 30, "Ctrl+Alt+3", "system:Beep");
+        book.AddPreset("Shield", 600, null, "system:Exclamation");
+        book.AddPreset("Food", 1800, "Ctrl+Alt+F");
+        book.Corpse = new Timers.CorpseTimerSetting { On = true, Name = "Corpse", Seconds = 600, Sound = "system:Beep" };
+        book.Start("Regeneration", 300, now.AddSeconds(-40));
+        book.Start("Haste", 90, now.AddSeconds(-64));
+        book.Start("Bind Wound", 30, now.AddSeconds(-24));
+        book.Start("Shield", 600, now.AddSeconds(-614));
+        book.Save(folder);
+
+        var local = DateTime.Now;
+        string[] monsters = ["a bog crawler", "a marsh wolf", "a reed stalker", "a moss beetle"];
+        var corpses = new List<LootedCorpse>();
+        for (int i = 0; i < 12; i++)
+            corpses.Add(new LootedCorpse("Aldric", true, monsters[i % monsters.Length], true, local.AddSeconds(-(590 - i * 47)), 2, 14, 0, null, "bogmoor"));
+        return corpses;
+    }
+
+    private long _corpseVersion = -1;
+    private string _corpseSelection = "";
+    private DateOnly _corpseDay;
+    private IReadOnlyList<LootedCorpse> _corpseCache = [];
+
+    /// <summary>
+    /// The corpses looted yesterday and today by the character being played (and the group), for the corpse timers. Worked out again only when the
+    /// loot, the character or the day changes, so asking for it every few moments costs nothing.
+    /// </summary>
+    private IReadOnlyList<LootedCorpse> RecentCorpses()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (_store.Version != _corpseVersion || _store.SelectionKey != _corpseSelection || today != _corpseDay)
+        {
+            _corpseCache = LootSummary.Corpses(_store.Events(today.AddDays(-1)).Concat(_store.Events(today)));
+            _corpseVersion = _store.Version;
+            _corpseSelection = _store.SelectionKey;
+            _corpseDay = today;
+        }
+        return _corpseCache;
     }
 
     /// <summary>Opens the window where the player previews and saves the file they can share with the community data.</summary>
@@ -395,6 +456,34 @@ public partial class App : Application
             }
             return;
         }
+        if (args.Timers || args.TimersSetup)
+        {
+            // The timers window (or its setup window) with a made-up set of timers, keys and corpses (in a scratch folder, not the player's own), shown far off screen
+            var folder = Path.Combine(Path.GetTempPath(), "mnmcompanion-timers-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var corpses = TimersSample(folder);
+                var settings = new Settings { ReadOnly = true, TimersOpacity = int.TryParse(args.Opacity, out var opacity) ? opacity : 100, TimersButtons = args.Buttons };
+                var timers = new TimersWindow(settings, () => folder, () => corpses);
+                Window window = args.TimersSetup
+                    ? new TimerSetupWindow(timers, settings) { WindowStartupLocation = WindowStartupLocation.Manual, ShowInTaskbar = false }
+                    : timers;
+                window.ShowActivated = false;
+                window.Width = args.Width;
+                window.Height = args.Height;
+                window.Left = -20000;
+                window.Top = 0;
+                window.Show();
+                Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
+                window.Close();
+            }
+            finally
+            {
+                try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+            }
+            return;
+        }
         if (args.Window)
         {
             // The whole window with its title bar, shown far off screen so nothing appears on the desktop
@@ -458,7 +547,7 @@ public partial class App : Application
 
 /// <summary>Command line: <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--size WxH]</c> for the History window.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false, bool Timers = false, bool TimersSetup = false, string? Opacity = null, bool Buttons = false)
 {
     public static Args Parse(string[] args)
     {
@@ -467,6 +556,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         if (Value("--size") is { } size && size.Split('x') is [var sw, var sh] && int.TryParse(sw, out var pw) && int.TryParse(sh, out var ph)) (w, h) = (pw, ph);
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
-            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"), args.Contains("--diagnose"));
+            args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"), args.Contains("--diagnose"), args.Contains("--timers"), args.Contains("--timers-setup"), Value("--opacity"), args.Contains("--buttons"));
     }
 }

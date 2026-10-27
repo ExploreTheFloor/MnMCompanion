@@ -41,6 +41,17 @@ public sealed class Settings
     public Bounds? Panel { get; set; }
     public Bounds? Breakdown { get; set; }
 
+    /// <summary>The timers window's place, and whether it was open when the app closed (it comes back the same way).</summary>
+    public Bounds? Timers { get; set; }
+    public bool TimersOpen { get; set; }
+
+    /// <summary>The timers window's own pin (on top of the game or not) and how solid its background is, in percent (see <c>TimerLook</c>).</summary>
+    public bool TimersOnTop { get; set; } = true;
+    public int TimersOpacity { get; set; } = 100;
+
+    /// <summary>Whether the timers window shows each timer as a button across its top, to start and stop it with a click.</summary>
+    public bool TimersButtons { get; set; }
+
     /// <summary>The page of the History window that was open last ("Loot", "Trades", "Vendors", "Changes" or "Harvest").</summary>
     public string? HistoryPage { get; set; }
 
