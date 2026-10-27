@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using MnMCompanion.Loot;
 
 namespace MnMCompanion;
 
@@ -205,6 +206,65 @@ public static class Table
             }
             panel.Children.Add(rowBorder);
         }
+        return panel;
+    }
+
+    /// <summary>
+    /// A table with a search box above it: typing narrows the rows to those whose name has every word typed (<see cref="NameSearch"/>),
+    /// after a short pause in the typing. The box stays where it is while the table under it is drawn again. The text is kept by the
+    /// caller (<paramref name="get"/> and <paramref name="set"/>), so sorting, or leaving the tab and coming back, doesn't empty it;
+    /// Esc clears it. With no rows at all there is nothing to search, so no box.
+    /// </summary>
+    public static FrameworkElement Searchable<T>(IReadOnlyList<T> rows, Func<T, string> name, string hint, Func<string> get, Action<string> set,
+        Func<IReadOnlyList<T>, FrameworkElement> table)
+    {
+        if (rows.Count == 0) return table(rows);
+
+        var body = new ContentControl();
+        var count = new TextBlock { FontSize = 11.5, Foreground = Palette.Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+        var field = new TextBox { Style = (Style)Ui.Theme["Field"], Text = get(), ToolTip = "Show only the ones with these words in the name (Esc clears)" };
+        var placeholder = new TextBlock
+        {
+            Text = hint, Foreground = Palette.Muted, FontSize = 11.5, Margin = new Thickness(9, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false, Visibility = field.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed,
+        };
+
+        void Show()
+        {
+            var query = get().Trim();
+            var shown = NameSearch.Filter(rows, name, query);
+            count.Text = query.Length == 0 ? "" : $"{shown.Count:N0} of {rows.Count:N0}";
+            body.Content = shown.Count > 0 ? table(shown)
+                : new TextBlock { Text = $"Nothing matches “{query}”.", Foreground = Palette.Muted, Margin = new Thickness(8, 10, 0, 6), FontSize = 12 };
+        }
+
+        var typing = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        typing.Tick += (_, _) => { typing.Stop(); Show(); };
+        field.TextChanged += (_, _) =>
+        {
+            set(field.Text);
+            placeholder.Visibility = field.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            typing.Stop();
+            typing.Start();
+        };
+        field.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape || field.Text.Length == 0) return;
+            field.Clear();
+            e.Handled = true;
+        };
+
+        var box = new Grid { Width = 300 };
+        box.Children.Add(field);
+        box.Children.Add(placeholder);
+        var bar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 10) };
+        bar.Children.Add(box);
+        bar.Children.Add(count);
+
+        Show();
+        var panel = new StackPanel();
+        panel.Children.Add(bar);
+        panel.Children.Add(body);
         return panel;
     }
 

@@ -247,6 +247,8 @@ The Loot page has three columns:
 
 Click **Everyone** and the tabs are **Looters**, **Items**, **Mobs**, **Drop rates** and **Loot log**. Click a **player** and you see their own **Items** (how many they took, the price of each, their share of the group's, and which monster they mostly came from), **Mobs** and **Loot log**.
 
+Every **Items** list has a **search box** above it: type part of a name and only the matching items stay ("scraps", or "raw croc meat" for Raw Crocodile Meat). Every word you type has to be in the name, in any order and any case, and a part of a word is enough. It says how many of the items match, keeps what you typed while you sort a column or switch tabs, and **Esc** clears it. **Copy items** copies just the items that match.
+
 <img src="docs/images/history-player.png" alt="The Loot page showing one player's items" width="100%">
 
 #### Drop rates: "how often does this monster drop that?"
@@ -258,7 +260,7 @@ The **Drop rates** tab answers it from everything your group has looted, across 
 Pick **By monster** or **By item**:
 
 - **By monster:** every kind of monster, with how many of its corpses were looted, the coin and items it gives on average, and its likeliest item. Click one to see **every item it has given**, ranked by how often.
-- **By item:** every item, with the monsters it comes from. Click one to see where to find it.
+- **By item:** every item, with the monsters it comes from, and a search box to find one by name. Click one to see where to find it.
 
 <img src="docs/images/history-drop-detail.png" alt="One monster's drop table" width="100%">
 

@@ -347,7 +347,7 @@ public partial class LootHistoryPage : UserControl
             "Drop rates" => DropRatesFor(),
             _ => Log(d.Events),
         }, tab => tab == "Items"
-            ? [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values)), ("Copy items", () => LootSummary.ItemsText(d.Day, d.ItemsWorth, ScopeText()))]
+            ? [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values)), ("Copy items", () => LootSummary.ItemsText(d.Day, NameSearch.Filter(d.ItemsWorth, i => i.Item, _itemSearch), ScopeText()))]
             : [("Copy summary", () => LootSummary.Breakdown(d.Day, d.Events, values: _store.Values))]);
     }
 
@@ -491,7 +491,7 @@ public partial class LootHistoryPage : UserControl
     }
 
     private FrameworkElement ItemsTable(LootDay d) =>
-        Table.Build("loot-items", d.ItemsWorth, new Col<ItemWorth>[]
+        Searchable(d.ItemsWorth, i => i.Item, rows => Table.Build("loot-items", rows, new Col<ItemWorth>[]
         {
             new("Item", 0, i => i.Item, i => i.Item, Right: false),
             new("Taken", 60, i => $"{i.Count:N0}", i => i.Count),
@@ -502,7 +502,13 @@ public partial class LootHistoryPage : UserControl
             new("Taken by", 270, i => string.Join(", ", i.By.Take(4).Select(b => b.Count > 1 ? $"{b.Who} {b.Count}" : b.Who)) + (i.By.Count > 4 ? $" +{i.By.Count - 4}" : ""),
                 Right: false),
         }, Rebuild, defaultSort: 3, bar: i => i.Total, color: _ => Palette.You,
-        rowTip: i => string.Join("\n", i.By.Select(b => $"{b.Who}: {b.Count}")), copy: LootSummary.ItemLine);
+        rowTip: i => string.Join("\n", i.By.Select(b => $"{b.Who}: {b.Count}")), copy: LootSummary.ItemLine));
+
+    /// <summary>The search over the item lists of this page (the day's, and a player's): one text, kept as the reader moves between them.</summary>
+    private string _itemSearch = "";
+
+    private FrameworkElement Searchable<T>(IReadOnlyList<T> rows, Func<T, string> name, Func<IReadOnlyList<T>, FrameworkElement> table) =>
+        Table.Searchable(rows, name, "Search items by name", () => _itemSearch, s => _itemSearch = s, table);
 
     private FrameworkElement MobsTable(LootDay d) =>
         Table.Build("loot-mobs", d.Mobs, new Col<MobLoot>[]
@@ -516,7 +522,7 @@ public partial class LootHistoryPage : UserControl
         }, Rebuild, bar: m => m.Looted, color: _ => Palette.Taken);
 
     private FrameworkElement MemberItemsTable(LootMember m) =>
-        Table.Build("loot-member-items", m.Taken, new Col<MemberItem>[]
+        Searchable(m.Taken, i => i.Item, rows => Table.Build("loot-member-items", rows, new Col<MemberItem>[]
         {
             new("Item", 0, i => i.Item, i => i.Item, Right: false),
             new("Taken", 60, i => $"{i.Count:N0}", i => i.Count),
@@ -526,7 +532,7 @@ public partial class LootHistoryPage : UserControl
             new("Group share", 104, i => i.GroupCount > i.Count ? $"{Fmt.Pct(i.Share)} of {i.GroupCount:N0}" : "all of them", i => i.Share,
                 Tip: "How many of that item the group took, and how many of those this player took"),
             new("Mostly from", 200, i => i.MostlyFrom, i => i.MostlyFrom, Right: false),
-        }, Rebuild, defaultSort: 3, bar: i => i.Total, color: _ => BrushOf(m), copy: LootSummary.MemberItemLine);
+        }, Rebuild, defaultSort: 3, bar: i => i.Total, color: _ => BrushOf(m), copy: LootSummary.MemberItemLine));
 
     private FrameworkElement MemberMobsTable(LootMember m) =>
         Table.Build("loot-member-mobs", m.MobList, new Col<MemberMob>[]

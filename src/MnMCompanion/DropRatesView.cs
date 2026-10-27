@@ -20,6 +20,7 @@ internal sealed class DropRatesView : UserControl
     private bool _byItem;
     private MobDrops? _mob;
     private DroppedItem? _item;
+    private string _search = "";   // typed into the box over the By item list; kept when an item is opened and the reader comes back
 
     // What the community's players have for the monster or item on show (asked for once each, only if the player shares their own totals)
     private readonly Dictionary<string, CommunityDrops?> _communityDrops = new(StringComparer.OrdinalIgnoreCase);
@@ -131,14 +132,14 @@ internal sealed class DropRatesView : UserControl
     private FrameworkElement ItemList()
     {
         if (_items.Count == 0) return Nothing();
-        return Table.Build("drop-items", _items, new Col<DroppedItem>[]
+        return Table.Searchable(_items, i => i.Item, "Search items by name", () => _search, s => _search = s, rows => Table.Build("drop-items", rows, new Col<DroppedItem>[]
         {
             new("Item", 0, i => i.Item, i => i.Item, Right: false),
             new("Corpses", 78, i => $"{i.Corpses:N0}", i => i.Corpses, Tip: "Looted corpses it came off, in all"),
             new("Monsters", 80, i => $"{i.Sources.Count:N0}", i => i.Sources.Count, Tip: "Kinds of monster it has come off"),
             new("Likeliest source", 300, i => $"{i.Sources[0].Mob}  {Fmt.Pct(i.Sources[0].Share)}{(i.Sources[0].Few ? " *" : "")}", i => i.Sources[0].Share, Right: false),
             new("Each", 90, i => Each(i.Item), i => _values.Of(i.Item).Each, Tip: "What a vendor pays for one"),
-        }, Build, defaultSort: 1, bar: i => i.Corpses, color: _ => Palette.You, click: i => { _item = i; Build(); });
+        }, Build, defaultSort: 1, bar: i => i.Corpses, color: _ => Palette.You, click: i => { _item = i; Build(); }));
     }
 
     private FrameworkElement ItemDetail(DroppedItem item)
