@@ -294,17 +294,19 @@ public partial class LootHistoryPage : UserControl
         BuildScopeBar(day, session);
 
         _updatingLists = true;
-        long top = Math.Max(1, d.Members.Select(m => m.Copper).DefaultIfEmpty(0).Max());
+        // Everyone: the group's total. Each player: what they looted, since of the others the ledger never shows what an autosplit gave them
+        long top = Math.Max(1, d.Members.Select(m => m.ItemValue).DefaultIfEmpty(0).Max());
         var rows = new List<LootMemberItem>
         {
-            new(null, "Everyone", LootSummary.Coin(d.Totals.Copper), $"{Plural(d.Totals.Mobs, "mob")} · {Plural(d.Totals.Items, "item")}", Palette.Muted,
+            new(null, "Everyone", LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0 || d.Unrecorded > 0), $"{Plural(d.Totals.Mobs, "mob")} · {(d.Unrecorded > 0 ? $"{d.Totals.Items:N0}+ items" : Plural(d.Totals.Items, "item"))}", Palette.Muted,
                 new GridLength(1, GridUnitType.Star), new GridLength(0.0001, GridUnitType.Star)),
         };
         foreach (var m in d.Members)
         {
-            double frac = (double)m.Copper / top;
-            rows.Add(new LootMemberItem(m.Name, m.Class.Length > 0 ? $"{m.Name} · {m.Class}" : m.Name, LootSummary.Coin(m.Copper),
-                $"{Plural(m.Mobs, "mob")} · {Plural(m.Items, "item")}" + (m.Level > 0 ? $" · level {m.Level}" : ""), BrushOf(m),
+            double frac = (double)m.ItemValue / top;
+            rows.Add(new LootMemberItem(m.Name, m.Class.Length > 0 ? $"{m.Name} · {m.Class}" : m.Name,
+                m.ItemValue > 0 || m.Unpriced > 0 || m.Unrecorded > 0 ? LootSummary.ItemsWorthOf(m) : "—",
+                $"{Plural(m.Mobs, "mob")} · {LootSummary.ItemsOf(m)}" + (m.Level > 0 ? $" · level {m.Level}" : ""), BrushOf(m),
                 new GridLength(Math.Max(frac, 0.0001), GridUnitType.Star), new GridLength(Math.Max(1 - frac, 0.0001), GridUnitType.Star)));
         }
         MemberList.ItemsSource = rows;
@@ -382,6 +384,37 @@ public partial class LootHistoryPage : UserControl
         DetailScroll.ScrollToTop();
     }
 
+    /// <summary>
+    /// The headline figures at the top of the detail. With a <paramref name="day"/> they are two: Ours (what reached the ledger's owner) beside
+    /// the group's Total; without one the single number stands alone.
+    /// </summary>
+    private void SetHead(string big, string caption, LootDay? day = null)
+    {
+        HeadBig.Text = big;
+        HeadBigCaption.Text = caption;
+        var both = day is not null;
+        HeadOursBox.Visibility = HeadBigLabel.Visibility = both ? Visibility.Visible : Visibility.Collapsed;
+        HeadBig.ToolTip = both ? "Everyone's: every purse counted once, whole, plus what a vendor would pay for all the items" : null;
+
+        // Alone, the number sits at the right of the name; as a pair, under it and left-aligned
+        var align = both ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        Grid.SetRow(HeadFigures, both ? 1 : 0);
+        Grid.SetColumn(HeadFigures, both ? 0 : 1);
+        Grid.SetColumnSpan(HeadFigures, both ? 2 : 1);
+        HeadFigures.HorizontalAlignment = align;
+        HeadFigures.Margin = both ? new Thickness(22, 12, 0, 0) : new Thickness(0);
+        foreach (var text in new[] { HeadOursLabel, HeadOurs, HeadOursCaption, HeadBigLabel, HeadBig, HeadBigCaption }) text.HorizontalAlignment = align;
+        if (day is null) return;
+        var ours = day.Ours;
+        bool mine = day.Members.Any(m => m.You);
+        HeadOurs.Text = mine ? LootSummary.Worth(ours.Total, ours.Approximate, ours.Unpriced > 0 || ours.Unrecorded > 0) : "—";
+        HeadOursCaption.Text = mine ? $"coin {(ours.EstimatedShares > 0 ? "~" : "")}{LootSummary.Coin(ours.Copper)} + items {LootSummary.Worth(ours.ItemValue, ours.Estimated > 0, ours.Unrecorded > 0)}" : "nothing of yours yet";
+        HeadOursBox.ToolTip = mine
+            ? "What reached you: your coin (in a group, only your shares of the purses, your own included; the purses you looted alone, whole) and what a vendor would pay for the items you looted" +
+              (ours.EstimatedShares > 0 ? Environment.NewLine + $"The ledger doesn't say what you were handed of the {ours.EstimatedShares:N0} purses you looted in a group, so those shares are estimated (~) from what you got of other players' purses." : "")
+            : "Nothing has reached you in this view: no coin and no items";
+    }
+
     private void ShowNothing(string title = "No loot yet", string name = "Nothing looted yet", string sub = "Loot shows up here as the game writes it to its ledger.")
     {
         DayTitle.Text = title;
@@ -389,8 +422,7 @@ public partial class LootHistoryPage : UserControl
         MemberList.ItemsSource = null;
         HeadName.Text = name;
         HeadSub.Text = sub;
-        HeadBig.Text = "";
-        HeadBigCaption.Text = "";
+        SetHead("", "");
         HeadSwatch.Background = Palette.Muted;
         Tiles.Children.Clear();
         TabBar.Children.Clear();
@@ -457,8 +489,7 @@ public partial class LootHistoryPage : UserControl
         HeadSwatch.Background = Palette.Muted;
         HeadName.Text = $"Matching “{_found?.Query ?? Query}” · all days";
         HeadSub.Text = $"{d.First:d} to {d.Last:d} · {Plural(days, "day")} · {Plural(d.Members.Count, "looter")}";
-        HeadBig.Text = LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0);
-        HeadBigCaption.Text = "items worth";
+        SetHead(LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0), "items worth");
 
         Tiles.Children.Clear();
         AddTile("Taken", $"{t.Items:N0}", Plural(d.Items.Count, "kind"));
@@ -486,8 +517,7 @@ public partial class LootHistoryPage : UserControl
         HeadSwatch.Background = brush;
         HeadName.Text = m.Name;
         HeadSub.Text = (m.ClassLevel.Length > 0 ? m.ClassLevel + " · " : "") + $"matching “{_found?.Query ?? Query}” · taken {m.First:d} to {m.Last:d}";
-        HeadBig.Text = LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0);
-        HeadBigCaption.Text = "items worth";
+        SetHead(LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0), "items worth");
 
         string Of(double part, double whole) => whole > 0 ? $"{Fmt.Pct(part / whole)} of all found" : "—";
         Tiles.Children.Clear();
@@ -552,14 +582,14 @@ public partial class LootHistoryPage : UserControl
         HeadSwatch.Background = Palette.Muted;
         HeadName.Text = "Everyone · " + DayName(d.Day);
         HeadSub.Text = $"{d.First:t} to {d.Last:t} · {Plural(d.Members.Count, "looter")}";
-        HeadBig.Text = LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0);
-        HeadBigCaption.Text = "coin + items";
+        SetHead(LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0 || d.Unrecorded > 0), $"coin {LootSummary.Coin(t.Copper)} + items {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unrecorded > 0)}", d);
 
         Tiles.Children.Clear();
         AddTile("Mobs looted", $"{t.Mobs:N0}", $"{d.Mobs.Count:N0} kinds");
         AddTile("Coin", LootSummary.Coin(t.Copper), t.Mobs > 0 ? $"{LootSummary.Coin(t.Copper / t.Mobs)} a mob" : "in purses");
         AddTile("Items worth", LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0), ItemsNote(d.Priced, d.Estimated, d.Unpriced));
         AddTile("Items", $"{t.Items:N0}", $"{d.Items.Count:N0} kinds");
+        if (d.Unrecorded > 0) AddTile("Items not recorded", $"{d.Unrecorded:N0} corpses", "the game's ledger leaves out the items of monsters with an apostrophe in their name (Skri'Var…)", Palette.Muted);
         AddTile("Looters", $"{d.Members.Count:N0}", d.Members.Count > 0 ? $"most: {d.Members[0].Name}" : "");
         if (d.Members.MaxBy(m => m.Mobs) is { Mobs: > 0 } busiest) AddTile("Most mobs", $"{busiest.Mobs:N0}", busiest.Name);
         if (d.ItemsWorth.FirstOrDefault(i => i.Value.Known) is { } best) AddTile("Best item", best.Item, $"{(best.Value.Estimated ? "~" : "")}{LootSummary.Coin(best.Value.Each)} each · {best.Count:N0} taken");
@@ -585,13 +615,14 @@ public partial class LootHistoryPage : UserControl
         HeadSwatch.Background = brush;
         HeadName.Text = m.Name;
         HeadSub.Text = (m.ClassLevel.Length > 0 ? m.ClassLevel + " · " : "") + $"looted {m.First:t} to {m.Last:t}";
-        HeadBig.Text = LootSummary.Worth(m.Total, m.Estimated > 0, m.Unpriced > 0);
-        HeadBigCaption.Text = "coin + items";
+        SetHead(LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0), "items worth");
 
         string Of(double part, double whole) => whole > 0 ? $"{Fmt.Pct(part / whole)} of the group's" : "—";
         Tiles.Children.Clear();
         AddTile("Mobs looted", $"{m.Mobs:N0}", Of(m.Mobs, t.Mobs), brush);
-        AddTile("Coin", LootSummary.Coin(m.Copper), Of(m.Copper, t.Copper));
+        // Purses are whole and known for anyone; what an autosplit gave a player is known only for the ledger's owner
+        AddTile("Purses looted", LootSummary.Coin(m.Purses), Of(m.Purses, t.Copper));
+        if (m.You) AddTile("Your coin", (m.EstimatedShares > 0 ? "~" : "") + LootSummary.Coin(m.Copper), m.Received > 0 ? $"{(m.EstimatedShares > 0 ? "~" : "")}{LootSummary.Coin(m.Received)} in splits" : "purses you kept", Palette.Heal);
         AddTile("Items worth", LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0), ItemsNote(m.Priced, m.Estimated, m.Unpriced));
         AddTile("Items", $"{m.Items:N0}", Of(m.Items, t.Items));
         AddTile("Coin per mob", m.Mobs > 0 ? LootSummary.Coin((long)m.CopperPerMob) : "—", m.Mobs > 0 && t.Mobs > 0 ? $"group {LootSummary.Coin(t.Copper / t.Mobs)}" : "");
@@ -703,19 +734,19 @@ public partial class LootHistoryPage : UserControl
 
     private FrameworkElement LootersTable(LootDay d)
     {
-        double total = Math.Max(1, d.Total);
+        // Compared by what each looted: of other players the ledger never shows what an autosplit gave them, only the ledger's owner's own coin is known
+        // (it is the OURS figure at the top)
+        double total = Math.Max(1, d.ItemValue);
         return Searchable("looters", "Search players by name or class", true, d.Members, m => m.Name + " " + m.Class, rows => Table.Build("loot-members", rows, new Col<LootMember>[]
         {
             new("Player", 0, m => m.ClassLevel.Length > 0 ? $"{m.Name} · {m.ClassLevel}" : m.Name, m => m.Name, Right: false),
             new("Mobs", 56, m => $"{m.Mobs:N0}", m => m.Mobs, Tip: "Corpses they took loot from"),
-            new("Items", 56, m => $"{m.Items:N0}", m => m.Items),
-            new("Coin", 100, m => LootSummary.Coin(m.Copper), m => m.Copper, Tip: "Coin counted for them: the purses they looted that weren't split, whole, plus (for you) your share of split purses"),
-            new("Items worth", 106, m => m.ItemValue > 0 || m.Unpriced > 0 ? LootSummary.Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0) : "—", m => m.ItemValue,
+            new("Items", 56, m => m.Items == 0 && m.Unrecorded > 0 ? "—" : $"{m.Items:N0}{(m.Unrecorded > 0 ? "+" : "")}", m => m.Items, Tip: "+ = the ledger left out the items of some of their corpses (a monster with an apostrophe in its name)"),
+            new("Items worth", 106, m => m.ItemValue > 0 || m.Unpriced > 0 || m.Unrecorded > 0 ? LootSummary.ItemsWorthOf(m) : "—", m => m.ItemValue,
                 Tip: "What a vendor would pay for their items. ~ = some valued by their family, + = some with no known price (not counted)"),
-            new("Total", 106, m => LootSummary.Worth(m.Total, m.Estimated > 0, m.Unpriced > 0), m => m.Total, Tip: "Coin plus items worth"),
-            new("Share", 60, m => Fmt.Pct(m.Total / total), m => m.Total, Tip: "Of the day's total"),
-            new("Coin / mob", 92, m => m.Mobs > 0 ? LootSummary.Coin((long)m.CopperPerMob) : "—", m => m.CopperPerMob),
-        }, Rebuild, defaultSort: 5, bar: m => m.Total, color: BrushOf, click: m => SelectMember(m.Name)));
+            new("Share", 60, m => Fmt.Pct(m.ItemValue / total), m => m.ItemValue, Tip: "Of the items worth looted in all"),
+            new("Coin / mob", 92, m => m.Mobs > 0 ? LootSummary.Coin((long)m.CopperPerMob) : "—", m => m.CopperPerMob, Tip: "What the purses they looted held a mob, whole"),
+        }, Rebuild, defaultSort: 3, bar: m => m.ItemValue, color: BrushOf, click: m => SelectMember(m.Name)));
     }
 
     private FrameworkElement ItemsTable(LootDay d, bool search = true) =>

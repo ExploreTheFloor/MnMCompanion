@@ -229,7 +229,7 @@ public static class ContributionBuilder
             discards.AddRange(DiscardsOf(group.SelectMany(s => s.ItemMoves).ToList(), server));
             trades.AddRange(TradesOf(serverTrades, generated, server));
 
-            looted.AddRange(LootSummary.Corpses(loot).Where(c => c.Mob && Ok(c.Source)));
+            looted.AddRange(LootSummary.Corpses(loot).Where(c => c.Mob && Ok(c.Source) && c.Source != LootExtractor.UnknownCreature));
             stacks.AddRange(rows);
             harvests.AddRange(gatheredRows);
             tradeRows.AddRange(serverTrades);

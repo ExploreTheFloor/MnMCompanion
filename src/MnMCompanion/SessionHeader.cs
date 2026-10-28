@@ -10,7 +10,10 @@ internal static class SessionHeader
     public static string DayTitle(DateOnly day) =>
         day == SessionScope.Today ? $"Today · {day.ToString("ddd d MMM", CultureInfo.CurrentCulture)}" : day.ToString("ddd d MMM yyyy", CultureInfo.CurrentCulture);
 
-    public static FrameworkElement Build(SessionScope session, TextBlock title, TextBlock sub, TextBlock big, TextBlock caption, Button scope)
+    /// <param name="big">The headline number, at the right of the title; null when the page puts its figures in <paramref name="below"/> instead.</param>
+    /// <param name="below">A row of figures between the title and the session chip (the Loot page's Ours and Total). The counts line then sits at the right of the title instead of under it.</param>
+    /// <param name="scopeExtras">Buttons at the right end of the session chip's row.</param>
+    public static FrameworkElement Build(SessionScope session, TextBlock title, TextBlock sub, TextBlock? big, TextBlock? caption, Button scope, FrameworkElement? below = null, FrameworkElement? scopeExtras = null)
     {
         var prev = LootPanel.Icon("", "Previous day", "Show the day before with loot.", () => session.Step(-1), size: 30);
         var next = LootPanel.Icon("", "Next day", "Show the day after (back to today).", () => session.Step(+1), size: 30);
@@ -20,24 +23,43 @@ internal static class SessionHeader
 
         var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         titles.Children.Add(title);
-        titles.Children.Add(sub);
-        var bigs = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-        bigs.Children.Add(big);
-        bigs.Children.Add(caption);
         var head = new DockPanel();
         DockPanel.SetDock(nav, Dock.Left);
-        DockPanel.SetDock(bigs, Dock.Right);
         head.Children.Add(nav);
-        head.Children.Add(bigs);
+        if (big is not null && caption is not null)
+        {
+            titles.Children.Add(sub);
+            var bigs = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+            bigs.Children.Add(big);
+            bigs.Children.Add(caption);
+            DockPanel.SetDock(bigs, Dock.Right);
+            head.Children.Add(bigs);
+        }
+        else if (below is not null)
+        {
+            // No headline number to put at the right: the counts take that room, so they need no line of their own
+            sub.Margin = new Thickness(8, 0, 0, 0);
+            sub.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(sub, Dock.Right);
+            head.Children.Add(sub);
+        }
+        else titles.Children.Add(sub);
         head.Children.Add(titles);
 
         scope.Click += (_, _) => session.OpenMenu(scope);
 
         scope.Margin = new Thickness(0);
-        var scopeRow = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+        var scopeRow = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+        if (scopeExtras is not null)
+        {
+            scopeExtras.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(scopeExtras, Dock.Right);
+            scopeRow.Children.Add(scopeExtras);
+        }
         scopeRow.Children.Add(scope);
         var header = new StackPanel();
         header.Children.Add(head);
+        if (below is not null) header.Children.Add(below);
         header.Children.Add(scopeRow);
         return header;
     }

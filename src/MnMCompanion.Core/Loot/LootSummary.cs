@@ -10,10 +10,11 @@ public sealed record ItemCount(string Item, int Count);
 /// What one person took: <see cref="Items"/> items from how many mobs, and the coin counted for them, <see cref="Copper"/>: the purses they looted that
 /// were not divided (whole), plus, for a ledger's owner, the shares of divided purses that reached them (<see cref="Received"/>). A divided purse is not
 /// counted for whoever looted it, since they kept only part and the ledger never says how much. <see cref="Purses"/> is the whole of every purse they
-/// looted and <see cref="SplitPurses"/> how many of those were divided.
+/// looted and <see cref="SplitPurses"/> how many of those were divided. <see cref="EstimatedShares"/> counts the shares in <see cref="Received"/> the
+/// ledger doesn't show (a ledger's owner's own purses, divided by their group) and so were estimated.
 /// </summary>
 public sealed record PlayerLoot(string Who, bool You, int Mobs, int Items, long Copper, IReadOnlyList<ItemCount> Taken,
-    long Purses = 0, long Received = 0, int SplitPurses = 0);
+    long Purses = 0, long Received = 0, int SplitPurses = 0, int EstimatedShares = 0);
 
 /// <summary>
 /// One corpse one looter took from: the coin and the items, which the ledger gives in separate rows. <see cref="Source"/> is as
@@ -125,18 +126,19 @@ public static class LootSummary
                 if (!map.TryGetValue(share.Owner, out var owner)) map[share.Owner] = owner = new Looter();
                 owner.You = true;
                 owner.Received += share.Copper;
+                if (share.Estimated) owner.EstimatedShares++;
             }
         }
         return map.Select(kv => new PlayerLoot(kv.Key, kv.Value.You, kv.Value.Mobs, kv.Value.Items, kv.Value.Kept + kv.Value.Received,
                 kv.Value.Taken.OrderByDescending(t => t.Value).ThenBy(t => t.Key, StringComparer.OrdinalIgnoreCase).Select(t => new ItemCount(t.Key, t.Value)).ToList(),
-                kv.Value.Purses, kv.Value.Received, kv.Value.SplitPurses))
+                kv.Value.Purses, kv.Value.Received, kv.Value.SplitPurses, kv.Value.EstimatedShares))
             .OrderByDescending(p => p.Mobs).ThenByDescending(p => p.Items).ThenByDescending(p => p.Copper).ThenBy(p => p.Who, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private sealed class Looter
     {
         public bool You;
-        public int Mobs, Items, SplitPurses;
+        public int Mobs, Items, SplitPurses, EstimatedShares;
         public long Kept, Purses, Received;
         public readonly Dictionary<string, int> Taken = new(StringComparer.OrdinalIgnoreCase);
     }
@@ -157,6 +159,17 @@ public static class LootSummary
 
     /// <summary>"~3sp 41cp+": a value with "~" when some of it is estimated and "+" when more is unpriced (not counted).</summary>
     public static string Worth(long copper, bool approximate, bool more) => (approximate ? "~" : "") + Coin(copper) + (more ? "+" : "");
+
+    /// <summary>
+    /// "12 items"; "12+ items" when the ledger left out the items of some of their corpses (<see cref="LootMember.Unrecorded"/>: a monster with an apostrophe in
+    /// its name); "items not recorded" when none of their items were recorded, since "0 items" would say they took none.
+    /// </summary>
+    public static string ItemsOf(LootMember m) =>
+        m.Unrecorded == 0 ? Plural(m.Items, "item") : m.Items == 0 ? "items not recorded" : $"{m.Items:N0}+ items";
+
+    /// <summary>What a vendor would pay for their items (<see cref="Worth"/>); "—" when none of their items were recorded; the + also says some corpses' items are missing.</summary>
+    public static string ItemsWorthOf(LootMember m) =>
+        m.Items == 0 && m.Unrecorded > 0 ? "—" : Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0 || m.Unrecorded > 0);
 
     /// <summary>"3sp 41cp" (platinum, gold, silver, copper; a hundred of each make the next).</summary>
     public static string Coin(long copper)
@@ -233,18 +246,21 @@ public static class LootSummary
         var worth = LootDay.Of(day, events, values);
         sb.AppendLine($"Purses {Coin(t.Copper)}" + (worth.ItemValue > 0 ? $"  ·  items {Worth(worth.ItemValue, worth.Estimated > 0, worth.Unpriced > 0)}  ·  total {Worth(worth.Total, worth.Estimated > 0, worth.Unpriced > 0)}" : "")
             + (t.Share > 0 ? $"  ·  {Coin(t.Share)} reached you as splits" : ""));
+        if (worth.Members.Any(m => m.You))
+        {
+            var ours = worth.Ours;
+            sb.AppendLine($"Ours {Worth(ours.Total, ours.Approximate, ours.Unpriced > 0)}  ·  coin {(ours.EstimatedShares > 0 ? "~" : "")}{Coin(ours.Copper)} + items {Worth(ours.ItemValue, ours.Estimated > 0, ours.Unpriced > 0)}");
+        }
         if (worth.Unpriced > 0) sb.AppendLine($"Not counted: {Plural(worth.Unpriced, "item")} with no known price (+)" + (worth.Estimated > 0 ? $"; {worth.Estimated:N0} more are valued by their family (~)" : ""));
 
-        var players = ByPlayer(events);
-        var members = worth.Members.ToDictionary(m => m.Name, StringComparer.OrdinalIgnoreCase);
-        Table(sb, "PLAYERS", ["PLAYER", "CLASS", "MOBS", "ITEMS", "COIN", "ITEMS WORTH"],
-            players.Select(p => new[]
+        // No coin column: of other players the ledger shows only the purses they looted, never what an autosplit gave them
+        Table(sb, "PLAYERS", ["PLAYER", "CLASS", "MOBS", "ITEMS", "ITEMS WORTH"],
+            worth.Members.Select(m => new[]
             {
-                p.Who + (p.You ? " (you)" : ""), members.TryGetValue(p.Who, out var cm) ? cm.ClassLevel : "", p.Mobs.ToString(), p.Items.ToString(),
-                p.Copper > 0 ? Coin(p.Copper) : "-",
-                members.TryGetValue(p.Who, out var m) && m.ItemValue > 0 ? Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0) : "-",
+                m.Name + (m.You ? " (you)" : ""), m.ClassLevel, m.Mobs.ToString(), m.Items.ToString(),
+                m.ItemValue > 0 ? Worth(m.ItemValue, m.Estimated > 0, m.Unpriced > 0) : "-",
             }).ToList(),
-            [false, false, true, true, true, true]);
+            [false, false, true, true, true]);
 
         var items = ByItem(events);
         Table(sb, items.Count > top ? $"ITEMS (top {top} of {items.Count} kinds)" : "ITEMS", ["ITEM", "QTY", "TAKEN BY"],

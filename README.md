@@ -156,7 +156,7 @@ just happened (a session archived, how many items are unpriced).
 
 | Tab | Shows |
 |---|---|
-| **Value** | One bar per player: how many monsters they looted, how many items, and what it was all worth. The bar is their share of the group's total. Click a name to open their page in History, for the session you're looking at. |
+| **Value** | One bar per player: how many monsters they looted, how many items, and what a vendor would pay for **the items they looted**, best first. Coin isn't in it: the game shows only your own share of a split purse, so players can only be compared by items. Click a name to open their page in History, for the session you're looking at. |
 | **Items** | Every kind of item looted, how many, what they're worth, and who took the most of them. |
 | **Mobs** | Every kind of monster looted, how many times, and what each one is worth on average. |
 | **Feed** | Every loot line, newest first, with the time, who, what, and what it came from. A box at the top filters it by player, item or monster. |
@@ -239,11 +239,13 @@ The strip at the top chooses **when**: **Today**, **Yesterday**, **7 days**, **3
 
 <img src="docs/images/history-loot.png" alt="The Loot page showing the whole group for one day" width="100%">
 
+At the top of the Loot tab and of the Loot page are two figures. **Total** is what the whole group looted: every purse once, whole, plus what a vendor would pay for all the items. **Ours** is what reached *you*: your coin (in a group only your shares of the split purses, your own included; the purses you looted alone, whole) plus what a vendor would pay for the items you looted. Each has its coin and items underneath.
+
 The Loot page has three columns:
 
 - **Left: the days.** Every day you have loot for, with the day's total, and a **search box** for a player, item or monster. Typing narrows the days to the ones that have it, and puts an **All days** row first that adds up what was found across *every* day (see below).
-- **Middle: the group.** *Everyone* at the top, then each player with a coloured bar.
-- **Right: the details** for whatever you picked, with tiles for the headline numbers (monsters looted, coin, item value, best item, and "your splits": your share of the coin purses) and tabs underneath.
+- **Middle: the group.** *Everyone* at the top (the total), then each player with a coloured bar and what they looted, worth at vendor prices.
+- **Right: the details** for whatever you picked, with tiles for the headline numbers (monsters looted, coin, item value, best item, and "your splits": your share of the coin purses; on your own page also "your coin") and tabs underneath.
 
 Click **Everyone** and the tabs are **Looters**, **Items**, **Mobs**, **Drop rates** and **Loot log**. Click a **player** and you see their own **Items** (how many they took, the price of each, their share of the group's, and which monster they mostly came from), **Mobs** and **Loot log**.
 
@@ -403,7 +405,12 @@ ledger says which: a purse the looter kept has no split, and one that was divide
 - **A purse that was split** does **not** count for whoever looted it: they kept only part, and the ledger never says how much. Instead
   *your* share counts for **you** (it's the only share a ledger ever shows), even if you looted nothing. What the other members got is unknown, so
   none of it is counted for them. The row's tooltip says how many split purses a player looted.
-- The *Value* ranking, the *Coin* column and "coin per player" use those counted amounts. "Your splits" is your shares added up.
+- **Your own purses in a group.** When *you* loot a purse while you're in a group, your autosplit divides it like anyone's, but the ledger writes it as
+  a purse you kept whole (the game's chat says "…and receive 23 copper coins as your split"; the ledger doesn't). So Companion works out whether you
+  were in a group (from the ledger's party rows, or from other players' split purses close by) and, if you were, counts the whole purse in the group's
+  coin and only your share in yours. That share isn't in the ledger, so it is **estimated** from the fraction you were handed of the nearest split
+  purses of other players, and marked with `~`. Looting alone, the purse is yours whole.
+- Because only your own coin is known in full, players are **compared by the items they looted**, never by coin: the *Value* tab and the Looters table rank by item value. Your coin is in **Ours** at the top (and as "Your coin" on your page), the group's in **Total**. "Your splits" is your shares added up. "Coin per mob" is what the purses a player looted held, whole.
 
 ### What an item is worth
 

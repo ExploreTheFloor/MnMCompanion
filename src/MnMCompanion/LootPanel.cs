@@ -30,8 +30,11 @@ internal sealed class LootPanel : Border, IMiniPage
 
     private readonly TextBlock _title = new() { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _sub = new() { FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
-    private readonly TextBlock _big = new() { FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, HorizontalAlignment = HorizontalAlignment.Right, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") };
-    private readonly TextBlock _caption = new() { FontSize = 10, Foreground = Palette.Muted, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, -2, 1, 0) };
+    // The two figures at the top: what reached the ledger's owner, and what the whole group looted
+    private readonly TextBlock _ours = Figure(), _oursNote = Note(), _total = Figure(), _totalNote = Note();
+    private readonly StackPanel _oursBlock, _totalBlock;
+    // The Value tab's copy buttons, in the session chip's row
+    private readonly Border _copyHost = new();
     private readonly Button _scope = new() { Style = (Style)Ui.Theme["TextButton"], HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(9, 4, 9, 4) };
     private readonly TextBox _filter = new() { Style = (Style)Ui.Theme["Field"], Margin = new Thickness(0, 6, 0, 0), ToolTip = "Show only loot with this looter, item or corpse in it", Visibility = Visibility.Collapsed };
     private readonly StackPanel _body = new() { Margin = new Thickness(0, 6, 0, 0) };
@@ -65,7 +68,12 @@ internal sealed class LootPanel : Border, IMiniPage
 
         _filter.TextChanged += (_, _) => Refresh();
 
-        var header = SessionHeader.Build(_session, _title, _sub, _big, _caption, _scope);
+        _oursBlock = Block("OURS", _ours, _oursNote);
+        _totalBlock = Block("TOTAL", _total, _totalNote);
+        var totalsRow = new UniformGrid { Columns = 2, Margin = new Thickness(0, 4, 0, 0) };
+        totalsRow.Children.Add(_oursBlock);
+        totalsRow.Children.Add(_totalBlock);
+        var header = SessionHeader.Build(_session, _title, _sub, null, null, _scope, totalsRow, _copyHost);
 
         var stack = new StackPanel();
         stack.Children.Add(header);
@@ -76,6 +84,23 @@ internal sealed class LootPanel : Border, IMiniPage
         root.Children.Add(stack);
         root.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = _body });
         Child = root;
+    }
+
+    private static TextBlock Figure() => new()
+    {
+        FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextTrimming = TextTrimming.CharacterEllipsis,
+        FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"),
+    };
+
+    private static TextBlock Note() => new() { FontSize = 10, Foreground = Palette.Muted, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, -1, 0, 0) };
+
+    private static StackPanel Block(string label, TextBlock figure, TextBlock note)
+    {
+        var block = new StackPanel { Margin = new Thickness(0, 0, 8, 0), Background = Brushes.Transparent };
+        block.Children.Add(new TextBlock { Text = label, FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = Palette.Muted });
+        block.Children.Add(figure);
+        block.Children.Add(note);
+        return block;
     }
 
     /// <summary>An icon button whose tooltip, in the app's dark style, names the action in bold and says what it does under it.</summary>
@@ -134,24 +159,36 @@ internal sealed class LootPanel : Border, IMiniPage
         var totals = d.Totals;
 
         _title.Text = day == Today ? $"Today · {day.ToString("ddd d MMM", CultureInfo.CurrentCulture)}" : day.ToString("ddd d MMM yyyy", CultureInfo.CurrentCulture);
-        _sub.Text = $"{Plural(totals.Mobs, "mob")} · {Plural(totals.Items, "item")} · {Plural(d.Members.Count, "looter")}";
-        _big.Text = LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0);
-        _big.ToolTip = $"Coin {LootSummary.Coin(totals.Copper)} (every purse counted once, whole) plus what a vendor would pay for the items: {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0)}" + Environment.NewLine +
-                       $"{d.Priced:N0} items priced from your vendor sales, {d.Estimated:N0} valued by their family (~), {d.Unpriced:N0} with no known price (not counted, +)" +
-                       (totals.Share > 0 ? Environment.NewLine + $"{LootSummary.Coin(totals.Share)} of the purses reached you as splits" : "");
-        _caption.Text = $"coin {LootSummary.Coin(totals.Copper)} + items {LootSummary.Worth(d.ItemValue, d.Approximate, false)}";
+        _sub.Text = $"{Plural(totals.Mobs, "mob")} · {(d.Unrecorded > 0 ? $"{totals.Items:N0}+ items" : Plural(totals.Items, "item"))} · {Plural(d.Members.Count, "looter")}";
+        var ours = d.Ours;
+        bool mine = d.Members.Any(m => m.You);
+        _total.Text = LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0 || d.Unrecorded > 0);
+        _totalNote.Text = $"coin {LootSummary.Coin(totals.Copper)} + items {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unrecorded > 0)}";
+        _totalBlock.ToolTip = $"Everyone's: coin {LootSummary.Coin(totals.Copper)} (every purse counted once, whole) plus what a vendor would pay for the items: {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0)}" + Environment.NewLine +
+                              $"{d.Priced:N0} items priced from your vendor sales, {d.Estimated:N0} valued by their family (~), {d.Unpriced:N0} with no known price (not counted, +)";
+        _ours.Text = mine ? LootSummary.Worth(ours.Total, ours.Approximate, ours.Unpriced > 0 || ours.Unrecorded > 0) : "—";
+        _oursNote.Text = mine ? $"coin {(ours.EstimatedShares > 0 ? "~" : "")}{LootSummary.Coin(ours.Copper)} + items {LootSummary.Worth(ours.ItemValue, ours.Estimated > 0, ours.Unrecorded > 0)}" : "nothing of yours yet";
+        _oursBlock.ToolTip = mine
+            ? $"What reached you: coin {(ours.EstimatedShares > 0 ? "~" : "")}{LootSummary.Coin(ours.Copper)} (in a group only your shares of the purses, your own included; the purses you looted alone, whole" +
+              (totals.Share > 0 ? $"; {LootSummary.Coin(totals.Share)} of the purses reached you as splits" : "") + $") plus what a vendor would pay for the {Plural(ours.Items, "item")} you looted: {LootSummary.Worth(ours.ItemValue, ours.Estimated > 0, ours.Unpriced > 0)}" +
+              (ours.EstimatedShares > 0 ? Environment.NewLine + $"The ledger doesn't say what you were handed of the {ours.EstimatedShares:N0} purses you looted in a group, so those shares are estimated (~) from what you got of other players' purses." : "")
+            : "Nothing has reached you yet in this view: no coin and no items.";
         var first = all.Count > 0 ? all.Min(e => e.Time) : (DateTime?)null;
-        _scope.Content = (session is null ? "Whole day" : session.Open ? "This session: " + session.Label(first) : "Session " + session.Label(first)) + "  ▾";
+        // Trimmed rather than pushing the copy buttons off the row when the label is long
+        _scope.Content = new TextBlock { Text = (session is null ? "Whole day" : session.Open ? "This session: " + session.Label(first) : "Session " + session.Label(first)) + "  ▾", TextTrimming = TextTrimming.CharacterEllipsis };
         _scope.ToolTip = "Which part of the day to show: this session, an earlier one, or the whole day. A new session archives what has been looted so far.";
 
         if (IsVisible) _status.Text = _store.Selected is null ? ""
             : _store.Error is { } error ? $"Can't read the ledger: {error}"
             : _note.Length > 0 ? _note
+            : d.Unrecorded > 0 ? $"{Plural(d.Unrecorded, "corpse")}: items missing from the ledger (names with an apostrophe)"
             : d.Unpriced > 0 ? $"{Plural(d.Unpriced, "item")} unpriced (+): sell one to price it"
             : "";
         _note = "";
+        _status.ToolTip = d.Unrecorded > 0 ? "The game's ledger can't record the loot of a monster with an apostrophe in its name (Skri'Var, Mur'Hua…): it writes no item rows for those corpses and doesn't name the monster, only the coin. Companion can't show their items." : null;
 
         _filter.Visibility = _view == "Feed" ? Visibility.Visible : Visibility.Collapsed;
+        _copyHost.Child = null;
         _body.Children.Clear();
         if (_store.Selected is null)
         {
@@ -200,29 +237,29 @@ internal sealed class LootPanel : Border, IMiniPage
 
     private void ShowValue(LootDay d)
     {
-        _body.Children.Add(CopyBars(
+        _copyHost.Child = CopyBars(
             ("Copy loot counts", "each looter's name and number of loots on one line", () => LootSummary.LootCounts(d.Members)),
-            ("Copy summary", "the summary", () => LootSummary.Breakdown(Day, Events(), values: _store.Values))));
-        bool valueless = d.Members.All(m => m.Total == 0);
-        double top = Math.Max(1, valueless ? d.Members.Max(m => m.Mobs) : d.Members.Max(m => (double)m.Total));
+            ("Copy summary", "the summary", () => LootSummary.Breakdown(Day, Events(), values: _store.Values)));
+        // Only what each person looted: of other players the ledger never shows what an autosplit gave them, so their coin can't be compared with ours
+        // (ours is in the OURS figure at the top)
+        bool valueless = d.Members.All(m => m.ItemValue == 0);
+        double top = Math.Max(1, valueless ? d.Members.Max(m => m.Mobs) : d.Members.Max(m => (double)m.ItemValue));
         int rank = 0;
         foreach (var m in d.Members)
         {
             var member = m;
             var tip = string.Join(Environment.NewLine, new[]
             {
-                m.ClassLevel.Length > 0 ? m.ClassLevel : "", $"{Plural(m.Mobs, "mob")}, {Plural(m.Items, "item")}",
-                $"coin {LootSummary.Coin(m.Copper)} + items {LootSummary.Worth(m.ItemValue, m.Estimated > 0, false)}",
+                m.ClassLevel.Length > 0 ? m.ClassLevel : "", $"{Plural(m.Mobs, "mob")}, {LootSummary.ItemsOf(m)}",
+                m.Unrecorded > 0 ? $"{Plural(m.Unrecorded, "corpse")} of theirs have no items in the ledger (the game can't record monsters with an apostrophe in their name)" : "",
+                $"items worth {LootSummary.Worth(m.ItemValue, m.Estimated > 0, false)} to a vendor",
                 m.Unpriced > 0 ? $"{Plural(m.Unpriced, "item")} with no known price are not counted" : "",
                 m.Estimated > 0 ? $"{Plural(m.Estimated, "item")} valued by their family (~)" : "",
-                m.Mobs > 0 ? $"{LootSummary.Coin((long)m.CopperPerMob)} coin a mob, {m.ItemsPerMob:0.0} items a mob" : "",
-                m.Split > 0 ? $"{LootSummary.Coin(m.Split)} of their purses reached you" : "",
-                m.Received > 0 ? $"{LootSummary.Coin(m.Received)} reached you as splits (counted for you)" : "",
-                m.SplitPurses > 0 ? $"{Plural(m.SplitPurses, "purse")} they looted {(m.SplitPurses == 1 ? "was" : "were")} split: what each member got isn't in the ledger, so that coin isn't counted for them" : "",
+                m.Mobs > 0 ? $"{m.ItemsPerMob:0.0} items a mob" : "",
                 "Click for their items and mobs",
             }.Where(s => s.Length > 0));
-            _body.Children.Add(Row(++rank, m.Name, $"{m.Mobs} mobs · {m.Items} items", LootSummary.Worth(m.Total, m.Estimated > 0, m.Unpriced > 0), BrushOf(m),
-                (valueless ? m.Mobs : m.Total) / top, tip, () => _openBreakdown(Day, member.Name, ActiveSession())));
+            _body.Children.Add(Row(++rank, m.Name, $"{m.Mobs} mobs · {LootSummary.ItemsOf(m)}", LootSummary.ItemsWorthOf(m), BrushOf(m),
+                (valueless ? m.Mobs : m.ItemValue) / top, tip, () => _openBreakdown(Day, member.Name, ActiveSession())));
         }
     }
 
@@ -363,7 +400,7 @@ internal sealed class LootPanel : Border, IMiniPage
         foreach (var (label, what, text) in buttons)
         {
             var b = (Button)CopyBar(label, what, text);
-            b.Margin = new Thickness(4, 0, 0, 2);
+            b.Margin = new Thickness(4, 0, 0, 0);
             row.Children.Add(b);
         }
         return row;

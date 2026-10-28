@@ -2,8 +2,12 @@ using MnMCompanion.Ledger;
 
 namespace MnMCompanion.Loot;
 
-/// <summary>The part of a divided purse that reached one ledger owner (a character of the player's), as that owner's ledger shows it.</summary>
-public sealed record ShareTo(string Owner, long Copper);
+/// <summary>
+/// The part of a divided purse that reached one ledger owner (a character of the player's), as that owner's ledger shows it. <see cref="Estimated"/>:
+/// the ledger doesn't show it (the owner looted the purse themselves, and their ledger writes that as a purse kept whole), so it was worked out
+/// from the shares of other purses (<see cref="GroupSplits"/>).
+/// </summary>
+public sealed record ShareTo(string Owner, long Copper, bool Estimated = false);
 
 /// <summary>Item = one item taken off a corpse; Coin = a purse.</summary>
 public enum LootKind : byte { Item, Coin }
@@ -36,10 +40,26 @@ public static class LootExtractor
     public const string ItemAct = "act_13";
     public const string CoinAct = "act_14";
 
+    /// <summary>What a purse's creature is called when the ledger doesn't say.</summary>
+    public const string UnknownCreature = "an unknown creature";
+
+    /// <summary>
+    /// The creature a purse came from: <c>d13</c>, or the row's name. The game's build of 2026-10-27 stopped naming it: <c>d13</c> and the name hold the word
+    /// "party_split" for a divided purse and nothing for the owner's own (and the item rows are not written at all), so those words are not a creature.
+    /// Empty when it isn't named.
+    /// </summary>
+    public static string PurseSource(string d13, string name)
+    {
+        foreach (var text in new[] { d13, name })
+            if (text.Trim() is { Length: > 0 } t && !t.Equals("party_split", StringComparison.OrdinalIgnoreCase) && !t.Equals("npc_corpse", StringComparison.OrdinalIgnoreCase)) return t;
+        return "";
+    }
+
     private static readonly TimeSpan TwinWindow = TimeSpan.FromSeconds(2);
 
-    public static List<LootEvent> Extract(IEnumerable<LedgerRow> rows)
+    public static List<LootEvent> Extract(IEnumerable<LedgerRow> source)
     {
+        var rows = source as IReadOnlyList<LedgerRow> ?? source.ToList();
         var loot = rows.Where(r => r.Act is ItemAct or CoinAct).ToList();
         // What the owner's Character files say, to recognise the Social copies of it
         var own = new Dictionary<string, List<DateTime>>(StringComparer.OrdinalIgnoreCase);
@@ -53,7 +73,42 @@ public static class LootExtractor
             if (r.File == LedgerFileKind.Social && r.ByOwner && own.TryGetValue(Key(r), out var times) && times.Any(t => (t - r.Time).Duration() <= TwinWindow)) continue;
             if (ToEvent(r) is { } e) events.Add(e);
         }
-        return events.OrderBy(e => e.Time).ToList();
+        return OwnPurses(events.OrderBy(e => e.Time).ToList(), rows);
+    }
+
+    private static readonly string[] PartyActs = ["act_31", "act_32", "act_33", "act_34", "act_35"];
+
+    /// <summary>
+    /// A purse the owner looted themselves is written as theirs whole (d14 "npc_corpse", no d15) even when their group's autosplit divided it, so what
+    /// the ledger says is not what reached them. In a group, such a purse is a divided one: it goes whole into the group's coin and only the owner's
+    /// share, estimated from what they were handed of others' purses (<see cref="GroupSplits"/>), counts as theirs. Alone, it stays theirs whole.
+    /// </summary>
+    private static List<LootEvent> OwnPurses(List<LootEvent> events, IReadOnlyList<LedgerRow> rows)
+    {
+        if (!events.Any(e => e.Kind == LootKind.Coin && e.You && !e.Shared)) return events;
+        var byOwner = new Dictionary<string, GroupSplits>(StringComparer.OrdinalIgnoreCase);
+        GroupSplits Splits(string owner)
+        {
+            if (byOwner.TryGetValue(owner, out var known)) return known;
+            var party = rows.Where(r => r.Owner.Equals(owner, StringComparison.OrdinalIgnoreCase) && PartyActs.Contains(r.Act))
+                .Select(r => new PartyChange(r.Time, r.Act, r.ByOwner, r.Int("d62")));
+            var divided = events.Where(e => e.Kind == LootKind.Coin && e.Shared && !e.Who.Equals(owner, StringComparison.OrdinalIgnoreCase))
+                .Select(e => (e, Share: e.Shares?.FirstOrDefault(s => s.Owner.Equals(owner, StringComparison.OrdinalIgnoreCase) && !s.Estimated)))
+                .Where(x => x.Share is { Copper: > 0 })
+                .Select(x => new DividedPurse(x.e.Time, x.e.Copper, x.Share!.Copper));
+            return byOwner[owner] = new GroupSplits(party, divided);
+        }
+
+        for (int i = 0; i < events.Count; i++)
+        {
+            var e = events[i];
+            if (e.Kind != LootKind.Coin || !e.You || e.Shared) continue;
+            var splits = Splits(e.Who);
+            if (!splits.InGroup(e.Time)) continue;
+            long share = splits.ShareOf(e.Time, e.Copper);
+            events[i] = e with { Shared = true, Split = share, Shares = [new ShareTo(e.Who, share, Estimated: true)] };
+        }
+        return events;
     }
 
     private static string Key(LedgerRow r) =>
@@ -69,7 +124,7 @@ public static class LootExtractor
         }
         // d11 counts ten copper to a silver and is wrong; d12 is the coin as digits, a hundred to the next coin
         long purse = LedgerText.Packed(r.Text("d12"));
-        var source = r.Text("d13") is { Length: > 0 } s ? s : r.Name;
+        var source = PurseSource(r.Text("d13"), r.Name) is { Length: > 0 } named ? named : UnknownCreature;
         // d14 says whether the looter's autosplit divided the purse among the group ("party_split") or the looter kept it whole ("npc_corpse");
         // d15 is the ledger owner's share of a divided one. What the others got is not in the ledger.
         long share = LedgerText.Packed(r.Text("d15"));

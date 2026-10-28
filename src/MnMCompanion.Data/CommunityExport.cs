@@ -71,7 +71,7 @@ public sealed partial class HistoryStore
                 {
                     // d12 is the coin as digits, a hundred to the next coin (d11 counts ten and is wrong)
                     long purse = LedgerText.Packed(Text(d, "d12"));
-                    var mob = Text(d, "d13") is { Length: > 0 } named ? named : r.GetString(4);
+                    var mob = LootExtractor.PurseSource(Text(d, "d13"), r.GetString(4));
                     if (purse > 0) list.Add(new LootEvent(time, LootKind.Coin, who, true, mob, "", 0, purse, 0, zone));
                 }
             }

@@ -115,6 +115,10 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <Border x:Name="HeadSwatch" Width="12" Height="12" CornerRadius="3" Margin="0,2,10,0" VerticalAlignment="Center"/>
@@ -122,9 +126,19 @@
                         </StackPanel>
                         <TextBlock x:Name="HeadSub" FontSize="12" Foreground="{StaticResource Muted}" Margin="22,2,0,0"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock x:Name="HeadBig" FontSize="30" FontWeight="SemiBold" HorizontalAlignment="Right" FontFamily="Segoe UI Variable Display, Segoe UI"/>
-                        <TextBlock x:Name="HeadBigCaption" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" Margin="0,-4,0,0"/>
+                    <StackPanel x:Name="HeadFigures" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- What reached the ledger's owner; shown only beside the group's total (a day, not one player or a search). Then the pair
+                             moves under the name (SetHead), where two figures and their coin + items lines have the room -->
+                        <StackPanel x:Name="HeadOursBox" Margin="0,0,30,0" Visibility="Collapsed">
+                            <TextBlock x:Name="HeadOursLabel" Text="OURS" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Muted}" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="HeadOurs" FontSize="30" FontWeight="SemiBold" HorizontalAlignment="Right" FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                            <TextBlock x:Name="HeadOursCaption" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" Margin="0,-4,0,0"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock x:Name="HeadBigLabel" Text="TOTAL" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" Visibility="Collapsed"/>
+                            <TextBlock x:Name="HeadBig" FontSize="30" FontWeight="SemiBold" HorizontalAlignment="Right" FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                            <TextBlock x:Name="HeadBigCaption" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" Margin="0,-4,0,0"/>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
 

@@ -45,7 +45,7 @@ public static class LootMerge
             You = seen.Any(e => e.You),
             Split = seen.Sum(e => e.Split),
             Shared = seen.Any(e => e.Shared),
-            Shares = seen.SelectMany(e => e.Shares ?? Array.Empty<ShareTo>()).GroupBy(s => s.Owner, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList() is { Count: > 0 } shares ? shares : null,
+            Shares = seen.SelectMany(e => e.Shares ?? Array.Empty<ShareTo>()).GroupBy(s => s.Owner, StringComparer.OrdinalIgnoreCase).Select(g => g.OrderBy(s => s.Estimated).First()).ToList() is { Count: > 0 } shares ? shares : null,
             Zone = seen.Select(e => e.Zone).FirstOrDefault(z => z.Length > 0) ?? "",
             Level = seen.Max(e => e.Level),
             ItemId = seen.Select(e => e.ItemId).FirstOrDefault(z => z.Length > 0) ?? "",

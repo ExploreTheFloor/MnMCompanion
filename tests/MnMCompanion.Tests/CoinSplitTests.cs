@@ -55,15 +55,17 @@ public class CoinSplitTests
     }
 
     [Fact]
-    public void Your_own_whole_purses_and_your_shares_add_up_and_the_ranking_follows_what_was_counted()
+    public void Your_own_whole_purses_and_your_shares_add_up_and_the_ranking_ignores_coin()
     {
         var day = LootDay.Of(Day, Rows(
             Purse(T, "Brom", "Aldric", "a rat", "0,0,1,0", split: "0,0,0,15"),
-            Purse(T.AddSeconds(30), "Aldric", "Aldric", "a rat", "0,0,0,30"),
-            Purse(T.AddSeconds(60), "Pip", "Aldric", "a rat", "0,0,0,40")));
+            Purse(T.AddHours(1), "Aldric", "Aldric", "a rat", "0,0,0,30"),                // alone an hour on: nobody's divided purse is near
+            Purse(T.AddSeconds(60), "Pip", "Aldric", "a rat", "0,0,0,40"),
+            Item(T.AddSeconds(61), "Pip", "Aldric", "a rat", "Rat Ear")), new ItemValues([("Rat Ear", 50)]));
 
         Assert.Equal(45, day.Members.Single(m => m.Name == "Aldric").Copper);   // 30 kept whole + 15 share
-        Assert.Equal(["Aldric", "Pip", "Brom"], day.Members.Select(m => m.Name));   // 45, 40, 0: by what was counted for each
+        // Pip took the only item; the others took none, and their coin (45 for Aldric, 0 known for Brom) is no basis for a ranking: only Aldric's is known in full
+        Assert.Equal(["Pip", "Aldric", "Brom"], day.Members.Select(m => m.Name));
         Assert.Equal(170, day.Totals.Copper);                                      // 100 + 30 + 40, each purse once
     }
 

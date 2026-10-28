@@ -85,9 +85,12 @@ The closest thing to a kill count is **corpses looted**, and that is what Compan
 Companion values an item at what a vendor pays for it, learned from what **you** sold. Sell one to a vendor and it is priced from then on. (If you share, an item's page in History also shows what the community says vendors pay.)
 How values are worked out, including the `~` and `+` marks, is in [How the numbers are worked out](../README.md#how-the-numbers-are-worked-out).
 
+### Why does it show no items for some monsters?
+The game's own ledger can't record the loot of a monster with an apostrophe in its name (the Skri'Var and Mur'Hua creatures, for example): its parser trips on the apostrophe, so it writes no item rows for those corpses and doesn't name the monster, only the coin. Companion only reads the ledger, so it shows that coin under "an unknown creature", counts those corpses, and says so ("Items not recorded" on the History page, a line at the bottom of the small window). It can't recover the items. When the game fixes it, new loot shows up normally.
+
 ### How is coin counted when I'm in a party with autosplit?
 A purse nobody split counts whole for the person who looted it. A purse the group split counts for no looter (they kept only part, and the ledger never says how much), and your own share
-of it counts for you. The group total counts every purse once.
+of it counts for you. A purse you looted yourself while in a group is split too, but the ledger doesn't show your share of it, so Companion estimates it (marked `~`) from the shares you got of other players' purses; looting alone, it's yours whole. The group total counts every purse once. Because only your own coin is known in full, players are ranked by what they looted (items), not by coin; your coin is in the **Ours** figure at the top, next to **Total** for the whole group.
 
 ### What's a session?
 "Since I last pressed **New session**." It answers "what did we get from this one dungeon run?" without it mixing into the whole day. Nothing is deleted when you start one.
