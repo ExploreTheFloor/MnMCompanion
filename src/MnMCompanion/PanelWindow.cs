@@ -21,6 +21,7 @@ internal sealed class PanelWindow : Window
     private readonly Settings _settings;
     private readonly LootPanel _panel;
     private readonly MapPanel _map;
+    private readonly RecipesPanel _recipes;
     private readonly SessionScope _session;
     private readonly HistoryData? _history;
     private readonly Dictionary<string, IMiniPage> _pages = [];
@@ -28,7 +29,7 @@ internal sealed class PanelWindow : Window
     private readonly ContentControl _host = new();
     private readonly TextBlock _status;
     private string _page = "Loot";
-    private static readonly string[] PageNames = ["Map", "Loot", "Vendor", "Trades", "Items", "Harvest"];
+    private static readonly string[] PageNames = ["Map", "Loot", "Vendor", "Trades", "Items", "Harvest", "Recipes"];
     private readonly TextBlock _who;
     private readonly Button _pin;
     private readonly Button _about;
@@ -49,7 +50,8 @@ internal sealed class PanelWindow : Window
     public event Action<string>? HistoryPageRequested;
 
     /// <param name="updates">The update checker; null (a picture-taking run) means no update button or banner.</param>
-    public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null, HistoryData? history = null)
+    /// <param name="recipesFile">A recipe list to read instead of the kept copy and the wiki (a picture-taking run); null for the real thing.</param>
+    public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null, HistoryData? history = null, string? recipesFile = null)
     {
         _store = store;
         _settings = settings;
@@ -124,6 +126,7 @@ internal sealed class PanelWindow : Window
         _pages["Trades"] = new TradesMini(store, history, _session, _status, OpenInHistory);
         _pages["Items"] = new ItemsMini(store, history, _session, _status, OpenInHistory);
         _pages["Harvest"] = new HarvestMini(store, history, _session, _status, OpenInHistory);
+        _pages["Recipes"] = _recipes = new RecipesPanel(settings, _status, recipesFile);
         _session.Said += text => Active.Say(text);
         var bottom = BuildBottomBar();
         var root = new DockPanel();
@@ -179,6 +182,9 @@ internal sealed class PanelWindow : Window
     /// <summary>Draws the page on show now, on this thread (for a picture).</summary>
     public void DrawPageNow() => Active.RefreshNow();
 
+    /// <summary>For a picture: the Recipes page on a skill, with a search typed in.</summary>
+    public void ShowRecipes(string? skill, string? search) => _recipes.Show(skill, search);
+
     private void ShowPage(string key, bool save = true)
     {
         if (!_pages.TryGetValue(key, out var page)) return;
@@ -192,7 +198,7 @@ internal sealed class PanelWindow : Window
     }
 
     /// <summary>
-    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest) with the status line above them. Every page shows
+    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest, Recipes) with the status line above them. Every page shows
     /// the same day and session; History is a button in the title bar, New session is in the session menu and the ledger folder in the ⓘ menu.
     /// </summary>
     private FrameworkElement BuildBottomBar()
@@ -323,6 +329,13 @@ internal sealed class PanelWindow : Window
         };
         maps.Click += (_, _) => { _settings.MapsOnline = maps.IsChecked; _settings.Save(); _map.Refresh(); };
         menu.Items.Add(maps);
+        var recipes = new MenuItem
+        {
+            Header = "Load the recipe list from the community wiki (uses monstersandmemories.wiki)", IsCheckable = true, IsChecked = _settings.RecipesOnline,
+            ToolTip = "The Recipes page shows the community wiki's tradeskill recipes. Loading them asks the wiki for its public list (about once a week), so that site sees your internet address. The list is kept on this PC. Off by default.",
+        };
+        recipes.Click += (_, _) => { _settings.RecipesOnline = recipes.IsChecked; _settings.Save(); _recipes.Refresh(); };
+        menu.Items.Add(recipes);
         var ledgerFolder = new MenuItem { Header = "Open the ledger folder", ToolTip = "Opens the folder where the game keeps this character's ledger files (one a day for the character, one for the party)." };
         ledgerFolder.Click += (_, _) => _panel.OpenFolder();
         menu.Items.Add(ledgerFolder);
