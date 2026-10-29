@@ -320,7 +320,7 @@ What you did with items you were holding: **dropped** them on the ground, **pick
 
 ## Sessions: starting a fresh tally
 
-A **session** is just "since I last pressed New session." It's how you answer *"what did we get from this one dungeon run?"* without it being
+A **session** is just "since I last pressed New session", or since the last player joined your group (see below). It's how you answer *"what did we get from this one dungeon run?"* without it being
 mixed in with the whole day.
 
 - Press **New session** (or use the **Whole day** menu → *New session*) and Companion saves the old loot tally as a text file and starts every page again
@@ -329,7 +329,7 @@ mixed in with the whole day.
 - Pressed it by accident? Open that menu and choose **Undo the last new session**; the two merge back together.
 - The saved text files are in `%LOCALAPPDATA%\MnMCompanion\<server>-<character>\sessions\`.
 
-Sessions start only when you press the button; they don't start by themselves when the group changes.
+**A new player joining the group starts a new session by itself.** When another player joins your group, or you join one, Companion archives the loot so far and starts every page again from that moment, the same as pressing **New session** (it does nothing when nothing was looted since the last session started, so several players joining at once make one session). A message at the bottom says so, and **Undo the last new session** takes it back. It is on by default; turn it off under **ⓘ → Start a new session when a player joins the group** and sessions start only when you press the button. It reads the ledger's party rows, which the game writes a little after the fact, so the new session starts at the join and nothing looted since is lost.
 
 ---
 
@@ -652,7 +652,6 @@ back out if the new one won't start) are all tested without a network.
 
 ### Not yet
 
-- Sessions only start by hand.
 - There is no combined "net" figure across pages. The ledger records your own coin purses whole even when you're in a party, so
   adding them to vendor sales would mislead. The Vendors page shows sold, bought and net *from vendors*, which is certain.
 - The Loot page and the small panel still read the game's files directly; they could move onto the saved copy later.

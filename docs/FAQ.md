@@ -94,6 +94,7 @@ of it counts for you. A purse you looted yourself while in a group is split too,
 
 ### What's a session?
 "Since I last pressed **New session**." It answers "what did we get from this one dungeon run?" without it mixing into the whole day. Nothing is deleted when you start one.
+A player joining your group (or you joining one) starts a new session by itself; untick **ⓘ → Start a new session when a player joins the group** to start them only by hand.
 See [Sessions](../README.md#sessions-starting-a-fresh-tally).
 
 ### Can I paste any of it into chat?

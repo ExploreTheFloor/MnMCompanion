@@ -29,6 +29,10 @@ public sealed class LootStore
     private volatile Snapshot _snap = Nothing;
     private LootSessions _sessions;
     private ActiveCharacterWatch _watch = new();
+    private DateTime? _joinsSeen;   // party joins up to this time were already looked at (null: none looked at yet)
+
+    /// <summary>A join row that turns up in the ledger later than this after it happened is old news: the ledger is written in bursts, but not that late.</summary>
+    public static readonly TimeSpan JoinFreshness = TimeSpan.FromMinutes(30);
 
     /// <param name="stateRoot">Where this app keeps its own files (sessions and their archives).</param>
     /// <param name="ledgerRoot">The game's per-character folder; the default under LocalLow when null.</param>
@@ -149,6 +153,7 @@ public sealed class LootStore
             Selected = Selection.Count == 1 ? Selection[0] : null;
             _folders = Selection.Select(s => new LedgerFolder(s.Directory)).ToList();
             _sessions = new LootSessions(StateFolder ?? Path.Combine(_stateRoot, "everyone"));
+            _joinsSeen = null;
             _snap = new Snapshot(++_version, [], Nothing.ByDay, _snap.Values);
             _dirty = true;
             Error = null;
@@ -218,23 +223,55 @@ public sealed class LootStore
     /// beside the sessions file (nothing is deleted: the ledger keeps everything). Returns the closed session, or null when
     /// it held no loot today or the last marker is too recent.
     /// </summary>
-    public LootSession? NewSession(string reason = "manual")
+    public LootSession? NewSession(string reason = "manual") => NewSession(reason, DateTime.Now);
+
+    /// <summary>
+    /// <see cref="NewSession(string)"/> as of <paramref name="at"/> (a player joined then, though the ledger only said so a little later): the loot before that moment is
+    /// archived and the new session starts there. Null when the session held no loot before it, or a marker is already that close.
+    /// </summary>
+    public LootSession? NewSession(string reason, DateTime at)
     {
         var sessions = _sessions;
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        var events = Events(today, sessions.Current);
+        var today = DateOnly.FromDateTime(at);
+        var events = Events(today, sessions.Current).Where(e => e.Time < at).ToList();
         if (events.Count == 0) return null;
-        var closed = sessions.Start(DateTime.Now, reason);
+        var closed = sessions.Start(at, reason);
         if (closed is null) return null;
         try
         {
             var folder = Path.Combine(StateFolder!, "sessions");
             Directory.CreateDirectory(folder);
-            var name = $"{events.Min(e => e.Time):yyyy-MM-dd HHmm}-{DateTime.Now:HHmm}.txt";
+            var name = $"{events.Min(e => e.Time):yyyy-MM-dd HHmm}-{at:HHmm}.txt";
             File.WriteAllText(Path.Combine(folder, name), LootSummary.Breakdown(today, events, values: Values));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return closed;
+    }
+
+    /// <summary>
+    /// The players who joined the selected character's group (or the character, a group) since the last call, oldest first. The first call after a character is
+    /// selected only notes where the ledger stands, so old joins never count. Joins older than <see cref="JoinFreshness"/> when they show up are left out.
+    /// Empty unless exactly one character is selected. Call it after <see cref="Refresh"/>.
+    /// </summary>
+    public IReadOnlyList<PartyJoin> NewJoins(DateTime? now = null)
+    {
+        lock (_gate)
+        {
+            if (_folders.Count != 1 || Selected is null) return [];
+            var owner = Selected.Character;
+            var joins = _folders[0].Rows.Where(r => r.Act == "act_32" && r.Owner.Equals(owner, StringComparison.OrdinalIgnoreCase))
+                .Select(r => new PartyJoin(r.Time, r.Actor, r.ByOwner)).OrderBy(j => j.Time).ToList();
+            if (_joinsSeen is null)
+            {
+                _joinsSeen = joins.Count > 0 ? joins[^1].Time : DateTime.MinValue;
+                return [];
+            }
+            var seen = _joinsSeen.Value;
+            var fresh = joins.Where(j => j.Time > seen).ToList();
+            if (fresh.Count > 0) _joinsSeen = fresh[^1].Time;
+            var recent = (now ?? DateTime.Now) - JoinFreshness;
+            return fresh.Where(j => j.Time >= recent).ToList();
+        }
     }
 
     private static string Safe(string s) => string.Concat(s.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));

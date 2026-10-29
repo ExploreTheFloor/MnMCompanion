@@ -273,6 +273,7 @@ internal sealed class PanelWindow : Window
         try
         {
             bool changed = await Task.Run(_store.Refresh);
+            changed |= StartSessionOnJoin();
             if (changed || force)
             {
                 _panel.Refresh();
@@ -284,6 +285,25 @@ internal sealed class PanelWindow : Window
             _panel.Say("Can't read the ledger: " + ex.Message);
         }
         finally { _busy = false; }
+    }
+
+    /// <summary>
+    /// A player joining the group starts a new session (unless that is switched off under ⓘ): the loot before the join is archived, as New session does, and the
+    /// session starts at the join. A burst of joins starts one: the next finds nothing looted since. The ledger is asked every time, switch or not, so turning it
+    /// on later only reacts to joins that happen after.
+    /// </summary>
+    private bool StartSessionOnJoin()
+    {
+        var joins = _store.NewJoins();
+        if (!_settings.NewSessionOnJoin || joins.Count == 0) return false;
+        bool started = false;
+        foreach (var join in joins)
+        {
+            if (_store.NewSession("party", join.Time) is null) continue;
+            started = true;
+            _session.AutoStarted((join.You ? "You joined a group" : $"{join.Who} joined the group") + ": a new session has started (the last one is archived).");
+        }
+        return started;
     }
 
     private void OpenAboutMenu()
@@ -305,6 +325,14 @@ internal sealed class PanelWindow : Window
         install.Click += (_, _) => { _settings.InstallUpdates = install.IsChecked; _settings.Save(); };
         menu.Items.Add(auto);
         menu.Items.Add(install);
+        menu.Items.Add(new Separator());
+        var party = new MenuItem
+        {
+            Header = "Start a new session when a player joins the group", IsCheckable = true, IsChecked = _settings.NewSessionOnJoin,
+            ToolTip = "When another player joins your group, or you join one, the loot so far is archived and the pages start again from that moment (the same as New session). Untick it and a session starts only when you press New session.",
+        };
+        party.Click += (_, _) => { _settings.NewSessionOnJoin = party.IsChecked; _settings.Save(); };
+        menu.Items.Add(party);
         menu.Items.Add(new Separator());
         var share = new MenuItem
         {

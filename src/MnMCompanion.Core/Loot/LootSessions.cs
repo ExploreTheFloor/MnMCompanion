@@ -26,6 +26,9 @@ public sealed record LootSession(DateTime Start, DateTime? End, string Reason)
     }
 }
 
+/// <summary>A player joining the group, as the party row of the ledger says (<see cref="You"/>: the ledger's owner joined someone's group).</summary>
+public sealed record PartyJoin(DateTime Time, string Who, bool You);
+
 /// <summary>
 /// The markers that cut the loot into sessions: "archive today's stats and start again". A marker deletes nothing; the
 /// ledger keeps every event, and a session is just the events between two markers. Kept in <c>sessions.json</c> in this

@@ -96,6 +96,12 @@ public sealed class Settings
     public string? SharedTradesFingerprint { get; set; }
     public string ShareNote { get; set; } = "";
 
+    /// <summary>
+    /// A player joining the group (or you joining a group) starts a new session by itself: the loot so far is archived and every page starts again from the join.
+    /// On by default; off, a session starts only when the player presses New session.
+    /// </summary>
+    public bool NewSessionOnJoin { get; set; } = true;
+
     /// <summary>Look for a newer version on GitHub when the app starts and every few hours. Off: the app never asks GitHub by itself.</summary>
     public bool CheckForUpdates { get; set; } = true;
 

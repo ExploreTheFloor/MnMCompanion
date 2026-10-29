@@ -94,6 +94,15 @@ internal sealed class SessionScope(LootStore store)
         Said?.Invoke(closed is null ? "Nothing looted in this session yet: nothing to archive." : "Session archived (a text file in the sessions folder). Starting from nothing.");
     }
 
+    /// <summary>
+    /// A session was started by itself (a player joined the group): the pages redraw and the player is told.
+    /// </summary>
+    public void AutoStarted(string text)
+    {
+        Changed?.Invoke();   // by default what is on show is today's current session, so it moves to the new one; a session or the whole day the player picked stays
+        Said?.Invoke(text);
+    }
+
     public void UndoSession()
     {
         var undone = store.Sessions.RemoveLast();
