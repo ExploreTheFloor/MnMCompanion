@@ -121,6 +121,67 @@ public class RecipeWikiTests
         Assert.Contains("Couldn't reach the wiki", result.Message);
     }
 
+    // ---------------------------------------------------------------- asking "only if it changed", and what the wiki asks of us
+
+    [Fact]
+    public async Task Without_a_version_tag_nothing_is_added_to_the_question()
+    {
+        var handler = new FakeHandler(_ => Reply(200, RecipeFixture.Json));
+        using var client = Client(handler);
+        await client.FetchAsync();
+        Assert.False(Assert.Single(handler.Requests).Headers.Contains("If-None-Match"));
+    }
+
+    [Fact]
+    public async Task With_a_version_tag_the_question_is_only_if_it_changed_and_an_unchanged_list_comes_back_empty()
+    {
+        var handler = new FakeHandler(r => r.Headers.Contains("If-None-Match") ? Reply(304, "") : Reply(200, RecipeFixture.Json));
+        using var client = Client(handler);
+
+        var result = await client.FetchAsync("W/\"abc123\"");
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("W/\"abc123\"", request.Headers.IfNoneMatch.Single().ToString());
+        Assert.True(result.Ok);
+        Assert.True(result.NotModified);
+        Assert.Equal("", result.Json);
+        Assert.Equal("W/\"abc123\"", result.ETag);   // still the tag to ask with next time
+    }
+
+    [Fact]
+    public async Task A_new_list_brings_its_version_tag_for_next_time()
+    {
+        using var client = Client(new FakeHandler(_ =>
+        {
+            var response = Reply(200, RecipeFixture.Json);
+            response.Headers.ETag = new EntityTagHeaderValue("\"v2\"", isWeak: true);
+            return response;
+        }));
+        var result = await client.FetchAsync("W/\"v1\"");
+        Assert.True(result.Ok);
+        Assert.False(result.NotModified);
+        Assert.Equal("W/\"v2\"", result.ETag);
+    }
+
+    [Theory]
+    [InlineData(429, 600, 10)]
+    [InlineData(503, 120, 2)]
+    [InlineData(429, null, 60)]   // no Retry-After: an hour
+    public async Task When_the_wiki_asks_to_be_left_alone_the_answer_says_for_how_long(int status, int? seconds, int minutes)
+    {
+        using var client = Client(new FakeHandler(_ => Reply(status, "slow down", retryAfter: seconds)));
+        var result = await client.FetchAsync();
+        Assert.False(result.Ok);
+        Assert.Equal(TimeSpan.FromMinutes(minutes), result.RetryAfter);
+    }
+
+    [Fact]
+    public async Task An_ordinary_failure_does_not_make_the_wiki_wait()
+    {
+        using var client = Client(new FakeHandler(_ => Reply(500)));
+        Assert.Null((await client.FetchAsync()).RetryAfter);
+    }
+
     // ---------------------------------------------------------------- the copy kept on disk
 
     private static string Temp() => Path.Combine(Path.GetTempPath(), "mnm-recipes-" + Guid.NewGuid().ToString("N"), "recipes.json");
@@ -154,11 +215,9 @@ public class RecipeWikiTests
     }
 
     [Fact]
-    public void A_list_is_stale_after_a_day_and_its_age_is_said_in_days()
+    public void The_age_of_a_kept_list_is_said_in_days()
     {
         var now = new DateTime(2026, 10, 29, 12, 0, 0, DateTimeKind.Utc);
-        Assert.False(RecipeCache.IsStale(now.AddHours(-23), now));
-        Assert.True(RecipeCache.IsStale(now.AddHours(-25), now));
         Assert.Equal(["today", "yesterday", "3 days ago"], new[] { now.AddHours(-3), now.AddDays(-1), now.AddDays(-3) }.Select(t => RecipeCache.Age(t, now)));
     }
 }

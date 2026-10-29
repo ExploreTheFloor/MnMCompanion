@@ -15,13 +15,18 @@ public static class RecipeWiki
     public const string PageUrl = Origin + "/tradeskills";
 }
 
-/// <summary>What asking the wiki for the recipes came to. <see cref="Json"/> is the wiki's answer, set only when <see cref="Ok"/>.</summary>
-public sealed record RecipeDownload(bool Ok, string Json, string Message);
+/// <summary>
+/// What asking the wiki for the recipes came to. <see cref="Json"/> is the wiki's list, set only for a new one; <see cref="NotModified"/> (with <see cref="Ok"/>)
+/// is the wiki saying the list is the one we hold, with no list sent. <see cref="ETag"/> is the new list's version tag, to ask "has it changed?" with next time.
+/// <see cref="RetryAfter"/> is how long the wiki asked to be left alone (or an hour when it was limiting requests and didn't say).
+/// </summary>
+public sealed record RecipeDownload(bool Ok, string Json, string Message, bool NotModified = false, string? ETag = null, TimeSpan? RetryAfter = null);
 
 /// <summary>
 /// Fetches the wiki's recipe list, and nothing else: one GET of one address, with Companion's name and version as the only identification, no cookies, no
-/// redirects followed, and no more than a few megabytes taken. It never throws; every problem comes back as a sentence a person can read. It is asked
-/// when the Recipes page is first shown, then at most once a day when the page is opened again, and when the player presses refresh, unless they switched it off (Settings.RecipesOnline).
+/// redirects followed, compressed, and no more than a few megabytes taken. Given the version tag of the list it holds it asks "only if it changed", which the
+/// wiki answers with nothing but a 304 when it hasn't. It never throws; every problem comes back as a sentence a person can read. When it is asked, and how
+/// rarely, is RecipeRefresh's business (at most once a day by itself).
 /// </summary>
 public sealed class RecipeWikiClient : IDisposable
 {
@@ -34,31 +39,36 @@ public sealed class RecipeWikiClient : IDisposable
     /// <param name="url">Only for tests.</param>
     public RecipeWikiClient(Version app, HttpMessageHandler? handler = null, string? url = null)
     {
-        _http = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(45) };
+        _http = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, AutomaticDecompression = System.Net.DecompressionMethods.All }) { Timeout = TimeSpan.FromSeconds(45) };
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("MnMCompanion", AppVersion.Show(app)));
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _url = url ?? RecipeWiki.DataUrl;
     }
 
-    public async Task<RecipeDownload> FetchAsync(CancellationToken cancel = default)
+    /// <param name="etag">The version tag of the list already held: the question becomes "only if it changed".</param>
+    public async Task<RecipeDownload> FetchAsync(string? etag = null, CancellationToken cancel = default)
     {
         try
         {
-            using var response = await _http.GetAsync(_url, HttpCompletionOption.ResponseHeadersRead, cancel).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Get, _url);
+            if (!string.IsNullOrWhiteSpace(etag)) request.Headers.TryAddWithoutValidation("If-None-Match", etag);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel).ConfigureAwait(false);
             switch ((int)response.StatusCode)
             {
+                case 304:
+                    return new RecipeDownload(true, "", "", NotModified: true, ETag: etag);
                 case 200:
                     var text = await ReadLimited(response, cancel).ConfigureAwait(false);
                     if (text is null) return new RecipeDownload(false, "", "The wiki's answer was far larger than expected, so it was ignored.");
                     // A cheap look before the real parse: it has to be the tradeskills document, not an error page that happens to say 200
                     var start = text.AsSpan().TrimStart();
                     return start.StartsWith("{") && text.Contains("\"tradeskills\"", StringComparison.Ordinal)
-                        ? new RecipeDownload(true, text, "")
+                        ? new RecipeDownload(true, text, "", ETag: response.Headers.ETag?.ToString())
                         : new RecipeDownload(false, "", "The wiki's answer wasn't the recipe list.");
                 case 429 or 503:
-                    var wait = response.Headers.RetryAfter?.Delta is { } delta && delta > TimeSpan.Zero && delta < TimeSpan.FromDays(1)
-                        ? $" Try again in about {Math.Max(1, (int)Math.Ceiling(delta.TotalMinutes))} minutes." : " Try again in a few minutes.";
-                    return new RecipeDownload(false, "", "The wiki is limiting requests just now." + wait);
+                    var asked = response.Headers.RetryAfter?.Delta is { } delta && delta > TimeSpan.Zero && delta < TimeSpan.FromDays(1) ? delta : (TimeSpan?)null;
+                    var wait = asked is { } d ? $" Try again in about {Math.Max(1, (int)Math.Ceiling(d.TotalMinutes))} minutes." : " Try again in a few minutes.";
+                    return new RecipeDownload(false, "", "The wiki is limiting requests just now." + wait, RetryAfter: asked ?? TimeSpan.FromHours(1));
                 default:
                     return new RecipeDownload(false, "", $"The wiki answered with an error ({(int)response.StatusCode}).");
             }

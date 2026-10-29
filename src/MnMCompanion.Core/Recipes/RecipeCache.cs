@@ -6,9 +6,6 @@ namespace MnMCompanion.Recipes;
 /// </summary>
 public static class RecipeCache
 {
-    /// <summary>The list is fetched again, when someone opens the Recipes page, once it is older than this (unless the player switched asking the wiki off).</summary>
-    public static readonly TimeSpan Stale = TimeSpan.FromDays(1);
-
     public static string DefaultPath => Path.Combine(AppFolder.Folder, "recipes.json");
 
     /// <summary>The kept list and when it was fetched (UTC); null when there is none or it can't be read.</summary>
@@ -37,8 +34,6 @@ public static class RecipeCache
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
-
-    public static bool IsStale(DateTime fetchedUtc, DateTime? nowUtc = null) => (nowUtc ?? DateTime.UtcNow) - fetchedUtc > Stale;
 
     /// <summary>"today", "yesterday", "3 days ago".</summary>
     public static string Age(DateTime fetchedUtc, DateTime? nowUtc = null)

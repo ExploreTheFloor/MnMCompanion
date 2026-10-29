@@ -48,12 +48,12 @@ internal sealed class RecipesPanel : Border, IMiniPage
     private readonly HashSet<object> _open = new(ReferenceEqualityComparer.Instance);
 
     private RecipeBook? _book;
-    private DateTime _fetchedUtc;
+    private DateTime _listTimeUtc;   // when the kept list file was written
+    private RecipeMeta _meta = new();   // what was last asked of the wiki and what it said (remembered across restarts)
     private bool _cacheRead;
     private string? _skill;
     private string _query = "";
     private bool _fetching;
-    private DateTime _lastTryUtc = DateTime.MinValue;
     private string _failure = "";
     private string _seen = "";
 
@@ -78,8 +78,8 @@ internal sealed class RecipesPanel : Border, IMiniPage
         var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         titles.Children.Add(title);
         titles.Children.Add(_sub);
-        _update.ToolTip = "Fetch the newest list from the community wiki now";
-        _update.Click += (_, _) => _ = FetchAsync();
+        _update.ToolTip = "Ask the community wiki whether its list has changed. It is asked by itself at most once a day, and this button no more than once in ten minutes; when nothing changed the wiki sends nothing back.";
+        _update.Click += (_, _) => _ = FetchAsync(manual: true);
         var head = new DockPanel();
         DockPanel.SetDock(_update, Dock.Right);
         head.Children.Add(_update);
@@ -185,8 +185,9 @@ internal sealed class RecipesPanel : Border, IMiniPage
         if (RecipeCache.Load(_file) is { } kept)
         {
             _book = kept.Book;
-            _fetchedUtc = kept.FetchedUtc;
+            _listTimeUtc = kept.FetchedUtc;
         }
+        if (_file is null) _meta = RecipeMeta.Load();
         ForgetUnknownSkill();
     }
 
@@ -197,35 +198,69 @@ internal sealed class RecipesPanel : Border, IMiniPage
         _skill = _book?.SkillNamed(_skill)?.Name;
     }
 
-    /// <summary>Asks the wiki when the player has said it may be asked and there is no list yet or it is a day old (and not again within the hour of a try).</summary>
+    /// <summary>When the kept list was last confirmed to be the wiki's current one.</summary>
+    private DateTime CheckedUtc => _meta.CheckedUtc ?? _listTimeUtc;
+
+    /// <summary>
+    /// Asks the wiki, by itself, when the player has said it may be asked and <see cref="RecipeRefresh"/> allows it: there is no list yet, or the kept one
+    /// was last confirmed more than a day ago (and the wiki was not asked within the hour, nor told us to wait). Opening the page any number of times
+    /// in a day asks nothing.
+    /// </summary>
     private void AutoFetch()
     {
         if (_file is not null || !_settings.RecipesOnline || _fetching) return;
-        if (_book is not null && !RecipeCache.IsStale(_fetchedUtc)) return;
-        if (DateTime.UtcNow - _lastTryUtc < TimeSpan.FromHours(1)) return;
-        _ = FetchAsync();
+        if (RecipeRefresh.Decide(DateTime.UtcNow, _book is not null, _meta, _listTimeUtc, manual: false).Step != RefreshStep.Ask) return;
+        _ = FetchAsync(manual: false);
     }
 
-    private async Task FetchAsync()
+    private void SaveMeta()
+    {
+        if (!_settings.ReadOnly) _meta.Save();
+    }
+
+    private async Task FetchAsync(bool manual)
     {
         if (_fetching || _file is not null) return;
+        var plan = RecipeRefresh.Decide(DateTime.UtcNow, _book is not null, _meta, _listTimeUtc, manual);
+        if (plan.Step != RefreshStep.Ask)
+        {
+            if (manual) _status.Text = plan.Why;
+            return;
+        }
         _fetching = true;
-        _lastTryUtc = DateTime.UtcNow;
         _failure = "";
+        _meta.TriedUtc = DateTime.UtcNow;   // remembered before asking, so a crash or a restart can't ask twice
+        SaveMeta();
         Build();
         try
         {
             using var client = new RecipeWikiClient(AppVersion.Current());
-            var result = await client.FetchAsync();
-            if (result.Ok && RecipeBook.TryParse(result.Json) is { } book)
+            // With a list in hand the question is "only if it changed": the wiki answers an unchanged list with nothing
+            var result = await client.FetchAsync(_book is not null ? _meta.ETag : null);
+            var now = DateTime.UtcNow;
+            if (result.Ok && result.NotModified)
+            {
+                _meta.CheckedUtc = now;
+                _meta.NotBeforeUtc = null;
+                if (manual) _status.Text = "The wiki's list hasn't changed.";
+            }
+            else if (result.Ok && RecipeBook.TryParse(result.Json) is { } book)
             {
                 if (!_settings.ReadOnly) RecipeCache.Save(result.Json);
                 _book = book;
-                _fetchedUtc = DateTime.UtcNow;
+                _listTimeUtc = now;
+                _meta.ETag = result.ETag;
+                _meta.CheckedUtc = now;
+                _meta.NotBeforeUtc = null;
                 ForgetUnknownSkill();
                 _status.Text = $"Loaded {book.Recipes.Count:N0} recipes from the wiki.";
             }
-            else _failure = result.Ok ? "The wiki's answer wasn't a recipe list." : result.Message;
+            else
+            {
+                _failure = result.Ok ? "The wiki's answer wasn't a recipe list." : result.Message;
+                if (result.RetryAfter is { } wait) _meta.BackOff(wait, now);   // it asked to be left alone: it is
+            }
+            SaveMeta();
         }
         finally { _fetching = false; }
         Build();
@@ -305,7 +340,7 @@ internal sealed class RecipesPanel : Border, IMiniPage
             return;
         }
         _sub.Text = $"{book.Recipes.Count:N0} recipes in {book.Skills.Count} skills · community wiki · "
-                    + (_fetching ? "updating…" : _file is null ? $"loaded {RecipeCache.Age(_fetchedUtc)}" : "from a file");
+                    + (_fetching ? "updating…" : _file is null ? $"checked {RecipeCache.Age(CheckedUtc)}" : "from a file");
         _skillButton.Content = SkillPicker(_skill);
         if (_failure.Length > 0) _body.Children.Add(Note("Couldn't update the list: " + _failure + " The copy kept on this PC is shown.", Palette.Taken));
 
@@ -330,7 +365,7 @@ internal sealed class RecipesPanel : Border, IMiniPage
             box.Children.Add(LootPanel.Line(
                 "Turning it on loads the community wiki's public tradeskills list (monstersandmemories.wiki) and keeps it on this PC, refreshing it at most once a day. That site sees your internet address, as if you opened it in a browser; nothing from your ledger or your game is sent.", Palette.Muted));
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
-            buttons.Children.Add(LootPanel.TextAction("Turn it on", () => { _settings.RecipesOnline = true; _settings.Save(); _ = FetchAsync(); }));
+            buttons.Children.Add(LootPanel.TextAction("Turn it on", () => { _settings.RecipesOnline = true; _settings.Save(); _ = FetchAsync(manual: true); }));
             buttons.Children.Add(LootPanel.TextAction("Open the wiki instead", () => OpenWiki()));
             box.Children.Add(buttons);
         }
@@ -338,7 +373,7 @@ internal sealed class RecipesPanel : Border, IMiniPage
         {
             box.Children.Add(LootPanel.Line(_failure.Length > 0 ? "Couldn't load the recipes: " + _failure : "The recipe list isn't loaded yet.", _failure.Length > 0 ? Palette.Taken : Palette.Text));
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
-            buttons.Children.Add(LootPanel.TextAction("Try again", () => _ = FetchAsync()));
+            buttons.Children.Add(LootPanel.TextAction("Try again", () => _ = FetchAsync(manual: true)));
             buttons.Children.Add(LootPanel.TextAction("Open the wiki instead", () => OpenWiki()));
             box.Children.Add(buttons);
         }

@@ -209,7 +209,7 @@ amounts an ingredient list asks for are in gold, and the words your search found
 The recipes are **not** in your ledger, and Companion doesn't carry them: they come from the **community wiki** (monstersandmemories.wiki, a fan wiki), from the public
 tradeskills data the wiki's own pages load. **The page loads them by itself** the first time you open it: that contacts the wiki once, so it sees your internet address, just as if
 you'd opened it in a browser (nothing from your ledger or your game is sent, only the program's name and version). The list is then kept on this PC (`recipes.json` in Companion's
-folder), so the page opens at once and works without the internet, and it is fetched again when you open the page and the kept copy is more than a day old, or when you press the refresh button at the top of the page. If you'd
+folder), so the page opens at once and works without the internet, and the wiki is asked again only when you open the page and the kept copy was last checked more than a day ago (or when you press the refresh button, which works once in ten minutes at most). By then the question is only *has your list changed?*, which the wiki answers with nothing at all when it hasn't, and the answer is asked for compressed. Companion remembers when it last asked even after a restart, never asks twice within an hour (not even after an error), and keeps away for as long as the wiki asks it to, so opening the page ten times a day, or restarting, costs the wiki nothing. If you'd
 rather it never asked, untick *Load the recipe list from the community wiki* in the ⓘ menu: the page then says loading is switched off, and offers to turn it on or to open the wiki in your
 browser instead. The wiki is by its community, can be incomplete or out of date, and Companion is not affiliated with it or with the game's makers.
 
@@ -474,7 +474,7 @@ The other exception is the **Map** page, and only if you say yes: it shows the c
 sees your zone and your internet address (see [The Map page](#the-map-page)). Until you say yes, nothing is loaded, and "Open in Atlas" only opens
 your own browser when you press it.
 
-The **Recipes** page is another: the first time you open it, and then once a day when you open it again, it asks the community wiki (monstersandmemories.wiki) for its public tradeskills list, with
+The **Recipes** page is another: the first time you open it, and then at most once a day when you open it again, it asks the community wiki (monstersandmemories.wiki) for its public tradeskills list (once you have it, only whether it has changed), with
 only the program's name and version, so that site sees your internet address (see [The Recipes page](#the-recipes-page)). It is on by default, and one tick in the ⓘ menu switches it off;
 then the wiki is never asked.
 
@@ -486,6 +486,7 @@ The other players' names you see in the group come from your own ledger files; t
 |---|---|
 | `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, whether to show the live map and whether to load the recipes (and which skill you were on). |
 | `recipes.json` | The wiki's recipe list, kept so the Recipes page works offline (unless you switched loading it off). Public data from the wiki, nothing from your game. |
+| `recipes.meta.json` | When the wiki was last asked and what its answer's version tag was, so Companion keeps to once a day (and to the wiki's own "wait") even after a restart. |
 | `<server>-<character>\` | Your session markers and the text files for archived sessions. |
 | `ledger.db` | A private copy of **every ledger row** the app has read (see below). |
 
