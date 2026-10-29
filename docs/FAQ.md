@@ -97,6 +97,12 @@ of it counts for you. A purse you looted yourself while in a group is split too,
 A player joining your group (or you joining one) starts a new session by itself; untick **ⓘ → Start a new session when a player joins the group** to start them only by hand.
 See [Sessions](../README.md#sessions-starting-a-fresh-tally).
 
+### Where do the recipes come from?
+Not from your ledger (it has no recipes) and not from the game: from the community wiki's public tradeskills list (monstersandmemories.wiki). The **Recipes** page loads it by itself the first time you open it,
+which contacts that site once, so the site sees your internet address, as it would if you opened the wiki in a browser; nothing from your ledger or your game is sent.
+The list is kept on this PC, so the page works offline, and the wiki is asked again only when you open the page and the kept copy was last checked more than a day ago (or when you press the refresh button, at most once in ten minutes). By then the question is only whether the list has changed, which the wiki answers with nothing when it hasn't, and Companion keeps away for as long as the wiki asks it to, even after a restart. To stop it, untick *Load the recipe list from the community wiki* in the ⓘ menu.
+A recipe's level is the wiki's *trivial* number, and a **?** means the wiki doesn't have one yet. See [The Recipes page](../README.md#the-recipes-page).
+
 ### Can I paste any of it into chat?
 Yes: pages have **Copy** buttons that put the figures on the clipboard as text.
 

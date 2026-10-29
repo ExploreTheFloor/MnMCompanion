@@ -22,7 +22,7 @@ public sealed class Settings
     public string View { get; set; } = "Value";
     public bool OnTop { get; set; } = true;
 
-    /// <summary>The page the small window was left on: Map, Loot, Vendor, Trades, Items or Harvest.</summary>
+    /// <summary>The page the small window was left on: Map, Loot, Vendor, Trades, Items, Harvest or Recipes.</summary>
     public string MiniPage { get; set; } = "Loot";
 
     /// <summary>
@@ -30,6 +30,16 @@ public sealed class Settings
     /// atlas's site see which zone they are in, and their address, like opening it in a browser.
     /// </summary>
     public bool MapsOnline { get; set; }
+
+    /// <summary>
+    /// Whether the Recipes page loads its list from the community wiki (monstersandmemories.wiki) by itself: the first time the page is shown, then at most once a
+    /// day (when it is opened again). On by default (the page is of no use without the list); the player can switch it off in the ⓘ menu, and then the wiki is never asked. Asking the wiki
+    /// makes that site see their internet address, like opening it in a browser; nothing from the game or the ledger is sent.
+    /// </summary>
+    public bool RecipesOnline { get; set; } = true;
+
+    /// <summary>The skill the Recipes page was left on; null for all skills.</summary>
+    public string? RecipeSkill { get; set; }
 
     /// <summary>
     /// What the History window shows, once the player has chosen: a server and a character, a server alone (everyone on it), or neither

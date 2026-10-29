@@ -123,7 +123,7 @@ Under the title bar you'll see the **day** you're looking at (use the arrows to 
 of everything looted, and a smaller line breaking it into **coin** and **items**. Next to the day is a menu that says **Whole day** or
 **This session**; see [Sessions](#sessions-starting-a-fresh-tally).
 
-### The bottom bar: six pages
+### The bottom bar: seven pages
 
 The bottom of the window has a button for each **page**.
 
@@ -142,8 +142,9 @@ The bottom of the window has a button for each **page**.
 | **Trades** | Each trade with another player: what you gave and what you got. |
 | **Items** | Items you dropped, picked up and destroyed. Tabs: Log, and Lost (what was dropped or destroyed and not picked up again). |
 | **Harvest** | What you gathered, how many an hour, and roughly what it's worth. Tabs: Items, Log. |
+| **Recipes** | Every tradeskill recipe of the community wiki, by skill and by level, with a search box. See [The Recipes page](#the-recipes-page). It isn't about your day, so it ignores the session. |
 
-**Every page shows the same day and the same session.** Choose *This session* (or an earlier one, or the whole day) on one page and they all
+**Every page except Recipes shows the same day and the same session.** Choose *This session* (or an earlier one, or the whole day) on one page and they all
 follow, so "what did this one run give me?" is the same question on every page. A click on a row of Vendor, Trades, Items or Harvest opens that
 page of the History window for the same character.
 
@@ -185,6 +186,32 @@ your browser and nothing else.
 The ledger has no positions, so there is no "you are here" dot. It needs the web view that comes with Windows 10 and 11 (Microsoft Edge
 WebView2); if that's missing the page says so and the **Open in Atlas** button still works. Maps are by the community (CC BY-SA 4.0); this is a fan
 atlas, not an official map, and Companion is not affiliated with it or with the game's makers.
+
+### The Recipes page
+
+The **Recipes** page is the community wiki's list of tradeskill recipes, made easy to read: pick a **skill** (Blacksmithing, Alchemy, Cooking and so on) and its
+recipes come in order of **level**, in stretches of 25 levels (*Level 1–25*, *Level 26–50*, ...), each row showing the level, what it makes and what it takes
+(*6 Copper Bar, 1 Smithing Pliers*). A stretch folds away when you click its heading, and **Close all / Open all** does every stretch at once. Click a recipe to open the rest
+the wiki lists about it (the station, the slot, notes) and a button to copy it as a line of text. Until you pick a skill the page lists them all, with how many recipes each has and
+the levels they cover, and what each is made at, who teaches it and which tools it needs is under the skill's name.
+
+The **search box** looks through every recipe at once (or one skill's, when one is picked). Every word you type has to be somewhere in the recipe, in any order and any case, and a part
+of a word is enough: *copp bar* finds everything made from Copper Bar, *weapons* finds a whole kind, *zinc* finds anything that takes zinc. Two numbers with a dash are a range
+of levels: *50-75*, or *iron 60-90* for the iron recipes between levels 60 and 90. A search that finds exactly one recipe opens it.
+
+A recipe's **level** is the number the wiki lists it at as *trivial*: the skill level where it stops being worth making. Where the wiki doesn't have one yet it shows a **?**
+and the recipe goes last. Recipes the wiki has no ingredients for yet say so.
+
+The colours help you read it: a level is coloured by how far into its skill it is (green up to 50, then teal, blue, purple, orange and pink for the highest), the same on the number, the
+stripe at the row's edge and the heading of its stretch, so the page reads as a progression from the top. Each skill has a colour of its own on the skill list and the picker, the
+amounts an ingredient list asks for are in gold, and the words your search found are marked in the rows.
+
+The recipes are **not** in your ledger, and Companion doesn't carry them: they come from the **community wiki** (monstersandmemories.wiki, a fan wiki), from the public
+tradeskills data the wiki's own pages load. **The page loads them by itself** the first time you open it: that contacts the wiki once, so it sees your internet address, just as if
+you'd opened it in a browser (nothing from your ledger or your game is sent, only the program's name and version). The list is then kept on this PC (`recipes.json` in Companion's
+folder), so the page opens at once and works without the internet, and the wiki is asked again only when you open the page and the kept copy was last checked more than a day ago (or when you press the refresh button, which works once in ten minutes at most). By then the question is only *has your list changed?*, which the wiki answers with nothing at all when it hasn't, and the answer is asked for compressed. Companion remembers when it last asked even after a restart, never asks twice within an hour (not even after an error), and keeps away for as long as the wiki asks it to, so opening the page ten times a day, or restarting, costs the wiki nothing. If you'd
+rather it never asked, untick *Load the recipe list from the community wiki* in the ⓘ menu: the page then says loading is switched off, and offers to turn it on or to open the wiki in your
+browser instead. The wiki is by its community, can be incomplete or out of date, and Companion is not affiliated with it or with the game's makers.
 
 ### Those little symbols after a number
 
@@ -447,13 +474,19 @@ The other exception is the **Map** page, and only if you say yes: it shows the c
 sees your zone and your internet address (see [The Map page](#the-map-page)). Until you say yes, nothing is loaded, and "Open in Atlas" only opens
 your own browser when you press it.
 
+The **Recipes** page is another: the first time you open it, and then at most once a day when you open it again, it asks the community wiki (monstersandmemories.wiki) for its public tradeskills list (once you have it, only whether it has changed), with
+only the program's name and version, so that site sees your internet address (see [The Recipes page](#the-recipes-page)). It is on by default, and one tick in the ⓘ menu switches it off;
+then the wiki is never asked.
+
 The other players' names you see in the group come from your own ledger files; they never leave your PC.
 
 **What it saves on your PC**, all in `%LOCALAPPDATA%\MnMCompanion\`:
 
 | File | What |
 |---|---|
-| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates and whether to show the live map. |
+| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, whether to show the live map and whether to load the recipes (and which skill you were on). |
+| `recipes.json` | The wiki's recipe list, kept so the Recipes page works offline (unless you switched loading it off). Public data from the wiki, nothing from your game. |
+| `recipes.meta.json` | When the wiki was last asked and what its answer's version tag was, so Companion keeps to once a day (and to the wiki's own "wait") even after a restart. |
 | `<server>-<character>\` | Your session markers and the text files for archived sessions. |
 | `ledger.db` | A private copy of **every ledger row** the app has read (see below). |
 
@@ -591,7 +624,8 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--ledger <folder>` | Read the game's data from somewhere else (a test, a demo, a copy). Such a run keeps its own saved copy and saves no settings, so it can never mix into your real history. |
 | `--character <name>` | Start on this character. |
 | `--history` | Open the History window as soon as the app starts. |
-| `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items or Harvest). |
+| `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items, Harvest or Recipes). |
+| `--recipes <file>` | With `--snapshot --window --mini Recipes`: read the recipes from this file (the wiki's tradeskills JSON) instead of asking the wiki; `--tab "<skill>"` picks a skill and `--search "<words>"` types a search. |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
 | `--contribute <folder or file>` | Save what sharing would send (named by your random id: the totals, and what NPCs said to you as a second `.npcs.json` file) and quit, without a window. |
@@ -636,7 +670,7 @@ built program starts; add `-Publish` to create the release (`scripts\build-relea
 src/MnMCompanion.Core     reads the ledger and works out the loot, drop rates and histories (no windows, no packages)
 src/MnMCompanion.Data     the saved database and the history tables built from it (the only project that may use SQLite)
 src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256, and talks to the community service
-                        (the only project that may use the network: GitHub, the map's atlas if you say yes, and the community service if you say Yes)
+                        (the only project that may use the network: GitHub, the map's atlas if you say yes, the recipe wiki unless you switch it off, and the community service if you say Yes)
 src/MnMCompanion          the Windows app: the small window and its pages, the History window and its pages, the update banner
                         (the only package it has is Windows' web view, for the Map page)
 tests/MnMCompanion.Tests  the automatic tests
@@ -647,7 +681,7 @@ docs/                   ledger-notes.md (what the ledger holds), images/
 
 A few tests exist purely to keep the promises above: they fail the build if any source file reaches for the game, someone else's
 database, or the network, anywhere except the projects that are allowed to (and the app may carry one package: the web view that shows the
-map, only once you've said yes). Updating, checksums, and swapping the program in (and
+map, only once you've said yes). The recipe wiki is asked for by the update project alone, with one request to one address. Updating, checksums, and swapping the program in (and
 back out if the new one won't start) are all tested without a network.
 
 ### Not yet

@@ -8,8 +8,11 @@ namespace MnMCompanion.Tests;
 /// <c>src\MnMCompanion.Update</c> asks GitHub whether a newer version of this app exists (the only project that may use the network,
 /// and only github.com and api.github.com). A third is the map: the app itself carries one package, the system's web view, to show the
 /// community atlas's map of the zone the ledger says the character is in, only once the player has chosen to (Settings.MapsOnline); the atlas's
-/// address lives in the update project like the others. Everything else, the Core included, stays free of all of them. (There is no wiki layer: the
-/// community data is to live in an open repository on GitHub, and reading or sharing it is where this list will make its next exception.)
+/// address lives in the update project like the others. A fourth is the Recipes page: the community wiki's public tradeskills data is fetched (one
+/// GET, by the update project's RecipeWikiClient) when the page is first shown and then at most once a day, unless the player switched it off (Settings.RecipesOnline),
+/// and kept on this PC. Everything else,
+/// the Core included, stays free of all of them. (The community data is to live in an open repository on GitHub, and reading or sharing it is where
+/// this list will make its next exception.)
 /// </summary>
 public class LedgerOnlyTests
 {
@@ -100,7 +103,7 @@ public class LedgerOnlyTests
     [Fact]
     public void The_only_addresses_in_the_source_are_githubs_the_atlas_and_the_community_service_and_only_the_update_project_has_them()
     {
-        var allowed = new[] { "api.github.com", "github.com", "www.mnmatlas.com", "mnm-intake.mnm-companion.workers.dev" };
+        var allowed = new[] { "api.github.com", "github.com", "www.mnmatlas.com", "mnm-intake.mnm-companion.workers.dev", "monstersandmemories.wiki" };
         var urls = new System.Text.RegularExpressions.Regex("https?://[^\\s\"'<>{}/\\\\]+");
         foreach (var file in Sources().Where(f => f.EndsWith(".cs")))
             foreach (System.Text.RegularExpressions.Match m in urls.Matches(File.ReadAllText(file)))
