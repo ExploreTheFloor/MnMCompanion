@@ -209,7 +209,7 @@ amounts an ingredient list asks for are in gold, and the words your search found
 The recipes are **not** in your ledger, and Companion doesn't carry them: they come from the **community wiki** (monstersandmemories.wiki, a fan wiki), from the public
 tradeskills data the wiki's own pages load. **The page loads them by itself** the first time you open it: that contacts the wiki once, so it sees your internet address, just as if
 you'd opened it in a browser (nothing from your ledger or your game is sent, only the program's name and version). The list is then kept on this PC (`recipes.json` in Companion's
-folder), so the page opens at once and works without the internet, and it is fetched again about once a week, or when you press the refresh button at the top of the page. If you'd
+folder), so the page opens at once and works without the internet, and it is fetched again when you open the page and the kept copy is more than a day old, or when you press the refresh button at the top of the page. If you'd
 rather it never asked, untick *Load the recipe list from the community wiki* in the ⓘ menu: the page then says loading is switched off, and offers to turn it on or to open the wiki in your
 browser instead. The wiki is by its community, can be incomplete or out of date, and Companion is not affiliated with it or with the game's makers.
 
@@ -474,7 +474,7 @@ The other exception is the **Map** page, and only if you say yes: it shows the c
 sees your zone and your internet address (see [The Map page](#the-map-page)). Until you say yes, nothing is loaded, and "Open in Atlas" only opens
 your own browser when you press it.
 
-The **Recipes** page is another: the first time you open it, and about once a week after that, it asks the community wiki (monstersandmemories.wiki) for its public tradeskills list, with
+The **Recipes** page is another: the first time you open it, and then once a day when you open it again, it asks the community wiki (monstersandmemories.wiki) for its public tradeskills list, with
 only the program's name and version, so that site sees your internet address (see [The Recipes page](#the-recipes-page)). It is on by default, and one tick in the ⓘ menu switches it off;
 then the wiki is never asked.
 

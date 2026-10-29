@@ -9,7 +9,7 @@ namespace MnMCompanion.Tests;
 /// and only github.com and api.github.com). A third is the map: the app itself carries one package, the system's web view, to show the
 /// community atlas's map of the zone the ledger says the character is in, only once the player has chosen to (Settings.MapsOnline); the atlas's
 /// address lives in the update project like the others. A fourth is the Recipes page: the community wiki's public tradeskills data is fetched (one
-/// GET, by the update project's RecipeWikiClient) when the page is first shown and about weekly, unless the player switched it off (Settings.RecipesOnline),
+/// GET, by the update project's RecipeWikiClient) when the page is first shown and then at most once a day, unless the player switched it off (Settings.RecipesOnline),
 /// and kept on this PC. Everything else,
 /// the Core included, stays free of all of them. (The community data is to live in an open repository on GitHub, and reading or sharing it is where
 /// this list will make its next exception.)

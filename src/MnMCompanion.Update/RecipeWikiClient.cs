@@ -21,7 +21,7 @@ public sealed record RecipeDownload(bool Ok, string Json, string Message);
 /// <summary>
 /// Fetches the wiki's recipe list, and nothing else: one GET of one address, with Companion's name and version as the only identification, no cookies, no
 /// redirects followed, and no more than a few megabytes taken. It never throws; every problem comes back as a sentence a person can read. It is asked
-/// when the Recipes page is first shown, about once a week after that, and when the player presses refresh, unless they switched it off (Settings.RecipesOnline).
+/// when the Recipes page is first shown, then at most once a day when the page is opened again, and when the player presses refresh, unless they switched it off (Settings.RecipesOnline).
 /// </summary>
 public sealed class RecipeWikiClient : IDisposable
 {

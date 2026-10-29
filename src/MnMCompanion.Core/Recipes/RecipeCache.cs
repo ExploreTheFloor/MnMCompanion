@@ -6,8 +6,8 @@ namespace MnMCompanion.Recipes;
 /// </summary>
 public static class RecipeCache
 {
-    /// <summary>The list is fetched again when it is older than this (and only if the player has said the wiki may be asked).</summary>
-    public static readonly TimeSpan Stale = TimeSpan.FromDays(7);
+    /// <summary>The list is fetched again, when someone opens the Recipes page, once it is older than this (unless the player switched asking the wiki off).</summary>
+    public static readonly TimeSpan Stale = TimeSpan.FromDays(1);
 
     public static string DefaultPath => Path.Combine(AppFolder.Folder, "recipes.json");
 

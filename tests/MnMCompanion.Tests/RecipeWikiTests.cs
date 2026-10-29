@@ -154,11 +154,11 @@ public class RecipeWikiTests
     }
 
     [Fact]
-    public void A_list_is_stale_after_a_week_and_its_age_is_said_in_days()
+    public void A_list_is_stale_after_a_day_and_its_age_is_said_in_days()
     {
         var now = new DateTime(2026, 10, 29, 12, 0, 0, DateTimeKind.Utc);
-        Assert.False(RecipeCache.IsStale(now.AddDays(-6), now));
-        Assert.True(RecipeCache.IsStale(now.AddDays(-8), now));
+        Assert.False(RecipeCache.IsStale(now.AddHours(-23), now));
+        Assert.True(RecipeCache.IsStale(now.AddHours(-25), now));
         Assert.Equal(["today", "yesterday", "3 days ago"], new[] { now.AddHours(-3), now.AddDays(-1), now.AddDays(-3) }.Select(t => RecipeCache.Age(t, now)));
     }
 }

@@ -16,7 +16,7 @@ namespace MnMCompanion;
 /// over everything (what a recipe makes, its ingredients, its kind, its notes, or a range of levels such as 50-75). A row shows the level, the name and the ingredients;
 /// clicking it opens the rest the wiki lists (the station, the slot, notes) and a button to copy it.
 /// The recipes are not in the ledger. They come from the wiki's public tradeskills data, which the page loads by itself the first time it is shown
-/// (<see cref="Settings.RecipesOnline"/>, on unless the player switched it off in the ⓘ menu), keeps on this PC and asks for again about once a week.
+/// (<see cref="Settings.RecipesOnline"/>, on unless the player switched it off in the ⓘ menu), keeps on this PC and asks for again, when the page is opened, once the kept copy is a day old.
 /// A level has a colour by how far into its skill it is (<see cref="RecipeColors"/>) and the words a search found are marked in the rows.
 /// A picture-taking run reads a file instead (<c>--recipes</c>) and never asks the wiki.
 /// </summary>
@@ -197,7 +197,7 @@ internal sealed class RecipesPanel : Border, IMiniPage
         _skill = _book?.SkillNamed(_skill)?.Name;
     }
 
-    /// <summary>Asks the wiki when the player has said it may be asked and there is no list yet or it is a week old (and not again within the hour of a try).</summary>
+    /// <summary>Asks the wiki when the player has said it may be asked and there is no list yet or it is a day old (and not again within the hour of a try).</summary>
     private void AutoFetch()
     {
         if (_file is not null || !_settings.RecipesOnline || _fetching) return;
@@ -328,7 +328,7 @@ internal sealed class RecipesPanel : Border, IMiniPage
         {
             box.Children.Add(LootPanel.Line("Loading the recipes is switched off.", Palette.Text));
             box.Children.Add(LootPanel.Line(
-                "Turning it on loads the community wiki's public tradeskills list (monstersandmemories.wiki) and keeps it on this PC, about once a week. That site sees your internet address, as if you opened it in a browser; nothing from your ledger or your game is sent.", Palette.Muted));
+                "Turning it on loads the community wiki's public tradeskills list (monstersandmemories.wiki) and keeps it on this PC, refreshing it at most once a day. That site sees your internet address, as if you opened it in a browser; nothing from your ledger or your game is sent.", Palette.Muted));
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
             buttons.Children.Add(LootPanel.TextAction("Turn it on", () => { _settings.RecipesOnline = true; _settings.Save(); _ = FetchAsync(); }));
             buttons.Children.Add(LootPanel.TextAction("Open the wiki instead", () => OpenWiki()));
