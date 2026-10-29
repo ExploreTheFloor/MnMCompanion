@@ -97,10 +97,10 @@ of it counts for you. A purse you looted yourself while in a group is split too,
 See [Sessions](../README.md#sessions-starting-a-fresh-tally).
 
 ### Where do the recipes come from?
-Not from your ledger (it has no recipes) and not from the game: from the community wiki's public tradeskills list (monstersandmemories.wiki), and only if you say yes on the **Recipes** page (or in
-the ⓘ menu). Loading it contacts that site once, so the site sees your internet address, as it would if you opened the wiki in a browser; nothing from your ledger or your game is sent.
-The list is kept on this PC, so the page works offline, and it is fetched again about once a week or when you press the refresh button. A recipe's level is the wiki's *trivial* number, and a **?** means the wiki doesn't have one yet. See
-[The Recipes page](../README.md#the-recipes-page).
+Not from your ledger (it has no recipes) and not from the game: from the community wiki's public tradeskills list (monstersandmemories.wiki). The **Recipes** page loads it by itself the first time you open it,
+which contacts that site once, so the site sees your internet address, as it would if you opened the wiki in a browser; nothing from your ledger or your game is sent.
+The list is kept on this PC, so the page works offline, and it is fetched again about once a week or when you press the refresh button. To stop it, untick *Load the recipe list from the community wiki* in the ⓘ menu.
+A recipe's level is the wiki's *trivial* number, and a **?** means the wiki doesn't have one yet. See [The Recipes page](../README.md#the-recipes-page).
 
 ### Can I paste any of it into chat?
 Yes: pages have **Copy** buttons that put the figures on the clipboard as text.

@@ -32,10 +32,11 @@ public sealed class Settings
     public bool MapsOnline { get; set; }
 
     /// <summary>
-    /// The player's choice to load the Recipes page's list from the community wiki (monstersandmemories.wiki). No until they say so: asking the wiki
-    /// makes that site see their internet address, like opening it in a browser. The list is then kept on this PC and asked for again about once a week.
+    /// Whether the Recipes page loads its list from the community wiki (monstersandmemories.wiki) by itself: the first time the page is shown, then about once a
+    /// week. On by default (the page is of no use without the list); the player can switch it off in the ⓘ menu, and then the wiki is never asked. Asking the wiki
+    /// makes that site see their internet address, like opening it in a browser; nothing from the game or the ledger is sent.
     /// </summary>
-    public bool RecipesOnline { get; set; }
+    public bool RecipesOnline { get; set; } = true;
 
     /// <summary>The skill the Recipes page was left on; null for all skills.</summary>
     public string? RecipeSkill { get; set; }

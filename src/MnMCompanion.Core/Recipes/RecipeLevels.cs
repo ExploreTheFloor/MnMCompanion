@@ -15,6 +15,24 @@ public static class RecipeLevels
     /// <summary>A skill with fewer recipes than this is not cut up.</summary>
     public const int FlatBelow = 13;
 
+    /// <summary>How many tiers <see cref="Tier"/> tells apart.</summary>
+    public const int Tiers = 6;
+
+    /// <summary>
+    /// Which stretch of the skill a level belongs to, for colouring: 0 for levels up to 50, then 51–100, 101–150, 151–200, 201–250 and beyond (5).
+    /// -1 when the level isn't known. The same tier always gets the same colour, so a glance at a row says how far into the skill it is.
+    /// </summary>
+    public static int Tier(int? level) => level switch
+    {
+        null => -1,
+        <= 50 => 0,
+        <= 100 => 1,
+        <= 150 => 2,
+        <= 200 => 3,
+        <= 250 => 4,
+        _ => 5,
+    };
+
     public static int Compare(Recipe a, Recipe b)
     {
         int c = (a.Level ?? int.MaxValue).CompareTo(b.Level ?? int.MaxValue);

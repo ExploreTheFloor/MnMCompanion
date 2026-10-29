@@ -202,12 +202,16 @@ of levels: *50-75*, or *iron 60-90* for the iron recipes between levels 60 and 9
 A recipe's **level** is the number the wiki lists it at as *trivial*: the skill level where it stops being worth making. Where the wiki doesn't have one yet it shows a **?**
 and the recipe goes last. Recipes the wiki has no ingredients for yet say so.
 
+The colours help you read it: a level is coloured by how far into its skill it is (green up to 50, then teal, blue, purple, orange and pink for the highest), the same on the number, the
+stripe at the row's edge and the heading of its stretch, so the page reads as a progression from the top. Each skill has a colour of its own on the skill list and the picker, the
+amounts an ingredient list asks for are in gold, and the words your search found are marked in the rows.
+
 The recipes are **not** in your ledger, and Companion doesn't carry them: they come from the **community wiki** (monstersandmemories.wiki, a fan wiki), from the public
-tradeskills data the wiki's own pages load. Like the Map, **it asks first**: loading them contacts that site once, so it sees your internet address, just as if you'd opened it in a
-browser (nothing from your ledger or your game is sent, only the program's name and version). Press **Load the recipes** to say yes (you can change your mind in the ⓘ menu: *Load the
-recipe list from the community wiki*), or **Open the wiki instead**. After that the list is kept on this PC (`recipes.json` in Companion's folder), so the page opens at once and works
-without the internet, and it is fetched again about once a week, or when you press the refresh button at the top of the page. The wiki is by its community, can be incomplete or out
-of date, and Companion is not affiliated with it or with the game's makers.
+tradeskills data the wiki's own pages load. **The page loads them by itself** the first time you open it: that contacts the wiki once, so it sees your internet address, just as if
+you'd opened it in a browser (nothing from your ledger or your game is sent, only the program's name and version). The list is then kept on this PC (`recipes.json` in Companion's
+folder), so the page opens at once and works without the internet, and it is fetched again about once a week, or when you press the refresh button at the top of the page. If you'd
+rather it never asked, untick *Load the recipe list from the community wiki* in the ⓘ menu: the page then says loading is switched off, and offers to turn it on or to open the wiki in your
+browser instead. The wiki is by its community, can be incomplete or out of date, and Companion is not affiliated with it or with the game's makers.
 
 ### Those little symbols after a number
 
@@ -470,8 +474,9 @@ The other exception is the **Map** page, and only if you say yes: it shows the c
 sees your zone and your internet address (see [The Map page](#the-map-page)). Until you say yes, nothing is loaded, and "Open in Atlas" only opens
 your own browser when you press it.
 
-The **Recipes** page is the same kind of exception, again only if you say yes: it asks the community wiki (monstersandmemories.wiki) once for its public tradeskills list, with only
-the program's name and version, so that site sees your internet address (see [The Recipes page](#the-recipes-page)). Until you say yes nothing is asked.
+The **Recipes** page is another: the first time you open it, and about once a week after that, it asks the community wiki (monstersandmemories.wiki) for its public tradeskills list, with
+only the program's name and version, so that site sees your internet address (see [The Recipes page](#the-recipes-page)). It is on by default, and one tick in the ⓘ menu switches it off;
+then the wiki is never asked.
 
 The other players' names you see in the group come from your own ledger files; they never leave your PC.
 
@@ -480,7 +485,7 @@ The other players' names you see in the group come from your own ledger files; t
 | File | What |
 |---|---|
 | `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, whether to show the live map and whether to load the recipes (and which skill you were on). |
-| `recipes.json` | The wiki's recipe list, kept so the Recipes page works offline (only if you said yes to loading it). Public data from the wiki, nothing from your game. |
+| `recipes.json` | The wiki's recipe list, kept so the Recipes page works offline (unless you switched loading it off). Public data from the wiki, nothing from your game. |
 | `<server>-<character>\` | Your session markers and the text files for archived sessions. |
 | `ledger.db` | A private copy of **every ledger row** the app has read (see below). |
 
@@ -664,7 +669,7 @@ built program starts; add `-Publish` to create the release (`scripts\build-relea
 src/MnMCompanion.Core     reads the ledger and works out the loot, drop rates and histories (no windows, no packages)
 src/MnMCompanion.Data     the saved database and the history tables built from it (the only project that may use SQLite)
 src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, checked against its SHA-256, and talks to the community service
-                        (the only project that may use the network: GitHub, the map's atlas and the recipe wiki if you say yes, and the community service if you say Yes)
+                        (the only project that may use the network: GitHub, the map's atlas if you say yes, the recipe wiki unless you switch it off, and the community service if you say Yes)
 src/MnMCompanion          the Windows app: the small window and its pages, the History window and its pages, the update banner
                         (the only package it has is Windows' web view, for the Map page)
 tests/MnMCompanion.Tests  the automatic tests

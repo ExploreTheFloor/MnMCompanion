@@ -15,9 +15,10 @@ namespace MnMCompanion;
 /// The Recipes page: every tradeskill recipe of the community wiki, one skill at a time, in order of level in stretches of 25 ("Level 26–50"), with a search box
 /// over everything (what a recipe makes, its ingredients, its kind, its notes, or a range of levels such as 50-75). A row shows the level, the name and the ingredients;
 /// clicking it opens the rest the wiki lists (the station, the slot, notes) and a button to copy it.
-/// The recipes are not in the ledger. They come from the wiki's public tradeskills data, which is asked for only once the player has said so
-/// (<see cref="Settings.RecipesOnline"/>): until then the page explains what loading does and offers to open the wiki in the browser instead. The list is
-/// kept on this PC and asked for again about once a week. A picture-taking run reads a file instead (<c>--recipes</c>) and never asks the wiki.
+/// The recipes are not in the ledger. They come from the wiki's public tradeskills data, which the page loads by itself the first time it is shown
+/// (<see cref="Settings.RecipesOnline"/>, on unless the player switched it off in the ⓘ menu), keeps on this PC and asks for again about once a week.
+/// A level has a colour by how far into its skill it is (<see cref="RecipeColors"/>) and the words a search found are marked in the rows.
+/// A picture-taking run reads a file instead (<c>--recipes</c>) and never asks the wiki.
 /// </summary>
 internal sealed class RecipesPanel : Border, IMiniPage
 {
@@ -305,16 +306,17 @@ internal sealed class RecipesPanel : Border, IMiniPage
         }
         _sub.Text = $"{book.Recipes.Count:N0} recipes in {book.Skills.Count} skills · community wiki · "
                     + (_fetching ? "updating…" : _file is null ? $"loaded {RecipeCache.Age(_fetchedUtc)}" : "from a file");
-        _skillButton.Content = (_skill ?? "All skills") + "  ▾";
+        _skillButton.Content = SkillPicker(_skill);
         if (_failure.Length > 0) _body.Children.Add(Note("Couldn't update the list: " + _failure + " The copy kept on this PC is shown.", Palette.Taken));
 
         bool searching = NameSearch.Words(_query).Length > 0;
+        _found = NameSearch.Words(_query).Where(w => !LevelWord.IsMatch(w)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (_skill is null && !searching) ShowSkills(book);
         else if (_skill is not null) ShowSkill(book, _skill, searching);
         else ShowEverywhere(book);
     }
 
-    /// <summary>No list yet: why, and the choice to load it.</summary>
+    /// <summary>No list yet: it is being loaded, or loading failed, or the player switched loading off (the way back is here and in the ⓘ menu).</summary>
     private void ShowNoList()
     {
         var box = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 24, 8, 8) };
@@ -324,11 +326,11 @@ internal sealed class RecipesPanel : Border, IMiniPage
         }
         else if (!_settings.RecipesOnline)
         {
-            box.Children.Add(LootPanel.Line("The recipes come from the community wiki.", Palette.Text));
+            box.Children.Add(LootPanel.Line("Loading the recipes is switched off.", Palette.Text));
             box.Children.Add(LootPanel.Line(
-                "Loading them asks monstersandmemories.wiki for its public tradeskills list (about once a week after that, or when you press Update), so that site sees your internet address, just as if you opened it in a browser. Nothing from your ledger or your game is sent. The list is kept on this PC, and the page works without the internet afterwards.", Palette.Muted));
+                "Turning it on loads the community wiki's public tradeskills list (monstersandmemories.wiki) and keeps it on this PC, about once a week. That site sees your internet address, as if you opened it in a browser; nothing from your ledger or your game is sent.", Palette.Muted));
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
-            buttons.Children.Add(LootPanel.TextAction("Load the recipes", () => { _settings.RecipesOnline = true; _settings.Save(); _ = FetchAsync(); }));
+            buttons.Children.Add(LootPanel.TextAction("Turn it on", () => { _settings.RecipesOnline = true; _settings.Save(); _ = FetchAsync(); }));
             buttons.Children.Add(LootPanel.TextAction("Open the wiki instead", () => OpenWiki()));
             box.Children.Add(buttons);
         }
@@ -350,25 +352,57 @@ internal sealed class RecipesPanel : Border, IMiniPage
         foreach (var skill in book.Skills)
         {
             var s = skill;
+            var color = RecipeColors.OfSkill(s.Name);
             var row = new ClickRow { Margin = new Thickness(0, 2, 0, 2), Background = Brushes.Transparent, Cursor = Cursors.Hand, Activate = () => Choose(s.Name) };
             System.Windows.Automation.AutomationProperties.SetName(row, s.Name);
-            var back = new Border { CornerRadius = new CornerRadius(7), Background = (Brush)Ui.Theme["Subtle"] };
+            var normal = RecipeColors.Solid(color, 0x16);
+            var back = new Border { CornerRadius = new CornerRadius(7), Background = normal };
             row.Children.Add(back);
-            var dock = new DockPanel { Margin = new Thickness(11, 6, 10, 6) };
+            row.Children.Add(new Border { Width = 3, CornerRadius = new CornerRadius(1.5), Background = RecipeColors.Solid(color), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 7, 0, 7) });
+            var dock = new DockPanel { Margin = new Thickness(14, 6, 10, 6) };
             var right = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
             DockPanel.SetDock(right, Dock.Right);
             right.Children.Add(new TextBlock { Text = Plural(s.Count, "recipe"), Foreground = Palette.Text, FontSize = 12, TextAlignment = TextAlignment.Right });
-            if (s.LevelRange.Length > 0) right.Children.Add(new TextBlock { Text = "levels " + s.LevelRange, Foreground = Palette.Muted, FontSize = 10.5, TextAlignment = TextAlignment.Right });
+            if (s.LevelRange.Length > 0) right.Children.Add(LevelRangeText(s));
             dock.Children.Add(right);
             var left = new StackPanel();
             left.Children.Add(new TextBlock { Text = s.Name, Foreground = Palette.Text, FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-            if (s.Station.Length > 0) left.Children.Add(new TextBlock { Text = s.Station, Foreground = Palette.Muted, FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (s.Station.Length > 0) left.Children.Add(new TextBlock { Text = s.Station, Foreground = RecipeColors.Label, FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis });
             dock.Children.Add(left);
             row.Children.Add(dock);
             row.MouseLeftButtonUp += (_, _) => row.Activate?.Invoke();
-            Hover(row, back);
+            Hover(row, back, normal, RecipeColors.Solid(color, 0x2E));
             _body.Children.Add(row);
         }
+    }
+
+    /// <summary>"levels 5–300", the two ends in the colours of their levels.</summary>
+    private static TextBlock LevelRangeText(Skill s)
+    {
+        var text = new TextBlock { FontSize = 10.5, TextAlignment = TextAlignment.Right, Foreground = Palette.Muted };
+        text.Inlines.Add(new System.Windows.Documents.Run("levels ") { Foreground = Palette.Muted });
+        if (s.LowLevel is { } lo && s.HighLevel is { } hi && lo != hi)
+        {
+            text.Inlines.Add(new System.Windows.Documents.Run(lo.ToString()) { Foreground = RecipeColors.Solid(RecipeColors.OfLevel(lo)), FontWeight = FontWeights.SemiBold });
+            text.Inlines.Add(new System.Windows.Documents.Run("–") { Foreground = Palette.Muted });
+            text.Inlines.Add(new System.Windows.Documents.Run(hi.ToString()) { Foreground = RecipeColors.Solid(RecipeColors.OfLevel(hi)), FontWeight = FontWeights.SemiBold });
+        }
+        else text.Inlines.Add(new System.Windows.Documents.Run(s.LevelRange) { Foreground = RecipeColors.Solid(RecipeColors.OfLevel(s.LowLevel)), FontWeight = FontWeights.SemiBold });
+        return text;
+    }
+
+    /// <summary>The skill picker's face: the skill's colour as a dot, its name, an arrow.</summary>
+    private static FrameworkElement SkillPicker(string? skill)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Width = 9, Height = 9, Margin = new Thickness(0, 1, 8, 0), VerticalAlignment = VerticalAlignment.Center,
+            Fill = skill is null ? Palette.Muted : RecipeColors.Solid(RecipeColors.OfSkill(skill)),
+        });
+        row.Children.Add(new TextBlock { Text = skill ?? "All skills", VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = "▾", FontSize = 10, Margin = new Thickness(9, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Palette.Muted });
+        return row;
     }
 
     /// <summary>One skill: what it needs, then its recipes in stretches of levels (the matches only, while searching).</summary>
@@ -416,7 +450,8 @@ internal sealed class RecipesPanel : Border, IMiniPage
             var band = bands[i];
             bool open = IsOpen(i);
             var key = Key(band);
-            Emit(() => BandHeader(band.Title, band.Recipes.Count, open, searching ? null : () => { _bands[key] = !open; Rebuild(); }));
+            var accent = RecipeColors.OfLevel(band.From);
+            Emit(() => BandHeader(band.Title, band.Recipes.Count, open, searching ? null : () => { _bands[key] = !open; Rebuild(); }, accent));
             if (open)
                 foreach (var recipe in band.Recipes) Emit(() => RecipeRow(recipe));
         }
@@ -439,7 +474,8 @@ internal sealed class RecipesPanel : Border, IMiniPage
             if (shown >= MaxSearchRows) break;
             var skill = group.Key;
             int count = group.Count();
-            Emit(() => BandHeader(skill, count, open: true, () => Choose(skill), chevron: "›"));
+            var accent = RecipeColors.OfSkill(skill);
+            Emit(() => BandHeader(skill, count, open: true, () => Choose(skill), accent, chevron: "›"));
             foreach (var recipe in RecipeLevels.Sorted(group))
             {
                 if (shown++ >= MaxSearchRows) break;
@@ -473,25 +509,33 @@ internal sealed class RecipesPanel : Border, IMiniPage
         for (int i = 0; i < lines.Count; i++)
         {
             if (i > 0) text.Inlines.Add(new System.Windows.Documents.LineBreak());
-            text.Inlines.Add(new System.Windows.Documents.Run(lines[i].Label + "  ") { Foreground = Palette.Muted });
+            text.Inlines.Add(new System.Windows.Documents.Run(lines[i].Label + "  ") { Foreground = RecipeColors.Label });
             text.Inlines.Add(new System.Windows.Documents.Run(lines[i].Text) { Foreground = Palette.Text });
         }
         return text;
     }
 
     /// <summary>"LEVEL 26–50 · 14 recipes": a heading for a stretch of levels (or a skill); clicking it folds the stretch away or opens the skill.</summary>
-    private static FrameworkElement BandHeader(string title, int count, bool open, Action? click, string? chevron = null)
+    private static FrameworkElement BandHeader(string title, int count, bool open, Action? click, Color accent, string? chevron = null)
     {
         var row = new ClickRow { Margin = new Thickness(0, 10, 0, 3), Background = Brushes.Transparent, Cursor = click is null ? Cursors.Arrow : Cursors.Hand, Activate = click };
         System.Windows.Automation.AutomationProperties.SetName(row, title);
-        var dock = new DockPanel { Margin = new Thickness(4, 0, 4, 0) };
+        var dock = new DockPanel { Margin = new Thickness(0, 0, 4, 0) };
         var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         DockPanel.SetDock(right, Dock.Right);
-        right.Children.Add(new TextBlock { Text = Plural(count, "recipe"), Foreground = Palette.Muted, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center });
-        if (click is not null) right.Children.Add(new TextBlock { Text = chevron ?? (open ? "▾" : "▸"), Foreground = Palette.Muted, FontSize = 11, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        // The count in a small pill of the heading's colour, then the arrow
+        right.Children.Add(new Border
+        {
+            CornerRadius = new CornerRadius(8), Background = RecipeColors.Solid(accent, 0x22), Padding = new Thickness(7, 1, 7, 1), VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock { Text = Plural(count, "recipe"), Foreground = RecipeColors.Solid(accent), FontSize = 10.5 },
+        });
+        if (click is not null) right.Children.Add(new TextBlock { Text = chevron ?? (open ? "▾" : "▸"), Foreground = RecipeColors.Solid(accent), FontSize = 11, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
         dock.Children.Add(right);
-        dock.Children.Add(new TextBlock { Text = title.ToUpperInvariant(), Foreground = Palette.Text, FontSize = 11, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
-        var line = new Border { Height = 1, Background = (Brush)Ui.Theme["Stroke"], VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, -3) };
+        var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        left.Children.Add(new Border { Width = 4, Height = 14, CornerRadius = new CornerRadius(2), Background = RecipeColors.Solid(accent), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        left.Children.Add(new TextBlock { Text = title.ToUpperInvariant(), Foreground = Palette.Text, FontSize = 11.5, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+        dock.Children.Add(left);
+        var line = new Border { Height = 1, Background = RecipeColors.Solid(accent, 0x44), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, -3) };
         row.Children.Add(dock);
         row.Children.Add(line);
         row.Height = 22;
@@ -510,24 +554,53 @@ internal sealed class RecipesPanel : Border, IMiniPage
         var back = new Border { CornerRadius = new CornerRadius(7), Background = (Brush)Ui.Theme["Subtle"] };
         row.Children.Add(back);
 
-        var grid = new Grid { Margin = new Thickness(6, 6, 10, 6) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+        // The level's colour (how far into the skill it is) as a stripe at the row's edge and a tinted pill round the number
+        var accent = RecipeColors.OfLevel(r.Level);
+        row.Children.Add(new Border { Width = 3, CornerRadius = new CornerRadius(1.5), Background = RecipeColors.Solid(accent, r.Level.HasValue ? (byte)0xE0 : (byte)0x50), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 7, 0, 7) });
+
+        var grid = new Grid { Margin = new Thickness(11, 6, 10, 6) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bool known = r.Level.HasValue || LevelLabel(r) != "?";
-        var level = new TextBlock
+        var pill = new Border
         {
-            Text = LevelLabel(r), FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = known ? Palette.Gold : Palette.Muted,
-            TextAlignment = TextAlignment.Right, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top,
+            Width = 42, Height = 24, CornerRadius = new CornerRadius(6), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+            Background = RecipeColors.Solid(accent, r.Level.HasValue ? (byte)0x26 : (byte)0x18),
             ToolTip = known ? "The skill level the wiki lists this recipe as trivial at" : "The wiki doesn't list a level for this recipe yet",
+            Child = new TextBlock
+            {
+                Text = LevelLabel(r), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = RecipeColors.Solid(accent),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            },
         };
-        grid.Children.Add(level);
+        grid.Children.Add(pill);
 
         var text = new StackPanel();
         Grid.SetColumn(text, 1);
-        text.Children.Add(new TextBlock { Text = r.Title, Foreground = Palette.Text, FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-        text.Children.Add(r.Ingredients.Count > 0
-            ? new TextBlock { Text = r.IngredientLine, Foreground = Palette.Muted, FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 0) }
-            : new TextBlock { Text = "ingredients not on the wiki yet", Foreground = Palette.Muted, FontSize = 11, FontStyle = FontStyles.Italic, Margin = new Thickness(0, 1, 0, 0) });
+        // The name, with the words a search found marked, and "×4" when it makes several
+        var name = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+        AddText(name.Inlines, r.Result, Palette.Text);
+        if (r.ResultQty > 1) name.Inlines.Add(new System.Windows.Documents.Run($" ×{r.ResultQty}") { Foreground = Palette.Gold });
+        text.Children.Add(name);
+        if (r.Ingredients.Count > 0)
+        {
+            // What it takes: the amounts in gold, the names a little lighter than the commas between them
+            var takes = new TextBlock { FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0), Foreground = Palette.Muted };
+            for (int i = 0; i < r.Ingredients.Count; i++)
+            {
+                var ingredient = r.Ingredients[i];
+                if (i > 0) takes.Inlines.Add(new System.Windows.Documents.Run(", ") { Foreground = Palette.Muted });
+                takes.Inlines.Add(new System.Windows.Documents.Run(ingredient.Qty + " ") { Foreground = Palette.Gold, FontWeight = FontWeights.SemiBold });
+                AddText(takes.Inlines, ingredient.Name, RecipeColors.Ingredient);
+                if (ingredient.Or is { Length: > 0 } alternative)
+                {
+                    takes.Inlines.Add(new System.Windows.Documents.Run(" or ") { Foreground = Palette.Muted });
+                    AddText(takes.Inlines, alternative, RecipeColors.Ingredient);
+                }
+            }
+            text.Children.Add(takes);
+        }
+        else text.Children.Add(new TextBlock { Text = "ingredients not on the wiki yet", Foreground = Palette.Muted, FontSize = 11, FontStyle = FontStyles.Italic, Margin = new Thickness(0, 2, 0, 0) });
 
         // What a click opens is only built when it is first opened: most rows never are
         var more = new StackPanel { Margin = new Thickness(0, 5, 0, 0), Visibility = Visibility.Collapsed };
@@ -559,8 +632,8 @@ internal sealed class RecipesPanel : Border, IMiniPage
         void Line(string label, string value)
         {
             var t = new TextBlock { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 0) };
-            t.Inlines.Add(new System.Windows.Documents.Run(label + "  ") { Foreground = Palette.Muted });
-            t.Inlines.Add(new System.Windows.Documents.Run(value) { Foreground = Palette.Text });
+            t.Inlines.Add(new System.Windows.Documents.Run(label + "  ") { Foreground = RecipeColors.Label });
+            AddText(t.Inlines, value, Palette.Text);
             box.Children.Add(t);
         }
         if (r.Group.Length > 0) Line("Kind", r.Group);
@@ -574,10 +647,50 @@ internal sealed class RecipesPanel : Border, IMiniPage
         box.Children.Add(copy);
     }
 
-    private static void Hover(FrameworkElement row, Border back)
+    private static void Hover(FrameworkElement row, Border back, Brush? normal = null, Brush? hover = null)
     {
-        row.MouseEnter += (_, _) => back.Background = (Brush)Ui.Theme["Hover"];
-        row.MouseLeave += (_, _) => back.Background = (Brush)Ui.Theme["Subtle"];
+        var rest = normal ?? (Brush)Ui.Theme["Subtle"];
+        var lit = hover ?? (Brush)Ui.Theme["Hover"];
+        row.MouseEnter += (_, _) => back.Background = lit;
+        row.MouseLeave += (_, _) => back.Background = rest;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex LevelWord = new(@"^\d{1,3}(\s*-\s*\d{1,3})?$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>The words of the search that are looked for in the text (a level or a range of levels isn't), marked in the rows.</summary>
+    private string[] _found = [];
+
+    /// <summary>
+    /// Adds <paramref name="text"/> to a line of text, with every place a word of the search appears marked (a tinted background), so it is plain why a recipe
+    /// is in the list. With no search it is one plain piece.
+    /// </summary>
+    private void AddText(System.Windows.Documents.InlineCollection inlines, string text, Brush foreground)
+    {
+        if (_found.Length == 0 || text.Length == 0)
+        {
+            inlines.Add(new System.Windows.Documents.Run(text) { Foreground = foreground });
+            return;
+        }
+        var marks = new List<(int Start, int End)>();
+        foreach (var word in _found)
+            for (int at = text.IndexOf(word, StringComparison.OrdinalIgnoreCase); at >= 0; at = text.IndexOf(word, at + word.Length, StringComparison.OrdinalIgnoreCase))
+                marks.Add((at, at + word.Length));
+        if (marks.Count == 0)
+        {
+            inlines.Add(new System.Windows.Documents.Run(text) { Foreground = foreground });
+            return;
+        }
+        marks.Sort();
+        int pos = 0;
+        foreach (var (start, end) in marks)
+        {
+            if (end <= pos) continue;
+            int from = Math.Max(start, pos);
+            if (from > pos) inlines.Add(new System.Windows.Documents.Run(text[pos..from]) { Foreground = foreground });
+            inlines.Add(new System.Windows.Documents.Run(text[from..end]) { Foreground = Palette.Text, Background = RecipeColors.Found });
+            pos = end;
+        }
+        if (pos < text.Length) inlines.Add(new System.Windows.Documents.Run(text[pos..]) { Foreground = foreground });
     }
 
     // ------------------------------------------------------------------ choosing

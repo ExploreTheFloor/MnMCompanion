@@ -138,6 +138,26 @@ public class RecipeTests
     [Fact]
     public void No_recipes_make_no_bands() => Assert.Empty(RecipeLevels.Bands([]));
 
+    [Theory]
+    [InlineData(null, -1)]
+    [InlineData(0, 0)]
+    [InlineData(50, 0)]
+    [InlineData(51, 1)]
+    [InlineData(100, 1)]
+    [InlineData(101, 2)]
+    [InlineData(150, 2)]
+    [InlineData(151, 3)]
+    [InlineData(200, 3)]
+    [InlineData(201, 4)]
+    [InlineData(250, 4)]
+    [InlineData(251, 5)]
+    [InlineData(300, 5)]
+    public void A_level_has_a_tier_for_its_colour(int? level, int tier)
+    {
+        Assert.Equal(tier, RecipeLevels.Tier(level));
+        Assert.InRange(RecipeLevels.Tier(level), -1, RecipeLevels.Tiers - 1);
+    }
+
     // ---------------------------------------------------------------- search
 
     private static List<string> Find(string? query, string? skill = null) =>

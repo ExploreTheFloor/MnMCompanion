@@ -332,7 +332,7 @@ internal sealed class PanelWindow : Window
         var recipes = new MenuItem
         {
             Header = "Load the recipe list from the community wiki (uses monstersandmemories.wiki)", IsCheckable = true, IsChecked = _settings.RecipesOnline,
-            ToolTip = "The Recipes page shows the community wiki's tradeskill recipes. Loading them asks the wiki for its public list (about once a week), so that site sees your internet address. The list is kept on this PC. Off by default.",
+            ToolTip = "The Recipes page shows the community wiki's tradeskill recipes. It loads them by itself the first time you open the page and about once a week after that, so that site sees your internet address (nothing from your game or ledger is sent). The list is kept on this PC. Untick it and the wiki is never asked.",
         };
         recipes.Click += (_, _) => { _settings.RecipesOnline = recipes.IsChecked; _settings.Save(); _recipes.Refresh(); };
         menu.Items.Add(recipes);
