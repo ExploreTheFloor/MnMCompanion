@@ -277,6 +277,8 @@ The strip at the top chooses **when**: **Today**, **Yesterday**, **7 days**, **3
 
 At the top of the Loot tab and of the Loot page are two figures. **Total** is what the whole group looted: every purse once, whole, plus what a vendor would pay for all the items. **Ours** is what reached *you*: your coin (in a group only your shares of the split purses, your own included; the purses you looted alone, whole) plus what a vendor would pay for the items you looted. Each has its coin and items underneath.
 
+**Click either figure to copy the coin as one line**, ready to paste into chat: *Coin looted: 1gp 27sp 84cp | My split: 20sp 50cp | My share: 16%*. That is all the coin the group looted (every purse once, whole), what reached you of it (your split) and your share of the group's coin as a percentage. A `~` before your split and your share says some of it is estimated, as on the figure itself. The window's status line says it was copied, and the same two figures copy the same line in the **History** window's Loot page (on a day, not on one player).
+
 The Loot page has three columns:
 
 - **Left: the days.** Every day you have loot for, with the day's total, and a **search box** for a player, item or monster. Typing narrows the days to the ones that have it, and puts an **All days** row first that adds up what was found across *every* day (see below).

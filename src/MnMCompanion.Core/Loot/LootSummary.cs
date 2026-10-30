@@ -161,6 +161,23 @@ public static class LootSummary
     public static string Worth(long copper, bool approximate, bool more) => (approximate ? "~" : "") + Coin(copper) + (more ? "+" : "");
 
     /// <summary>
+    /// The coin at the top of the windows on one line, to paste into chat: all the coin the group looted (every purse once, whole), what reached you of it
+    /// (<see cref="LootOurs.Copper"/>: your shares of divided purses, your own purses whole when you were alone) and that as a share of the group's coin.
+    /// "Coin looted: 8gp 95sp 1cp | My split: 1gp 78sp 3cp | My share: 19.9%". A "~" says some of your share was estimated (see <see cref="LootOurs.EstimatedShares"/>).
+    /// <paramref name="mine"/> is false when nothing in view is yours, so there is no split to give yet.
+    /// </summary>
+    public static string CoinLine(long groupCopper, LootOurs ours, bool mine)
+    {
+        var line = "Coin looted: " + Coin(groupCopper);
+        if (!mine) return line + " | My split: none yet";
+        var estimate = ours.EstimatedShares > 0 ? "~" : "";
+        line += $" | My split: {estimate}{Coin(ours.Copper)}";
+        if (groupCopper <= 0) return line;
+        var share = Math.Min(100.0, Math.Round(100.0 * ours.Copper / groupCopper, 1, MidpointRounding.AwayFromZero));
+        return line + $" | My share: {estimate}{share.ToString("0.#", CultureInfo.InvariantCulture)}%";
+    }
+
+    /// <summary>
     /// "12 items"; "12+ items" when the ledger left out the items of some of their corpses (<see cref="LootMember.Unrecorded"/>: a monster with an apostrophe in
     /// its name); "items not recorded" when none of their items were recorded, since "0 items" would say they took none.
     /// </summary>

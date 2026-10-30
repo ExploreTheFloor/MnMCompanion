@@ -32,7 +32,9 @@ internal sealed class LootPanel : Border, IMiniPage
     private readonly TextBlock _sub = new() { FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
     // The two figures at the top: what reached the ledger's owner, and what the whole group looted
     private readonly TextBlock _ours = Figure(), _oursNote = Note(), _total = Figure(), _totalNote = Note();
-    private readonly StackPanel _oursBlock, _totalBlock;
+    private readonly FrameworkElement _oursBlock, _totalBlock;
+    // The coin at the top as one line to paste, copied by a click on either figure
+    private string _coinLine = "";
     // The Value tab's copy buttons, in the session chip's row
     private readonly Border _copyHost = new();
     private readonly Button _scope = new() { Style = (Style)Ui.Theme["TextButton"], HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(9, 4, 9, 4) };
@@ -94,13 +96,33 @@ internal sealed class LootPanel : Border, IMiniPage
 
     private static TextBlock Note() => new() { FontSize = 10, Foreground = Palette.Muted, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, -1, 0, 0) };
 
-    private static StackPanel Block(string label, TextBlock figure, TextBlock note)
+    /// <summary>
+    /// One of the two figures at the top. A click copies the coin as one line (<see cref="CopyCoinLine"/>), the same from either figure, so it is a
+    /// <see cref="ClickRow"/>: it has a hand cursor, lights up under the pointer and can be invoked without a mouse.
+    /// </summary>
+    private FrameworkElement Block(string label, TextBlock figure, TextBlock note)
     {
-        var block = new StackPanel { Margin = new Thickness(0, 0, 8, 0), Background = Brushes.Transparent };
-        block.Children.Add(new TextBlock { Text = label, FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = Palette.Muted });
-        block.Children.Add(figure);
-        block.Children.Add(note);
+        var stack = new StackPanel { Margin = new Thickness(4, 1, 4, 2) };
+        stack.Children.Add(new TextBlock { Text = label, FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = Palette.Muted });
+        stack.Children.Add(figure);
+        stack.Children.Add(note);
+        var back = new Border { CornerRadius = new CornerRadius(6), Background = Brushes.Transparent };
+        // The padding is taken back from the margin so the text stays where it was (the row is no taller than before)
+        var block = new ClickRow { Margin = new Thickness(-4, -1, 4, -2), Background = Brushes.Transparent, Cursor = Cursors.Hand, Activate = CopyCoinLine };
+        System.Windows.Automation.AutomationProperties.SetName(block, $"{label}: copy the coin as one line");
+        block.Children.Add(back);
+        block.Children.Add(stack);
+        block.MouseEnter += (_, _) => back.Background = (Brush)Ui.Theme["Hover"];
+        block.MouseLeave += (_, _) => back.Background = Brushes.Transparent;
+        block.MouseLeftButtonUp += (_, _) => CopyCoinLine();
         return block;
+    }
+
+    /// <summary>Puts the coin line (the group's coin, your split and your share of it) on the clipboard and says so in the status line.</summary>
+    private void CopyCoinLine()
+    {
+        if (_coinLine.Length == 0) return;
+        _status.Text = ClipboardText.Copy(_coinLine) ? "Copied the coin line to the clipboard." : "The clipboard is busy: try again.";
     }
 
     /// <summary>An icon button whose tooltip, in the app's dark style, names the action in bold and says what it does under it.</summary>
@@ -162,10 +184,12 @@ internal sealed class LootPanel : Border, IMiniPage
         _sub.Text = $"{Plural(totals.Mobs, "mob")} · {(d.Unrecorded > 0 ? $"{totals.Items:N0}+ items" : Plural(totals.Items, "item"))} · {Plural(d.Members.Count, "looter")}";
         var ours = d.Ours;
         bool mine = d.Members.Any(m => m.You);
+        _coinLine = LootSummary.CoinLine(totals.Copper, ours, mine);
+        const string Click = "Click to copy the coin as one line: ";
         _total.Text = LootSummary.Worth(d.Total, d.Approximate, d.Unpriced > 0 || d.Unrecorded > 0);
         _totalNote.Text = $"coin {LootSummary.Coin(totals.Copper)} + items {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unrecorded > 0)}";
         _totalBlock.ToolTip = $"Everyone's: coin {LootSummary.Coin(totals.Copper)} (every purse counted once, whole) plus what a vendor would pay for the items: {LootSummary.Worth(d.ItemValue, d.Approximate, d.Unpriced > 0)}" + Environment.NewLine +
-                              $"{d.Priced:N0} items priced from your vendor sales, {d.Estimated:N0} valued by their family (~), {d.Unpriced:N0} with no known price (not counted, +)";
+                              $"{d.Priced:N0} items priced from your vendor sales, {d.Estimated:N0} valued by their family (~), {d.Unpriced:N0} with no known price (not counted, +)" + Environment.NewLine + Click + _coinLine;
         _ours.Text = mine ? LootSummary.Worth(ours.Total, ours.Approximate, ours.Unpriced > 0 || ours.Unrecorded > 0) : "—";
         _oursNote.Text = mine ? $"coin {(ours.EstimatedShares > 0 ? "~" : "")}{LootSummary.Coin(ours.Copper)} + items {LootSummary.Worth(ours.ItemValue, ours.Estimated > 0, ours.Unrecorded > 0)}" : "nothing of yours yet";
         _oursBlock.ToolTip = mine
@@ -173,6 +197,7 @@ internal sealed class LootPanel : Border, IMiniPage
               (totals.Share > 0 ? $"; {LootSummary.Coin(totals.Share)} of the purses reached you as splits" : "") + $") plus what a vendor would pay for the {Plural(ours.Items, "item")} you looted: {LootSummary.Worth(ours.ItemValue, ours.Estimated > 0, ours.Unpriced > 0)}" +
               (ours.EstimatedShares > 0 ? Environment.NewLine + $"The ledger doesn't say what you were handed of the {ours.EstimatedShares:N0} purses you looted in a group, so those shares are estimated (~) from what you got of other players' purses." : "")
             : "Nothing has reached you yet in this view: no coin and no items.";
+        _oursBlock.ToolTip += Environment.NewLine + Click + _coinLine;
         var first = all.Count > 0 ? all.Min(e => e.Time) : (DateTime?)null;
         // Trimmed rather than pushing the copy buttons off the row when the label is long
         _scope.Content = new TextBlock { Text = (session is null ? "Whole day" : session.Open ? "This session: " + session.Label(first) : "Session " + session.Label(first)) + "  ▾", TextTrimming = TextTrimming.CharacterEllipsis };

@@ -104,7 +104,7 @@ The list is kept on this PC, so the page works offline, and the wiki is asked ag
 A recipe's level is the wiki's *trivial* number, and a **?** means the wiki doesn't have one yet. See [The Recipes page](../README.md#the-recipes-page).
 
 ### Can I paste any of it into chat?
-Yes: pages have **Copy** buttons that put the figures on the clipboard as text.
+Yes: pages have **Copy** buttons that put the figures on the clipboard as text. Click the **Ours** or **Total** figure at the top of the Loot page to copy the coin on one line: all the coin looted, your split and your share of it.
 
 ### Does it have timers?
 Yes, two kinds, and every part of them starts switched off: nothing runs, no key is taken and no sound plays until you set something up. You can name your own timers (a buff, a cooldown, food), give each a length, a key that starts it and a sound for when it ends. And you can turn on a timer for **every corpse

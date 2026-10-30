@@ -52,6 +52,8 @@ public partial class LootHistoryPage : UserControl
     {
         Resources.MergedDictionaries.Add(Ui.Theme);
         InitializeComponent();
+        HeadFigures.Background = Brushes.Transparent;
+        HeadFigures.MouseLeftButtonUp += (_, _) => CopyCoinLine();
         _store = store;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += (_, _) => Tick();
@@ -395,6 +397,8 @@ public partial class LootHistoryPage : UserControl
         var both = day is not null;
         HeadOursBox.Visibility = HeadBigLabel.Visibility = both ? Visibility.Visible : Visibility.Collapsed;
         HeadBig.ToolTip = both ? "Everyone's: every purse counted once, whole, plus what a vendor would pay for all the items" : null;
+        HeadFigures.Cursor = both ? System.Windows.Input.Cursors.Hand : null;
+        _coinLine = null;
 
         // Alone, the number sits at the right of the name; as a pair, under it and left-aligned
         var align = both ? HorizontalAlignment.Left : HorizontalAlignment.Right;
@@ -407,12 +411,29 @@ public partial class LootHistoryPage : UserControl
         if (day is null) return;
         var ours = day.Ours;
         bool mine = day.Members.Any(m => m.You);
+        _coinLine = LootSummary.CoinLine(day.Totals.Copper, ours, mine);
+        const string Click = "Click to copy the coin as one line: ";
+        HeadBig.ToolTip += Environment.NewLine + Click + _coinLine;
         HeadOurs.Text = mine ? LootSummary.Worth(ours.Total, ours.Approximate, ours.Unpriced > 0 || ours.Unrecorded > 0) : "—";
         HeadOursCaption.Text = mine ? $"coin {(ours.EstimatedShares > 0 ? "~" : "")}{LootSummary.Coin(ours.Copper)} + items {LootSummary.Worth(ours.ItemValue, ours.Estimated > 0, ours.Unrecorded > 0)}" : "nothing of yours yet";
         HeadOursBox.ToolTip = mine
             ? "What reached you: your coin (in a group, only your shares of the purses, your own included; the purses you looted alone, whole) and what a vendor would pay for the items you looted" +
               (ours.EstimatedShares > 0 ? Environment.NewLine + $"The ledger doesn't say what you were handed of the {ours.EstimatedShares:N0} purses you looted in a group, so those shares are estimated (~) from what you got of other players' purses." : "")
             : "Nothing has reached you in this view: no coin and no items";
+        HeadOursBox.ToolTip += Environment.NewLine + Click + _coinLine;
+    }
+
+    /// <summary>The coin at the top of a day on one line (the group's coin, your split, your share of it), put on the clipboard by a click on either figure.</summary>
+    private string? _coinLine;
+
+    private void CopyCoinLine()
+    {
+        if (_coinLine is null) return;
+        var done = ClipboardText.Copy(_coinLine);
+        HeadOursLabel.Text = HeadBigLabel.Text = done ? "COPIED" : "CLIPBOARD BUSY";
+        var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1400) };
+        t.Tick += (_, _) => { t.Stop(); HeadOursLabel.Text = "OURS"; HeadBigLabel.Text = "TOTAL"; };
+        t.Start();
     }
 
     private void ShowNothing(string title = "No loot yet", string name = "Nothing looted yet", string sub = "Loot shows up here as the game writes it to its ledger.")
