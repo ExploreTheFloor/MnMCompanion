@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Windows;
 using MnMCompanion.Update;
 
 namespace MnMCompanion;
@@ -34,6 +33,9 @@ internal sealed class UpdateController : IDisposable
     }
 
     public event Action? Changed;
+
+    /// <summary>The new program has been put in place and started: this one should close now.</summary>
+    public event Action? ExitRequested;
 
     public UpdateState State { get; private set; } = UpdateState.Idle;
     public UpdateOffer? Offer { get; private set; }
@@ -161,7 +163,7 @@ internal sealed class UpdateController : IDisposable
             Set(UpdateState.Installing, "Installing and restarting…");
             // --updated: the new program waits for this one to exit before it takes the timers' keys
             UpdateService.Apply(file, _exe!, exe => Process.Start(new ProcessStartInfo(exe, "--updated") { UseShellExecute = true }) is not null);
-            Application.Current.Shutdown();
+            ExitRequested?.Invoke();
         }
         catch (UpdateException ex)
         {

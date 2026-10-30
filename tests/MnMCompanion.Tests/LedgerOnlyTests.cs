@@ -8,7 +8,8 @@ namespace MnMCompanion.Tests;
 /// <c>src\MnMCompanion.Update</c> asks GitHub whether a newer version of this app exists (the only project that may use the network,
 /// and only github.com and api.github.com). A third is the map: the app itself carries one package, the system's web view, to show the
 /// community atlas's map of the zone the ledger says the character is in, only once the player has chosen to (Settings.MapsOnline); the atlas's
-/// address lives in the update project like the others. A fourth is the Recipes page: the community wiki's public tradeskills data is fetched (one
+/// address lives in the update project like the others. The same app drawn with Avalonia for Linux (<c>src\MnMCompanion.Desktop</c>) carries Avalonia's packages
+/// and nothing else: the toolkit that draws its windows, and its web view (the system's own, WebKitGTK on Linux) for the same map. A fourth is the Recipes page: the community wiki's public tradeskills data is fetched (one
 /// GET, by the update project's RecipeWikiClient) when the page is first shown and then at most once a day, unless the player switched it off (Settings.RecipesOnline),
 /// and kept on this PC. Everything else,
 /// the Core included, stays free of all of them. (The community data is to live in an open repository on GitHub, and reading or sharing it is where
@@ -33,7 +34,7 @@ public class LedgerOnlyTests
 
     private static IEnumerable<string> Sources() =>
         Directory.EnumerateFiles(Path.Combine(Root(), "src"), "*.*", SearchOption.AllDirectories)
-            .Where(f => f.EndsWith(".cs") || f.EndsWith(".xaml") || f.EndsWith(".csproj"))
+            .Where(f => f.EndsWith(".cs") || f.EndsWith(".xaml") || f.EndsWith(".axaml") || f.EndsWith(".csproj"))
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"));
 
     /// <summary>The project that keeps the app's own database.</summary>
@@ -44,6 +45,9 @@ public class LedgerOnlyTests
 
     /// <summary>The app itself, which shows the community atlas's map of the zone in a web view (the only package it has).</summary>
     private static bool InApp(string file) => file.EndsWith($"{Path.DirectorySeparatorChar}MnMCompanion{Path.DirectorySeparatorChar}MnMCompanion.csproj");
+
+    /// <summary>The app drawn with Avalonia (for Linux), whose packages are Avalonia's own: the toolkit and its web view.</summary>
+    private static bool InDesktopApp(string file) => file.EndsWith($"{Path.DirectorySeparatorChar}MnMCompanion.Desktop{Path.DirectorySeparatorChar}MnMCompanion.Desktop.csproj");
 
     /// <summary>What the data project may mention that the rest may not.</summary>
     private static readonly string[] DatabaseWords = ["Sqlite"];
@@ -77,6 +81,7 @@ public class LedgerOnlyTests
             var packages = text.Split('\n').Where(l => l.Contains("PackageReference")).ToList();
             if (InData(project)) Assert.All(packages, l => Assert.Contains("Microsoft.Data.Sqlite", l));
             else if (InApp(project)) Assert.All(packages, l => Assert.Contains("Microsoft.Web.WebView2", l));
+            else if (InDesktopApp(project)) Assert.All(packages, l => Assert.Matches("Include=\"Avalonia(\\.(Desktop|Themes\\.Fluent|Fonts\\.Inter|Controls\\.WebView))?\"", l));
             else Assert.Empty(packages);
             foreach (var line in text.Split('\n').Where(l => l.Contains("ProjectReference")))
                 Assert.True(line.Contains("MnMCompanion.Core") || line.Contains("MnMCompanion.Data") || line.Contains("MnMCompanion.Update"), line);

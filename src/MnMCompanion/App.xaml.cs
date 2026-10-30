@@ -75,9 +75,10 @@ public partial class App : Application
         }
 
         _updates = new UpdateController(_settings) { Busy = () => _timers?.AnyRunning == true };
+        _updates.ExitRequested += Shutdown;
         _history = new HistoryData(() => _store.LedgerRoot, OtherDb(args));
         _community = new CommunityClient(AppVersion.Current());
-        _sharing = new SharingController(_settings, _history, _community);
+        _sharing = new SharingController(_settings, _history, _community, Dispatcher.Invoke);
         CommunityAccess.Reader = new CommunityReader(_settings, _history, _community);
         _panel = new PanelWindow(_store, _settings, _updates, _history);
         MainWindow = _panel;
