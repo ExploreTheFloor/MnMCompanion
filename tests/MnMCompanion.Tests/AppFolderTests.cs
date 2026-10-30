@@ -55,7 +55,7 @@ public class AppFolderTests
         Assert.Equal("old", File.ReadAllText(Path.Combine(root.Path, "LootWindow", "ledger.db")));
     }
 
-    [Fact]
+    [WindowsFact]
     public void A_file_still_open_keeps_the_old_folder_in_use_instead_of_starting_an_empty_one()
     {
         using var root = new Scratch();

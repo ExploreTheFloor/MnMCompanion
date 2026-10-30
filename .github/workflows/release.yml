@@ -1,9 +1,11 @@
 name: Release
 
 # Builds Companion from a version tag, has SignPath sign it (once signing is switched on, see below), and publishes the release the
-# in-app updater reads: MnMCompanion.exe and MnMCompanion.exe.sha256.
+# in-app updater reads: MnMCompanion.exe and MnMCompanion.exe.sha256. The Linux app goes in the same release as
+# MnMCompanion-linux-x64.tar.gz and its .sha256 (not signed; the updater only looks for the .exe).
 #
-# To release: raise <Version> in src/MnMCompanion/MnMCompanion.csproj, commit, push, then push a tag with the same number:
+# To release: raise <Version> in src/MnMCompanion/MnMCompanion.csproj and src/MnMCompanion.Desktop/MnMCompanion.Desktop.csproj, commit,
+# push, then push a tag with the same number:
 #     git tag v0.3.0 && git push origin v0.3.0
 #
 # Signing is OFF until the repository variable SIGNING_ENABLED is true (Settings > Secrets and variables > Actions > Variables).
@@ -78,6 +80,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: The tag must be the version in the Linux project
+        run: |
+          project=src/MnMCompanion.Desktop/MnMCompanion.Desktop.csproj
+          version=$(grep -oPm1 '(?<=<Version>)[^<]+' "$project")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then echo "The tag is $GITHUB_REF_NAME but $project's <Version> is $version." >&2; exit 1; fi
+
+      - name: Test
+        run: dotnet test MnMCompanion.sln --nologo -v q -c Release
+
+      - name: Publish the single-file program
+        run: scripts/build-linux.sh dist
+
+      # packed here: an artifact loses the file's execute permission, a tar keeps it
+      - name: Pack it with its checksum
+        run: |
+          tar -czf MnMCompanion-linux-x64.tar.gz -C dist MnMCompanion
+          sha256sum MnMCompanion-linux-x64.tar.gz > MnMCompanion-linux-x64.tar.gz.sha256
+          ls -l MnMCompanion-linux-x64.tar.gz
+
+      - name: Keep it for the release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MnMCompanion-linux-x64
+          path: |
+            MnMCompanion-linux-x64.tar.gz
+            MnMCompanion-linux-x64.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
   sign:
     needs: build
     if: ${{ vars.SIGNING_ENABLED == 'true' }}
@@ -113,9 +152,9 @@ jobs:
           retention-days: 14
 
   release:
-    needs: [build, sign]
+    needs: [build, build-linux, sign]
     # unsigned only when signing is off; with signing on, nothing is published unless it was signed
-    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.sign.result == 'success' || (needs.sign.result == 'skipped' && vars.SIGNING_ENABLED != 'true')) }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build-linux.result == 'success' && (needs.sign.result == 'success' || (needs.sign.result == 'skipped' && vars.SIGNING_ENABLED != 'true')) }}
     runs-on: windows-latest
     permissions:
       contents: write
@@ -123,6 +162,11 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.sign.result == 'success' && 'signed-MnMCompanion' || 'unsigned-MnMCompanion' }}
+          path: release
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: MnMCompanion-linux-x64
           path: release
 
       - name: Checksum and release
@@ -135,7 +179,8 @@ jobs:
           $exe = Join-Path release 'MnMCompanion.exe'
           $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
           "$hash  MnMCompanion.exe" | Set-Content "$exe.sha256" -Encoding ascii
-          $notes = "Companion $env:VERSION`n`nDownload **MnMCompanion.exe** and run it; nothing needs installing. To check the download: ``(Get-FileHash MnMCompanion.exe).Hash`` should equal the digits in **MnMCompanion.exe.sha256**."
+          $notes = "Companion $env:VERSION`n`nDownload **MnMCompanion.exe** and run it; nothing needs installing. To check the download: ``(Get-FileHash MnMCompanion.exe).Hash`` should equal the digits in **MnMCompanion.exe.sha256**.`n`nOn Linux: download **MnMCompanion-linux-x64.tar.gz**, unpack it and run ``./MnMCompanion`` (the Map page needs WebKitGTK, webkit2gtk-4.1). ``sha256sum -c MnMCompanion-linux-x64.tar.gz.sha256`` checks the download."
           if ($env:SIGNED -eq 'true') { $notes += "`n`nFree code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)." }
-          gh release create $env:GITHUB_REF_NAME $exe "$exe.sha256" --repo $env:GITHUB_REPOSITORY --title "Companion $env:VERSION" --notes $notes --generate-notes
+          $linux = Join-Path release 'MnMCompanion-linux-x64.tar.gz'
+          gh release create $env:GITHUB_REF_NAME $exe "$exe.sha256" $linux "$linux.sha256" --repo $env:GITHUB_REPOSITORY --title "Companion $env:VERSION" --notes $notes --generate-notes
           if ($LASTEXITCODE) { throw 'Creating the GitHub release failed.' }

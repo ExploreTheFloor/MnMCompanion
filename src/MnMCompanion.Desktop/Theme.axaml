@@ -1,0 +1,234 @@
+<!-- The app's dark look, the same as the Windows build's Theme.xaml and Menus.xaml: each keyed style there is a class here
+     (IconButton is Button.icon, Segment is RadioButton.segment, TextButton is Button.text, Field is TextBox.field, HeaderButton is Button.header,
+     Tile is Border.tile, NavItem is ListBoxItem.nav). -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <SolidColorBrush x:Key="Surface" Color="#F00F1115"/>
+        <SolidColorBrush x:Key="Stroke" Color="#1FFFFFFF"/>
+        <SolidColorBrush x:Key="Subtle" Color="#12FFFFFF"/>
+        <SolidColorBrush x:Key="Hover" Color="#22FFFFFF"/>
+        <SolidColorBrush x:Key="Text" Color="#F2F4F7"/>
+        <SolidColorBrush x:Key="Muted" Color="#8B93A1"/>
+        <SolidColorBrush x:Key="Accent" Color="#5B9DFF"/>
+        <SolidColorBrush x:Key="Danger" Color="#FF6B6B"/>
+        <SolidColorBrush x:Key="Good" Color="#3DD68C"/>
+        <SolidColorBrush x:Key="Window" Color="#0F1115"/>
+        <SolidColorBrush x:Key="Panel" Color="#161920"/>
+        <SolidColorBrush x:Key="Selected" Color="#2A5B9DFF"/>
+        <SolidColorBrush x:Key="TipBackground" Color="#F7181B22"/>
+        <FontFamily x:Key="Icons">avares://MnMCompanion/Assets#lucide</FontFamily>
+        <Color x:Key="SystemAccentColor">#5B9DFF</Color>
+    </Styles.Resources>
+
+    <Style Selector="Window">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+
+    <!-- A small square button with a picture: the title bars, the day arrows, the copy buttons -->
+    <Style Selector=":is(Button).icon">
+        <Setter Property="Width" Value="26"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+        <Setter Property="FontFamily" Value="{StaticResource Icons}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="Transparent" CornerRadius="6">
+                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector=":is(Button).icon:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style Selector=":is(Button).icon:pointerover /template/ Border#Bd">
+        <Setter Property="Background" Value="{StaticResource Hover}"/>
+    </Style>
+    <Style Selector="ToggleButton.icon:checked">
+        <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+    </Style>
+    <Style Selector="ToggleButton.icon:checked /template/ Border#Bd">
+        <Setter Property="Background" Value="#335B9DFF"/>
+    </Style>
+    <Style Selector=":is(Button).icon:disabled">
+        <Setter Property="Opacity" Value="0.35"/>
+    </Style>
+
+    <!-- One of a row of tabs -->
+    <Style Selector="RadioButton.segment">
+        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="Transparent" CornerRadius="6" Padding="0,5">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.segment:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style Selector="RadioButton.segment:checked">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style Selector="RadioButton.segment:checked /template/ Border#Bd">
+        <Setter Property="Background" Value="{StaticResource Hover}"/>
+    </Style>
+
+    <!-- A button with words on it -->
+    <Style Selector="Button.text">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{StaticResource Subtle}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.text:pointerover /template/ Border#Bd">
+        <Setter Property="Background" Value="{StaticResource Hover}"/>
+    </Style>
+    <Style Selector="Button.text:disabled">
+        <Setter Property="Opacity" Value="0.4"/>
+    </Style>
+
+    <!-- A text box -->
+    <Style Selector="TextBox.field">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource Text}"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Background" Value="{StaticResource Subtle}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBox.field:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{StaticResource Subtle}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+    </Style>
+    <Style Selector="TextBox.field:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{StaticResource Subtle}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="TextBox.field:focus">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+    <Style Selector="TextBox.field /template/ TextBlock#PART_Watermark, TextBox.field /template/ TextBlock#PART_FloatingWatermark">
+        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    </Style>
+
+    <Style Selector="TextBlock.label">
+        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Margin" Value="0,10,0,4"/>
+    </Style>
+
+    <!-- Sortable table header -->
+    <Style Selector="Button.header">
+        <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="Transparent" Padding="8,6">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.header:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    </Style>
+
+    <Style Selector="Border.tile">
+        <Setter Property="Background" Value="{StaticResource Panel}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="Margin" Value="0,0,10,10"/>
+        <Setter Property="Width" Value="176"/>
+    </Style>
+
+    <!-- The History window's list of pages and days -->
+    <Style Selector="ListBox.nav">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+    <Style Selector="ListBox.nav > ListBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="Transparent" CornerRadius="8" Padding="10,7" Margin="0,1">
+                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ListBox.nav > ListBoxItem:pointerover /template/ Border#Bd">
+        <Setter Property="Background" Value="{StaticResource Subtle}"/>
+    </Style>
+    <Style Selector="ListBox.nav > ListBoxItem:selected /template/ Border#Bd">
+        <Setter Property="Background" Value="{StaticResource Selected}"/>
+    </Style>
+
+    <!-- Tooltips and menus, dark -->
+    <Style Selector="ToolTip">
+        <Setter Property="Background" Value="{StaticResource TipBackground}"/>
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="MaxWidth" Value="440"/>
+    </Style>
+    <Style Selector="ToolTip TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{StaticResource TipBackground}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="CornerRadius" Value="5"/>
+    </Style>
+    <Style Selector="MenuItem:disabled">
+        <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+
+    <Style Selector="ProgressBar">
+        <Setter Property="MinHeight" Value="4"/>
+    </Style>
+</Styles>

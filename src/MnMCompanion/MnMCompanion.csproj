@@ -4,6 +4,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- so the whole solution builds on Linux too (src\MnMCompanion.Desktop is the build that runs there); this one only runs on Windows -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

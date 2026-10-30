@@ -10,7 +10,8 @@ public sealed record FoundGameFolder(string Root, int Characters, DateTime LastA
 /// Finding the game's data when this program runs under Wine or Proton (a Linux player). The game keeps its data in <c>AppData\LocalLow\...</c> inside ITS
 /// Wine prefix, and a program started as another Steam non-Steam game gets a prefix of its own, so the usual place is empty. Wine shows the Linux
 /// filesystem as the <c>Z:</c> drive, so the other prefixes can be looked through from here: Steam's (<c>compatdata\&lt;number&gt;\pfx</c>, in the
-/// Steam folder, its Flatpak and any other Steam library), UMU's (<c>Games\umu\*</c>), Lutris's (<c>Games\*</c>) and the plain <c>.wine</c>. Nothing is
+/// Steam folder, its Flatpak and any other Steam library), UMU's (<c>Games\umu\*</c>), Heroic's (<c>Games\Heroic\Prefixes\*</c>), Bottles's
+/// (<c>.local\share\bottles\bottles\*</c> and its Flatpak), Lutris's (<c>Games\*</c>) and the plain <c>.wine</c>. Nothing is
 /// ever written; a folder counts only if characters with a ledger or the game's usual files are in it.
 /// </summary>
 public static partial class GameFolderFinder
@@ -20,6 +21,12 @@ public static partial class GameFolderFinder
     private static readonly string[] SteamFolders =
     [
         ".local/share/Steam", ".steam/steam", ".steam/root", ".var/app/com.valvesoftware.Steam/.local/share/Steam", ".var/app/com.valvesoftware.Steam/data/Steam",
+    ];
+
+    // Heroic keeps a prefix per game in Prefixes/default (older versions straight in Prefixes); Bottles keeps one per bottle, also as a Flatpak
+    private static readonly string[] PrefixFolders =
+    [
+        "Games/Heroic/Prefixes", "Games/Heroic/Prefixes/default", ".local/share/bottles/bottles", ".var/app/com.usebottles.bottles/data/bottles/bottles",
     ];
 
     /// <summary>
@@ -82,6 +89,7 @@ public static partial class GameFolderFinder
                     foreach (var app in Dirs(Path.Combine(library, "steamapps", "compatdata")))
                         yield return Path.Combine(app, "pfx");
             foreach (var umu in Dirs(InHome(home, "Games/umu"))) yield return umu;
+            foreach (var prefix in PrefixFolders.SelectMany(f => Dirs(InHome(home, f)))) yield return prefix;
             foreach (var game in Dirs(InHome(home, "Games")))
             {
                 yield return game;                              // Lutris keeps a prefix per game

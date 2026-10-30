@@ -1,4 +1,3 @@
-using System.Windows;
 using MnMCompanion.Community;
 using MnMCompanion.Update;
 
@@ -11,7 +10,8 @@ namespace MnMCompanion;
 /// refusal or a failure it waits instead of trying again at once. It never throws and never blocks the window; what happened last is a
 /// sentence in <see cref="Settings.ShareNote"/>, shown in the sharing window.
 /// </summary>
-internal sealed class SharingController(Settings settings, HistoryData history, CommunityClient client) : IDisposable
+/// <param name="onUi">Runs an action on the window's thread (and waits for it), where the settings are written.</param>
+internal sealed class SharingController(Settings settings, HistoryData history, CommunityClient client, Action<Action> onUi) : IDisposable
 {
     private readonly CancellationTokenSource _stop = new();
     private readonly string _app = "MnMCompanion " + AppVersion.Show(AppVersion.Current());
@@ -175,7 +175,7 @@ internal sealed class SharingController(Settings settings, HistoryData history, 
             settings.SharedTradesFingerprint = fingerprint;
             settings.Save();
         }
-        if (Application.Current?.Dispatcher is { } d) d.Invoke(Write); else Write();
+        onUi(Write);
     }
 
     /// <summary>Notes (on the window's thread) that the dialogue went and what it looked like, so an unchanged one isn't sent again.</summary>
@@ -187,7 +187,7 @@ internal sealed class SharingController(Settings settings, HistoryData history, 
             settings.SharedNpcFingerprint = fingerprint;
             settings.Save();
         }
-        if (Application.Current?.Dispatcher is { } d) d.Invoke(Write); else Write();
+        onUi(Write);
     }
 
     /// <summary>Notes what happened (and a successful send) in the settings, on the window's thread.</summary>
@@ -200,7 +200,7 @@ internal sealed class SharingController(Settings settings, HistoryData history, 
             if (fingerprint is not null) settings.SharedFingerprint = fingerprint;
             settings.Save();
         }
-        if (Application.Current?.Dispatcher is { } d) d.Invoke(Write); else Write();
+        onUi(Write);
     }
 
     public void Dispose()

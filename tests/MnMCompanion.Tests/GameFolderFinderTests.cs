@@ -4,7 +4,7 @@ namespace MnMCompanion.Tests;
 
 /// <summary>
 /// Finding the game's data from inside Wine or Proton, where the usual place is empty because the game lives in another prefix. The Linux filesystem is a
-/// scratch folder here, laid out the way Steam, UMU and Lutris lay theirs out.
+/// scratch folder here, laid out the way Steam, UMU, Heroic, Bottles and Lutris lay theirs out.
 /// </summary>
 public class GameFolderFinderTests
 {
@@ -45,9 +45,13 @@ public class GameFolderFinderTests
             "home/d/Games/monsters-memories",                                                        // Lutris, one folder a game
             "home/e/Games/monsters-memories-2/prefix",
             "home/f/.wine",
+            "home/h/Games/Heroic/Prefixes/default/Monsters and Memories",                            // Heroic
+            "home/i/Games/Heroic/Prefixes/Monsters and Memories",                                    // Heroic before it had Prefixes/default
+            "home/j/.local/share/bottles/bottles/MnM",                                               // Bottles
+            "home/k/.var/app/com.usebottles.bottles/data/bottles/bottles/MnM",                       // Bottles as a Flatpak
             "var/home/g/Games/umu/mnm",                                                              // Fedora-style atomic desktops keep homes in /var/home
         };
-        foreach (var place in places) Game(s, place, character: "Char" + place.Length);
+        for (var i = 0; i < places.Length; i++) Game(s, places[i], character: "Char" + i);
 
         var found = GameFolderFinder.Find(s.Path);
 

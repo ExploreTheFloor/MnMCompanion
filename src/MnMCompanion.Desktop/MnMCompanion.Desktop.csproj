@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Companion drawn with Avalonia, so it runs natively on Linux (and anywhere else .NET and Avalonia do). The same app as src\MnMCompanion,
+       which stays the Windows build; the files with no WPF in them are shared from there rather than copied. Reads files only; it never touches the game. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MnMCompanion</RootNamespace>
+    <AssemblyName>MnMCompanion</AssemblyName>
+    <Version>0.4.5</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Product>Companion for Monsters &amp; Memories</Product>
+    <Description>Shows who looted what in Monsters &amp; Memories, from the game's own ledger files.</Description>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MnMCompanion.Core\MnMCompanion.Core.csproj" />
+    <ProjectReference Include="..\MnMCompanion.Data\MnMCompanion.Data.csproj" />
+    <ProjectReference Include="..\MnMCompanion.Update\MnMCompanion.Update.csproj" />
+  </ItemGroup>
+
+  <!-- The Windows build's files that have no WPF in them: the same code, not a copy -->
+  <ItemGroup>
+    <Compile Include="..\MnMCompanion\Settings.cs" Link="Shared\Settings.cs" />
+    <Compile Include="..\MnMCompanion\HistoryData.cs" Link="Shared\HistoryData.cs" />
+    <Compile Include="..\MnMCompanion\HistoryFocus.cs" Link="Shared\HistoryFocus.cs" />
+    <Compile Include="..\MnMCompanion\CommunityReader.cs" Link="Shared\CommunityReader.cs" />
+    <Compile Include="..\MnMCompanion\UpdateController.cs" Link="Shared\UpdateController.cs" />
+    <Compile Include="..\MnMCompanion\SharingController.cs" Link="Shared\SharingController.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.1" />
+  </ItemGroup>
+
+</Project>
