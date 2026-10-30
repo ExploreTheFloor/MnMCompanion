@@ -111,7 +111,7 @@ public partial class App : Application
 
     /// <summary>
     /// The game runs under Proton or Wine on Linux, so its data is inside a Wine prefix, not in the usual place. When nothing is there and no working folder was
-    /// chosen, look through the prefixes (Steam's, UMU's, Lutris's, ~/.wine) and remember what is found (a folder the player chose that still works is left alone).
+    /// chosen, look through the prefixes (Steam's, UMU's, Heroic's, Bottles's, Lutris's, ~/.wine) and remember what is found (a folder the player chose that still works is left alone).
     /// Running natively on Linux the prefixes are on the filesystem itself; this program run under Wine reaches them through Wine's Z: drive.
     /// </summary>
     private static string? FindGameData(Settings settings)

@@ -26,7 +26,7 @@ Windows 10 or 11, 64-bit. Nothing else has to be installed (it carries what it n
 
 ### Does it run on Linux?
 Yes, natively: there is a Linux build of the same app (`src/MnMCompanion.Desktop`, made with `scripts/build-linux.sh`). It finds the game's data by itself inside the
-Steam (Proton), UMU, Lutris or `~/.wine` prefix the game runs in; if it doesn't find yours, choose it by hand (**ⓘ → Choose the game's data folder…**). The Map page
+Steam (Proton), UMU, Heroic, Bottles, Lutris or `~/.wine` prefix the game runs in; if it doesn't find yours, choose it by hand (**ⓘ → Choose the game's data folder…**). The Map page
 needs WebKitGTK (the `webkit2gtk-4.1` package) and otherwise offers to open the map in your browser. Linux doesn't let a program take a key for itself, so a timer's
 key is set in your desktop's keyboard settings, bound to the command `MnMCompanion --timer "Name"`; on Hyprland, **Copy the Hyprland binds** in the timer setup
 writes the lines for you, with window rules that float Companion's windows.

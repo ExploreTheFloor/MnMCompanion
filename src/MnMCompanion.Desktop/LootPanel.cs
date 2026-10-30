@@ -193,12 +193,12 @@ internal sealed class LootPanel : Border, IMiniPage
             _body.Children.Add(Line($"Looked in {_store.LedgerRoot}. Use the ⓘ menu in the title bar to choose where the game keeps it.", Palette.Muted));
             if (OperatingSystem.IsLinux())
                 _body.Children.Add(Line("On Linux the game runs under Proton or Wine and keeps its data inside its own prefix. Companion looked through the usual ones " +
-                    "(Steam, UMU, Lutris, ~/.wine) when it started. Choose it by hand from ⓘ → Choose the game's data folder…: it is the folder called “Monsters and Memories” inside " +
+                    "(Steam, UMU, Heroic, Bottles, Lutris, ~/.wine) when it started. Choose it by hand from ⓘ → Choose the game's data folder…: it is the folder called “Monsters and Memories” inside " +
                     "…/pfx/drive_c/users/steamuser/AppData/LocalLow/Niche Worlds Cult/. " +
                     "In a terminal, find ~/.local/share/Steam/steamapps/compatdata -type d -name \"Niche Worlds Cult\" shows where.", Palette.Muted));
             else if (Ledger.GameFolderFinder.RunningUnderWine())
                 _body.Children.Add(Line("This looks like Wine or Proton: the game keeps its data in its own prefix, not this one, and Companion looked through the usual ones " +
-                    "(Steam, UMU, Lutris) when it started. Choose it by hand from ⓘ → Choose the game's data folder…: it is the folder called “Niche Worlds Cult” inside the game's prefix, reached from here as " +
+                    "(Steam, UMU, Heroic, Bottles, Lutris) when it started. Choose it by hand from ⓘ → Choose the game's data folder…: it is the folder called “Niche Worlds Cult” inside the game's prefix, reached from here as " +
                     @"Z:\home\<you>\…\pfx\drive_c\users\steamuser\AppData\LocalLow\Niche Worlds Cult\Monsters and Memories. " +
                     "In a terminal, find ~/.local/share/Steam/steamapps/compatdata -type d -name \"Niche Worlds Cult\" shows where.", Palette.Muted));
             return;
