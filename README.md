@@ -59,6 +59,9 @@ them and turns them into something you can look at:
 - **What you sold and bought**, what vendors pay for each item, and how much you made.
 - **What you gathered**, how fast, and what it's worth.
 - **Your trades**, and what you dropped, picked up or destroyed.
+- **A map of the zone you're in**, from the community atlas, which follows you from zone to zone (see [The Map page](#the-map-page)).
+- **Every tradeskill recipe of the community wiki**, by skill and by level, with a search box (see [The Recipes page](#the-recipes-page)).
+- **Timers** you start with a key, and one on every corpse, all switched off until you turn them on (see [Timers](#timers)).
 - **A yes/no choice to add your own numbers to a combined community database** of drop rates and prices (kept privately by the project), and to use it (see [Sharing](#sharing-with-the-community-data)).
 - **A copy button** that turns any of it into text you can paste into chat.
 

@@ -10,7 +10,7 @@ Short answers, with a link to the long one where there is one. The [README](../R
 
 ### What is Companion?
 A small Windows program that sits beside Monsters & Memories and shows what the game's own diary files say: who looted what, what it was worth, what each monster
-dropped, what you sold, bought, gathered and traded, with a History window for every day. See [What it does](../README.md#what-it-does).
+dropped, what you sold, bought, gathered and traded, with a History window for every day. It also shows the community wiki's tradeskill recipes by level, a map of your zone and timers. See [What it does](../README.md#what-it-does).
 
 ### Will it get me in trouble with the game?
 Companion only **reads two kinds of files the game writes for you** (the ledger and each character's NPC journal). It does not look at the game's memory or the screen,
