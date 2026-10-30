@@ -50,7 +50,7 @@ public class UpdatePolicyTests
 
     // ------------------------------------------------------------------ the new program waits for the old one to exit
 
-    [Fact]
+    [WindowsFact]
     public void The_new_program_waits_while_the_old_ones_file_is_locked_and_goes_on_when_it_is_released()
     {
         using var s = new Fixture.Scratch();
@@ -70,7 +70,7 @@ public class UpdatePolicyTests
         Assert.False(File.Exists(old));
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task The_wait_ends_as_soon_as_the_old_program_lets_go()
     {
         using var s = new Fixture.Scratch();

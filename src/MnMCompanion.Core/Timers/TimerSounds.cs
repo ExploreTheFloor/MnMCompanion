@@ -44,7 +44,10 @@ public static class TimerSounds
     public static string Describe(string? sound)
     {
         if (Normalize(sound) is not { } kept) return "No sound";
-        return kept.StartsWith(SystemPrefix, StringComparison.Ordinal) ? kept[SystemPrefix.Length..] : Path.GetFileNameWithoutExtension(kept[FilePrefix.Length..]);
+        if (kept.StartsWith(SystemPrefix, StringComparison.Ordinal)) return kept[SystemPrefix.Length..];
+        // either kind of slash: a settings file may come from Windows, and Path only splits on this system's own
+        var path = kept[FilePrefix.Length..];
+        return Path.GetFileNameWithoutExtension(path[(path.LastIndexOfAny(['\\', '/']) + 1)..]);
     }
 
     /// <summary>The system sound's name when <paramref name="sound"/> is one; null otherwise.</summary>

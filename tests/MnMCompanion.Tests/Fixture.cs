@@ -45,10 +45,10 @@ internal static class Fixture
 
         public Scratch() => Directory.CreateDirectory(Path);
 
-        /// <summary>Writes a file under the folder (making the folders on the way).</summary>
+        /// <summary>Writes a file under the folder (making the folders on the way). The path may be written with \ on any system.</summary>
         public string Write(string relative, string text)
         {
-            var full = System.IO.Path.Combine(Path, relative);
+            var full = System.IO.Path.Combine(Path, relative.Replace('\\', System.IO.Path.DirectorySeparatorChar));
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
             System.IO.File.WriteAllText(full, text);
             return full;
@@ -61,4 +61,13 @@ internal static class Fixture
     }
 
     public static List<LedgerRow> Parse(string json, LedgerFileKind kind = LedgerFileKind.Character) => LedgerParser.Parse(json, kind);
+}
+
+/// <summary>A test of how Windows locks a file someone has open (it can't be moved or deleted); elsewhere it can, so the test is skipped.</summary>
+public sealed class WindowsFactAttribute : FactAttribute
+{
+    public WindowsFactAttribute()
+    {
+        if (!OperatingSystem.IsWindows()) Skip = "Windows file locking";
+    }
 }
