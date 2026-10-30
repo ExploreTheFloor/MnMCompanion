@@ -12,10 +12,15 @@
 .EXAMPLE
   scripts\make-screenshots.ps1
   scripts\make-screenshots.ps1 -Exe src\MnMCompanion\bin\Release\net10.0-windows\win-x64\MnMCompanion.exe
+  scripts\make-screenshots.ps1 -Recipes C:\path\to\tradeskills.json
+
+  The Recipes pictures need a copy of the wiki's tradeskills list (the JSON at monstersandmemories.wiki/api/tradeskills, or the recipes.json Companion keeps
+  in its own folder): the project doesn't carry one, so pass it with -Recipes, or those three pictures are left as they are.
 #>
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\src\MnMCompanion\bin\Debug\net10.0-windows\MnMCompanion.exe'),
-    [string]$Out = (Join-Path $PSScriptRoot '..\docs\images')
+    [string]$Out = (Join-Path $PSScriptRoot '..\docs\images'),
+    [string]$Recipes = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,6 +52,14 @@ try {
     Shot 'window-changes' '--window', '--mini', 'Items', '--size', '480x640'
     Shot 'window-harvest' '--window', '--mini', 'Harvest', '--size', '480x640'
     Shot 'window-map'     '--window', '--mini', 'Map', '--size', '480x640'
+    # The Recipes page reads the wiki's list from a file instead of asking the wiki (the project carries no copy: see -Recipes)
+    if ($Recipes) {
+        $list = (Resolve-Path $Recipes).Path
+        Shot 'window-recipes-skills' '--window', '--mini', 'Recipes', '--recipes', "`"$list`"", '--size', '480x640'
+        Shot 'window-recipes'        '--window', '--mini', 'Recipes', '--recipes', "`"$list`"", '--tab', 'Blacksmithing', '--size', '480x640'
+        Shot 'window-recipes-search' '--window', '--mini', 'Recipes', '--recipes', "`"$list`"", '--search', '"copp bar"', '--size', '480x640'
+    }
+    else { Write-Host 'No -Recipes file given: the three Recipes pictures are not remade.' }
     Shot 'window-update' '--window', '--view', 'Value', '--size', '480x640', '--preview-update'
     Shot 'window-update-waiting' '--window', '--view', 'Value', '--size', '480x640', '--preview-waiting'
     # The sharing window as someone who said Yes sees it (what would be shared is worked out from the demo ledger)

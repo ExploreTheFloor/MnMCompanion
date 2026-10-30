@@ -198,6 +198,12 @@ recipes come in order of **level**, in stretches of 25 levels (*Level 1–25*, *
 the wiki lists about it (the station, the slot, notes) and a button to copy it as a line of text. Until you pick a skill the page lists them all, with how many recipes each has and
 the levels they cover, and what each is made at, who teaches it and which tools it needs is under the skill's name.
 
+<p align="center">
+  <img src="docs/images/window-recipes-skills.png" alt="The Recipes page before a skill is picked: every skill, its recipe count and the levels it covers" width="200">
+  <img src="docs/images/window-recipes.png" alt="One skill's recipes, in stretches of 25 levels, with what each takes" width="200">
+  <img src="docs/images/window-recipes-search.png" alt="A search for copp bar: every recipe made from Copper Bar, the words found marked" width="200">
+</p>
+
 The **search box** looks through every recipe at once (or one skill's, when one is picked). Every word you type has to be somewhere in the recipe, in any order and any case, and a part
 of a word is enough: *copp bar* finds everything made from Copper Bar, *weapons* finds a whole kind, *zinc* finds anything that takes zinc. Two numbers with a dash are a range
 of levels: *50-75*, or *iron 60-90* for the iron recipes between levels 60 and 90. A search that finds exactly one recipe opens it.
@@ -640,7 +646,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 
 To try it without the game, `scripts/make-demo-ledger.py` writes a made-up game folder full of invented players:
 `python scripts/make-demo-ledger.py demo-data`, then `MnMCompanion.exe --ledger demo-data --character Brindlewick`.
-`scripts/make-screenshots.ps1` uses that to remake every picture in this README (nothing appears on your desktop and no real player is shown).
+`scripts/make-screenshots.ps1` uses that to remake every picture in this README (nothing appears on your desktop and no real player is shown). The three Recipes pictures also need a copy of the wiki's recipe list, which the project doesn't carry: pass it with `-Recipes <file>`.
 
 ### Building it yourself
 
