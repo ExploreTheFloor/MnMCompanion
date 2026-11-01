@@ -3,7 +3,8 @@
   Remakes the pictures in docs\images from a made-up game folder, so they never show a real player.
 
 .DESCRIPTION
-  1. scripts\make-demo-ledger.py writes a demo ledger (invented players) dated today into a temporary folder.
+  1. scripts\make-demo-ledger.py writes a demo ledger (invented players) dated today into a temporary folder, and scripts\make-demo-market.py a
+     made-up copy of mnm-db.com's auction feed (invented sellers) beside it.
   2. The built program draws each picture off screen with its --snapshot option (nothing appears on the desktop, no settings are written).
   3. The empty margin around each picture is trimmed.
 
@@ -30,6 +31,9 @@ $Out = (Resolve-Path $Out).Path
 $demo = Join-Path ([IO.Path]::GetTempPath()) ("mnmcompanion-demo-" + [guid]::NewGuid().ToString('N'))
 python (Join-Path $PSScriptRoot 'make-demo-ledger.py') $demo | Out-Null
 if ($LASTEXITCODE) { throw 'The demo ledger could not be made.' }
+$market = Join-Path $demo 'demo-auctions.json'
+python (Join-Path $PSScriptRoot 'make-demo-market.py') $market | Out-Null
+if ($LASTEXITCODE) { throw 'The demo auction feed could not be made.' }
 
 function Shot([string]$name, [string[]]$more) {
     $png = Join-Path $Out "$name.png"
@@ -60,6 +64,10 @@ try {
         Shot 'window-recipes-search' '--window', '--mini', 'Recipes', '--recipes', "`"$list`"", '--search', '"copp bar"', '--size', '480x640'
     }
     else { Write-Host 'No -Recipes file given: the three Recipes pictures are not remade.' }
+    # The Market page reads the made-up feed instead of asking mnm-db.com
+    Shot 'window-market'        '--window', '--mini', 'Market', '--market', "`"$market`"", '--size', '480x640'
+    Shot 'window-market-buying' '--window', '--mini', 'Market', '--market', "`"$market`"", '--tab', 'Buying', '--size', '480x640'
+    Shot 'window-market-yours'  '--window', '--mini', 'Market', '--market', "`"$market`"", '--tab', 'Yours', '--size', '480x640'
     Shot 'window-update' '--window', '--view', 'Value', '--size', '480x640', '--preview-update'
     Shot 'window-update-waiting' '--window', '--view', 'Value', '--size', '480x640', '--preview-waiting'
     # The sharing window as someone who said Yes sees it (what would be shared is worked out from the demo ledger)
