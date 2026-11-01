@@ -14,6 +14,7 @@
 
 .EXAMPLE
   scripts\build-release.ps1                 # build and check only
+  scripts\build-release.ps1 -Publish                         # the notes are this version's entry in CHANGELOG.md
   scripts\build-release.ps1 -Publish -Notes "Adds the Harvest tab."
 #>
 param(
@@ -54,7 +55,8 @@ Write-Host 'The built program starts and reports its version.'
 
 if ($Publish) {
     $tag = "v$version"
-    $notes = if ($Notes) { $Notes } else { "Companion $version" }
+    # the notes are the version's entry in CHANGELOG.md (see release-notes.ps1), unless -Notes says otherwise
+    $notes = if ($Notes) { $Notes } else { (& (Join-Path $PSScriptRoot 'release-notes.ps1') -Version $version) -join "`n" }
     $notes += "`n`nDownload **MnMCompanion.exe** and run it; nothing needs installing. To check the download: ``(Get-FileHash MnMCompanion.exe).Hash`` should equal the digits in **MnMCompanion.exe.sha256**."
     gh release create $tag $exe $sum --title "Companion $version" --notes $notes
     if ($LASTEXITCODE) { throw 'Creating the GitHub release failed.' }

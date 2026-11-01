@@ -615,7 +615,7 @@ unless you have switched that off:
 - **Update now** does what the automatic update does (download, check, replace, restart).
 - **Later** hides the strip until the next check.
 - **Skip this version** stops it being offered again, and also stops it being installed by itself. A newer one after it still will be.
-- Hover over the message to read the release notes.
+- Hover over the message to read the release notes. They are the version's entry in the [change log](CHANGELOG.md), which lists every version, newest first, and says for each one whether anything new is shared or whether the program now asks anywhere else on the internet.
 
 **To never ask GitHub at all:** untick **Check for updates automatically** as well. **Check for updates now** is there whenever you want to look.
 
@@ -707,13 +707,16 @@ straight from the files.
 
 ### Making a release
 
-1. Raise `<Version>` in `src\MnMCompanion\MnMCompanion.csproj` (for example `0.3.1`), commit and push, and wait for CI (the build and tests on every push) to pass.
-2. Push a tag with the same number: `git tag -a v0.3.1 -m "Companion 0.3.1" && git push origin v0.3.1`. The [release workflow](.github/workflows/release.yml) builds the
+1. Write the version's entry at the top of [CHANGELOG.md](CHANGELOG.md), headed `## 0.3.1 (yyyy-mm-dd)`: what is new, changed or fixed, and a **Sharing** and a **Network** line saying
+   what it means for the player's data. The tests fail until the entry for the project's version exists.
+2. Raise `<Version>` in `src\MnMCompanion\MnMCompanion.csproj` (for example `0.3.1`), commit and push, and wait for CI (the build and tests on every push) to pass.
+3. Push a tag with the same number: `git tag -a v0.3.1 -m "Companion 0.3.1" && git push origin v0.3.1`. The [release workflow](.github/workflows/release.yml) builds the
    program on GitHub's own machines, runs the tests, checks it starts and reports that version, writes `MnMCompanion.exe.sha256` and publishes the release `v<version>` with
-   both files attached. The app's update check looks for exactly those two file names. (Write the release notes afterwards with `gh release edit v0.3.1 --notes-file <file>`.)
+   both files attached and the change log's entry as its notes. The app's update check looks for exactly those two file names.
 
-The same can be done by hand: `scripts\build-release.ps1` runs the tests, builds the single-file `MnMCompanion.exe`, writes the checksum beside it in `dist\` and checks the
-built program starts; add `-Publish` to create the release (`scripts\build-release.ps1 -Publish -Notes "What changed"`).
+The same can be done by hand, **instead of** the tag, never as well (the tag's workflow would then fail on a release that already exists): `scripts\build-release.ps1` runs the
+tests, builds the single-file `MnMCompanion.exe`, writes the checksum beside it in `dist\` and checks the built program starts; add `-Publish` to create the release, with the
+change log's entry as its notes (`-Notes "..."` writes other notes).
 
 ### How the project is laid out
 
@@ -725,7 +728,7 @@ src/MnMCompanion.Update   asks GitHub for a newer version and downloads it, chec
 src/MnMCompanion          the Windows app: the small window and its pages, the History window and its pages, the update banner
                         (the only package it has is Windows' web view, for the Map page)
 tests/MnMCompanion.Tests  the automatic tests
-scripts/                build-release.ps1, make-demo-ledger.py, make-screenshots.ps1
+scripts/                build-release.ps1, release-notes.ps1, make-demo-ledger.py, make-screenshots.ps1
 .github/workflows/      ci.yml (build and test on every push) and release.yml (builds and publishes a release from a version tag)
 docs/                   ledger-notes.md (what the ledger holds), images/
 ```
