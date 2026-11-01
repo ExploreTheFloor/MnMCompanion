@@ -59,6 +59,13 @@ public sealed class Settings
     public bool TimersOnTop { get; set; }
     public int TimersOpacity { get; set; } = 100;
 
+    /// <summary>
+    /// Whether clicks pass through the timers window to the game unless the player holds <see cref="TimersClickThroughKey"/> (off until they turn it on).
+    /// While it is on the app checks, a few times a second, whether that one key is down.
+    /// </summary>
+    public bool TimersClickThrough { get; set; }
+    public string TimersClickThroughKey { get; set; } = MnMCompanion.Timers.ClickThroughKey.Default;
+
     /// <summary>Whether the timers window shows each timer as a button across its top, to start and stop it with a click.</summary>
     public bool TimersButtons { get; set; }
 

@@ -116,6 +116,11 @@ do it automatically; Companion deliberately never does that.)
 Yes. It has its own pin (off until you press it) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding
 what is behind them. The game has to be in a window or borderless for any window to show on top of it.
 
+### Can clicks go through the timers window to the game?
+Yes, if you turn it on (it is off until you do). In the **Opacity** menu choose *Pass clicks to the game*: the window then only shows the timers and every click goes through it to the game. Hold
+Ctrl (or Alt or Shift, your choice under *Key to hold*) to click on the window itself, to drag it, press a button, or switch this off. That is handy with one monitor or a faint overlay. While it is
+on, Companion checks a few times a second whether that one key is held down, and nothing else you type.
+
 ### Will the key I give a timer stop working in the game?
 Yes, while Companion is running: Windows hands that key to Companion, so the game never receives it. Pick combinations the game doesn't use, such as `Ctrl+Alt+1`. (A letter or digit needs Ctrl or
 Alt with it for this reason.) Companion only hears the keys you set, can't see anything else you type, and never sends a key press.

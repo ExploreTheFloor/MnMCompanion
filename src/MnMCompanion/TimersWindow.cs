@@ -1,6 +1,8 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shell;
 using System.Windows.Threading;
@@ -49,6 +51,9 @@ internal sealed class TimersWindow : Window
     private readonly TextBlock _empty;
     private readonly TextBlock _message = new() { FontSize = 11, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6), Visibility = Visibility.Collapsed };
     private DispatcherTimer? _saveSoon;
+    private readonly TextBlock _caption;
+    private readonly DispatcherTimer _keyWatch;
+    private bool _passing, _moving, _sizeMoveHooked, _keyUnreadable;
 
     /// <summary>One timer's button in the strip: lit, with a stop square, while the timer runs; with a start arrow while it doesn't.</summary>
     private sealed class TimerButton
@@ -109,7 +114,7 @@ internal sealed class TimersWindow : Window
         _pin = TitleButton("\uE718", "Keep this window on top of the game", TogglePin);
         var opacity = OpacityButton();
         _buttonsToggle = ToolButton("\uE80A", null, "Buttons", "Show each timer as a button across the top: click one to start it, click it again to stop it", ToggleButtons);
-        var caption = new TextBlock { Text = "Timers", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
+        var caption = _caption = new TextBlock { Text = "Timers", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 30, Cursor = Cursors.SizeAll, LastChildFill = false };
         _title = title;
         DockPanel.SetDock(close, Dock.Right);
@@ -157,10 +162,16 @@ internal sealed class TimersWindow : Window
 
         LocationChanged += (_, _) => Remember();
         SizeChanged += (_, _) => { Remember(); ShowToolLabels(); };
-        Closed += (_, _) => _hotkeys?.Dispose();
+        // click-through: the key is looked at only while the window is showing and the player has turned it on (see UpdateClickThrough)
+        _keyWatch = new DispatcherTimer(TimeSpan.FromMilliseconds(60), DispatcherPriority.Input, (_, _) => UpdateClickThrough(), Dispatcher);
+        Closed += (_, _) => { _hotkeys?.Dispose(); _keyWatch.Stop(); };
         var tick = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Normal, (_, _) => Tick(), Dispatcher);
         tick.Start();
         Tick();
+
+        IsVisibleChanged += (_, _) => UpdateClickThrough();
+        ShowCaption();
+        UpdateClickThrough();
     }
 
     /// <summary>Shows the window if it is hidden, hides it if it is showing.</summary>
@@ -229,7 +240,7 @@ internal sealed class TimersWindow : Window
     /// <summary>The button of the title bar that opens the menu of opacity levels: a half-filled circle and its name.</summary>
     private Button OpacityButton()
     {
-        var button = ToolButton("◐", "Segoe UI Symbol", "Opacity", "How see-through the window is behind its bars and words, so the game shows through", null);
+        var button = ToolButton("◐", "Segoe UI Symbol", "Opacity", "How see-through the window is behind its bars and words, so the game shows through; and whether clicks pass through it to the game", null);
         button.Click += (_, _) =>
         {
             var menu = new ContextMenu { PlacementTarget = button, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
@@ -242,9 +253,124 @@ internal sealed class TimersWindow : Window
                 item.Click += (_, _) => SetOpacity(chosen);
                 menu.Items.Add(item);
             }
+
+            string key = ClickThroughKey.Normalise(_settings.TimersClickThroughKey);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem { Header = "Clicks", IsEnabled = false });
+            var through = new MenuItem
+            {
+                Header = $"Pass clicks to the game (hold {key} to use this window)", IsChecked = _settings.TimersClickThrough,
+                ToolTip = "The window only shows the timers: clicks go straight through it to the game. Hold the key to click on the window itself (to drag it, press a button, or turn this off).",
+            };
+            through.Click += (_, _) => SetClickThrough(!_settings.TimersClickThrough);
+            menu.Items.Add(through);
+            var which = new MenuItem { Header = "Key to hold" };
+            foreach (var name in ClickThroughKey.Names)
+            {
+                var choice = new MenuItem { Header = name, IsChecked = name == key };
+                string chosen = name;
+                choice.Click += (_, _) => SetClickThroughKey(chosen);
+                which.Items.Add(choice);
+            }
+            menu.Items.Add(which);
             menu.IsOpen = true;
         };
         return button;
+    }
+
+    // ------------------------------------------------------------------ click-through
+
+    private const int GwlExStyle = -20, WsExTransparent = 0x20, KeyDownBit = 0x8000, WmEnterSizeMove = 0x0231, WmExitSizeMove = 0x0232;
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int virtualKey);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    private static extern int GetWindowLong(IntPtr window, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
+    private static extern int SetWindowLong(IntPtr window, int index, int value);
+
+    /// <summary>Whether the click-through key is down. Replaceable, so a test can press it without a keyboard.</summary>
+    internal Func<int, bool> IsKeyDown { get; set; } = virtualKey => (GetAsyncKeyState(virtualKey) & KeyDownBit) != 0;
+
+    /// <summary>Whether clicks are passing through the window right now (click-through is on and the key is not held).</summary>
+    internal bool PassingClicks => _passing;
+
+    /// <summary>
+    /// Lets clicks through the window to whatever is behind it (the game), except while the player holds their key. Done with the window's own
+    /// WS_EX_TRANSPARENT style, flipped by a short timer that asks only whether that one key is down; no keyboard hook, no other key is looked at, and nothing is
+    /// recorded. The timer runs only while click-through is on and the window is showing. The window stays usable while it is being dragged or resized (letting go of the key
+    /// mid-drag would drop the grip), and if the key can't be read on this PC the window just stays clickable.
+    /// </summary>
+    internal void UpdateClickThrough()
+    {
+        bool watching = _settings.TimersClickThrough && IsVisible && !_keyUnreadable;
+        if (_keyWatch.IsEnabled != watching)
+        {
+            if (watching) _keyWatch.Start();
+            else _keyWatch.Stop();
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero) return;
+        if (!_sizeMoveHooked && HwndSource.FromHwnd(handle) is { } source)
+        {
+            source.AddHook(SizeMoveHook);
+            _sizeMoveHooked = true;
+        }
+
+        bool pass = _settings.TimersClickThrough && !_moving && !KeyHeld();
+        if (pass == _passing) return;
+        _passing = pass;
+        int style = GetWindowLong(handle, GwlExStyle);
+        SetWindowLong(handle, GwlExStyle, pass ? style | WsExTransparent : style & ~WsExTransparent);
+    }
+
+    private bool KeyHeld()
+    {
+        try
+        {
+            return IsKeyDown(ClickThroughKey.VirtualKey(_settings.TimersClickThroughKey));
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            _keyUnreadable = true;
+            return true;
+        }
+    }
+
+    private IntPtr SizeMoveHook(IntPtr window, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (message == WmEnterSizeMove) _moving = true;
+        else if (message == WmExitSizeMove)
+        {
+            _moving = false;
+            UpdateClickThrough();
+        }
+        return IntPtr.Zero;
+    }
+
+    private void SetClickThrough(bool on)
+    {
+        _settings.TimersClickThrough = on;
+        _settings.Save();
+        ShowCaption();
+        UpdateClickThrough();
+    }
+
+    private void SetClickThroughKey(string name)
+    {
+        _settings.TimersClickThroughKey = ClickThroughKey.Normalise(name);
+        _settings.Save();
+        ShowCaption();
+        UpdateClickThrough();
+    }
+
+    /// <summary>The title says which key to hold while click-through is on, so a window that ignores the mouse is never a mystery.</summary>
+    private void ShowCaption()
+    {
+        _caption.Text = _settings.TimersClickThrough ? $"Timers · hold {ClickThroughKey.Normalise(_settings.TimersClickThroughKey)}" : "Timers";
     }
 
     private void ToggleButtons()

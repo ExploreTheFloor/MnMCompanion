@@ -397,6 +397,12 @@ hear it before you keep it. A timer with no sound just ends quietly.
 draw over a game that has the whole screen to itself). The **Opacity** button fades the window's background in steps down to 10%, so the game shows through behind it while the bars and the words
 stay solid. The title bar never fades away completely, so you can always find the window and drag it.
 
+**Click-through.** For one monitor, or for a faint overlay on the game: in the **Opacity** menu, under *Clicks*, choose *Pass clicks to the game*. The window then only shows the timers and
+every click goes straight through it to whatever is behind (the game). **Hold a key to use the window itself**, to drag it, press a button or turn this off again: Ctrl by default, or pick Alt or
+Shift under *Key to hold*. The title says which key (*Timers · hold Ctrl*). It is off until you turn it on. While it is on, Companion asks Windows a few times a second whether that one key is
+down (see the privacy note below); it doesn't look at any other key. If your Companion ever can't read the key (it hasn't been tried under Wine or Proton), the window just stays clickable.
+Clicking on the window takes the focus from the game, as any window does, so click back on the game afterwards.
+
 A running timer shows its time left and a bar that drains. It turns **gold for its last half minute**, **flashes red for its last ten seconds**, and shows **Ended** for a few seconds when
 it is over, playing its sound if it has one. Your timers are kept for each character, as the moment they end, in
 `%LOCALAPPDATA%\MnMCompanion\<server>-<character>\timers.json`, so they carry on if you close Companion. The **×** in the corner only hides the window: timers keep running (and playing their sounds),
@@ -470,7 +476,7 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 **It reads files. That's all.** Companion:
 
 - reads two things the game writes, its ledger files and each character's journal (what NPCs have said to you), and nothing else it writes;
-- **never** touches the running game or its memory, and never sends a key press or moves your mouse. The only keys it listens for are the ones *you* set for timers (see [Timers](#timers)); it can't see anything else you type;
+- **never** touches the running game or its memory, and never sends a key press or moves your mouse. The only keys it listens for are the ones *you* set for timers (see [Timers](#timers)), and, only if you turn on click-through for the timers window, whether the one modifier key you chose (Ctrl, Alt or Shift) is held down; it can't see anything else you type, and it records nothing;
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - installs nothing but its own newer versions, from this project's GitHub releases, and only after checking the download against the checksum published with it. You can switch that off, and then updates are only *offered* (see [Updates](#updates)).
 
