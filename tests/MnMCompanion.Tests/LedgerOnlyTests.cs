@@ -103,7 +103,7 @@ public class LedgerOnlyTests
     [Fact]
     public void The_only_addresses_in_the_source_are_githubs_the_atlas_and_the_community_service_and_only_the_update_project_has_them()
     {
-        var allowed = new[] { "api.github.com", "github.com", "www.mnmatlas.com", "mnm-intake.mnm-companion.workers.dev", "monstersandmemories.wiki" };
+        var allowed = new[] { "api.github.com", "github.com", "www.mnmatlas.com", "mnm-intake.mnm-companion.workers.dev", "monstersandmemories.wiki", "mnm-db.com" };
         var urls = new System.Text.RegularExpressions.Regex("https?://[^\\s\"'<>{}/\\\\]+");
         foreach (var file in Sources().Where(f => f.EndsWith(".cs")))
             foreach (System.Text.RegularExpressions.Match m in urls.Matches(File.ReadAllText(file)))

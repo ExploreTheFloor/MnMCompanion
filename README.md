@@ -61,6 +61,7 @@ them and turns them into something you can look at:
 - **Your trades**, and what you dropped, picked up or destroyed.
 - **A map of the zone you're in**, from the community atlas, which follows you from zone to zone (see [The Map page](#the-map-page)).
 - **Every tradeskill recipe of the community wiki**, by skill and by level, with a search box (see [The Recipes page](#the-recipes-page)).
+- **What players ask for items on the auction channel**, from mnm-db.com's feed, with what your own loot would fetch (see [The Market page](#the-market-page)).
 - **Timers** you start with a key, and one on every corpse, all switched off until you turn them on (see [Timers](#timers)).
 - **A yes/no choice to add your own numbers to a combined community database** of drop rates and prices (kept privately by the project), and to use it (see [Sharing](#sharing-with-the-community-data)).
 - **A copy button** that turns any of it into text you can paste into chat.
@@ -146,8 +147,9 @@ The bottom of the window has a button for each **page**.
 | **Items** | Items you dropped, picked up and destroyed. Tabs: Log, and Lost (what was dropped or destroyed and not picked up again). |
 | **Harvest** | What you gathered, how many an hour, and roughly what it's worth. Tabs: Items, Log. |
 | **Recipes** | Every tradeskill recipe of the community wiki, by skill and by level, with a search box. See [The Recipes page](#the-recipes-page). It isn't about your day, so it ignores the session. |
+| **Market** | What players ask for items on the auction channel, from mnm-db.com's feed: what is for sale, what people are bidding for, and what your loot this session would fetch. See [The Market page](#the-market-page). |
 
-**Every page except Recipes shows the same day and the same session.** Choose *This session* (or an earlier one, or the whole day) on one page and they all
+**Every page except Recipes and Market shows the same day and the same session** (Market's *Yours* tab follows it too). Choose *This session* (or an earlier one, or the whole day) on one page and they all
 follow, so "what did this one run give me?" is the same question on every page. A click on a row of Vendor, Trades, Items or Harvest opens that
 page of the History window for the same character.
 
@@ -221,6 +223,33 @@ you'd opened it in a browser (nothing from your ledger or your game is sent, onl
 folder), so the page opens at once and works without the internet, and the wiki is asked again only when you open the page and the kept copy was last checked more than a day ago (or when you press the refresh button, which works once in ten minutes at most). By then the question is only *has your list changed?*, which the wiki answers with nothing at all when it hasn't, and the answer is asked for compressed. Companion remembers when it last asked even after a restart, never asks twice within an hour (not even after an error), and keeps away for as long as the wiki asks it to, so opening the page ten times a day, or restarting, costs the wiki nothing. If you'd
 rather it never asked, untick *Load the recipe list from the community wiki* in the ⓘ menu: the page then says loading is switched off, and offers to turn it on or to open the wiki in your
 browser instead. The wiki is by its community, can be incomplete or out of date, and Companion is not affiliated with it or with the game's makers.
+
+### The Market page
+
+The **Market** page is what players ask for items on the game's auction channel, read from **mnm-db.com**'s public auction feed (a fan-made economy
+database that reads the `/auction` posts shown on the community LiveMNM stream and publishes them every six hours). It has three tabs:
+
+- **Selling**: every item someone is selling, ranked by how busy its market is (or by name, price or newest, from the picker), with a picker for the kind
+  (weapons, armor, jewelry, bags, materials) and a search box over item and seller names. A row shows who is selling and buying and the **middle
+  ask** of the sellers active in the last three days; a bulk material (ore, wood, scraps...) shows a **stack's** price. Click a row for the breakdown:
+  the lowest, middle and highest asks, the best bid, the spread, the seven-day trend, who is asking and bidding, the price day by day, every price
+  change, a **Copy price check** button for chat and a link to the item's page on the site.
+- **Buying**: what players are bidding for, ranked by how many want it, and the gear they ask after ("+3 Str/Sta ring").
+- **Yours**: the items you looted this session (or the day), what each would fetch at the middle ask and the total, so you can tell what is worth
+  auctioning rather than selling to a vendor. Items the market has no price for are listed below.
+
+A post is what a player **asked**, not what was paid, and the feed covers **one server** (the one the stream shows: the page names it, and says so when
+you play on another). Prices come from reading a video stream, so a few are misread; the page shows only posts with a price for items the site's wiki knows.
+
+The feed holds each player's current price and nothing older, so Companion keeps its own **price book** on this PC (`market.json`): every snapshot it
+takes adds to the history, and the by-day table, the trend and the price changes grow from there. **The page loads the feed by itself** the first time
+you open it: that contacts mnm-db.com once, so it sees your internet address, just as if you'd opened it in a browser (nothing from your ledger or your
+game is sent, only the program's name and version). After that it asks again only once per publish, every six hours, while the page is open (or when you
+press the refresh button, which works once in ten minutes at most), and only *has it changed?*, which the site answers with nothing at all when it hasn't.
+It never asks twice within an hour, not even after an error, and keeps away for as long as the site asks it to. If you'd rather it never asked, untick
+*Load auction prices from mnm-db.com* in the ⓘ menu: the page then says loading is switched off, and offers to turn it on or to open the site in your
+browser instead. mnm-db.com is by the community (open source, MIT), can be incomplete, and Companion is not affiliated with it, with the stream or with
+the game's makers.
 
 ### Those little symbols after a number
 
@@ -495,15 +524,19 @@ The **Recipes** page is another: the first time you open it, and then at most on
 only the program's name and version, so that site sees your internet address (see [The Recipes page](#the-recipes-page)). It is on by default, and one tick in the ⓘ menu switches it off;
 then the wiki is never asked.
 
+The **Market** page is the last: the first time you open it, and then once per publish (every six hours) while it is open, it asks mnm-db.com for its public auction feed (once you have it, only whether it has changed), with only the program's name and version, so that site sees your internet address (see [The Market page](#the-market-page)). It is on by default, and one tick in the ⓘ menu switches it off; then the site is never asked.
+
 The other players' names you see in the group come from your own ledger files; they never leave your PC.
 
 **What it saves on your PC**, all in `%LOCALAPPDATA%\MnMCompanion\`:
 
 | File | What |
 |---|---|
-| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, whether to show the live map and whether to load the recipes (and which skill you were on). |
+| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, whether to show the live map, whether to load the recipes (and which skill you were on) and whether to load the market (and its kind and order). |
 | `recipes.json` | The wiki's recipe list, kept so the Recipes page works offline (unless you switched loading it off). Public data from the wiki, nothing from your game. |
 | `recipes.meta.json` | When the wiki was last asked and what its answer's version tag was, so Companion keeps to once a day (and to the wiki's own "wait") even after a restart. |
+| `market.json` | The price book the Market page keeps: every seller's current price from mnm-db.com's feed and the prices they replaced, with the site's item cards. Public data from the site, nothing from your game. |
+| `market.meta.json` | When mnm-db.com was last asked and what its feed's version tag was, so Companion keeps to once per publish (and to the site's own "wait") even after a restart. |
 | `<server>-<character>\` | Your session markers and the text files for archived sessions. |
 | `ledger.db` | A private copy of **every ledger row** the app has read (see below). |
 
@@ -641,8 +674,9 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--ledger <folder>` | Read the game's data from somewhere else (a test, a demo, a copy). Such a run keeps its own saved copy and saves no settings, so it can never mix into your real history. |
 | `--character <name>` | Start on this character. |
 | `--history` | Open the History window as soon as the app starts. |
-| `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items, Harvest or Recipes). |
+| `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items, Harvest, Recipes or Market). |
 | `--recipes <file>` | With `--snapshot --window --mini Recipes`: read the recipes from this file (the wiki's tradeskills JSON) instead of asking the wiki; `--tab "<skill>"` picks a skill and `--search "<words>"` types a search. |
+| `--market <file>` | With `--snapshot --window --mini Market`: read the auction feed from this file (the site's auctions.json) instead of asking mnm-db.com; `--tab Selling|Buying|Yours` picks a tab and `--search "<words>"` types a search. |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
 | `--contribute <folder or file>` | Save what sharing would send (named by your random id: the totals, and what NPCs said to you as a second `.npcs.json` file) and quit, without a window. |

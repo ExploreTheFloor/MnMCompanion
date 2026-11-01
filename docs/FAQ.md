@@ -103,6 +103,9 @@ which contacts that site once, so the site sees your internet address, as it wou
 The list is kept on this PC, so the page works offline, and the wiki is asked again only when you open the page and the kept copy was last checked more than a day ago (or when you press the refresh button, at most once in ten minutes). By then the question is only whether the list has changed, which the wiki answers with nothing when it hasn't, and Companion keeps away for as long as the wiki asks it to, even after a restart. To stop it, untick *Load the recipe list from the community wiki* in the ⓘ menu.
 A recipe's level is the wiki's *trivial* number, and a **?** means the wiki doesn't have one yet. See [The Recipes page](../README.md#the-recipes-page).
 
+### Where do the auction prices come from?
+From **mnm-db.com**, a fan-made economy database that reads the `/auction` posts shown on the community LiveMNM stream and publishes them every six hours as a public feed. The **Market** page loads that feed by itself the first time you open it (so the site sees your internet address, like a browser would; nothing from your game or ledger is sent) and then once per publish while the page is open, keeping a price book on this PC so the history grows. The prices are what players **asked**, not what was paid, for **one server** (the one the stream shows). Untick *Load auction prices from mnm-db.com* in the ⓘ menu and the site is never asked. See [The Market page](../README.md#the-market-page).
+
 ### Can I paste any of it into chat?
 Yes: pages have **Copy** buttons that put the figures on the clipboard as text. Click the **Ours** or **Total** figure at the top of the Loot page to copy the coin on one line: all the coin looted, your split and your share of it.
 
