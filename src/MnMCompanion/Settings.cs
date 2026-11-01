@@ -22,7 +22,7 @@ public sealed class Settings
     public string View { get; set; } = "Value";
     public bool OnTop { get; set; } = true;
 
-    /// <summary>The page the small window was left on: Map, Loot, Vendor, Trades, Items, Harvest or Recipes.</summary>
+    /// <summary>The page the small window was left on: Map, Loot, Vendor, Trades, Items, Harvest, Recipes or Market.</summary>
     public string MiniPage { get; set; } = "Loot";
 
     /// <summary>
@@ -40,6 +40,20 @@ public sealed class Settings
 
     /// <summary>The skill the Recipes page was left on; null for all skills.</summary>
     public string? RecipeSkill { get; set; }
+
+    /// <summary>
+    /// Whether the Market page loads mnm-db.com's auction feed by itself: the first time the page is shown, then once per publish (the site
+    /// publishes every six hours) when it is open. On by default, like the recipes (the page is of no use without the feed); the player can switch it
+    /// off in the ⓘ menu, and then the site is never asked. Asking it makes that site see their internet address, like opening it in a browser;
+    /// nothing from the game or the ledger is sent.
+    /// </summary>
+    public bool MarketOnline { get; set; } = true;
+
+    /// <summary>The kind of item the Market page was left on (a <c>MarketKind</c> name); null for every kind.</summary>
+    public string? MarketKind { get; set; }
+
+    /// <summary>The order the Market page's list was left in ("Active", "Name", "PriceDown", "PriceUp" or "Newest").</summary>
+    public string? MarketSort { get; set; }
 
     /// <summary>
     /// What the History window shows, once the player has chosen: a server and a character, a server alone (everyone on it), or neither

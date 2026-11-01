@@ -22,6 +22,7 @@ internal sealed class PanelWindow : Window
     private readonly LootPanel _panel;
     private readonly MapPanel _map;
     private readonly RecipesPanel _recipes;
+    private readonly MarketPanel _market;
     private readonly SessionScope _session;
     private readonly HistoryData? _history;
     private readonly Dictionary<string, IMiniPage> _pages = [];
@@ -29,7 +30,7 @@ internal sealed class PanelWindow : Window
     private readonly ContentControl _host = new();
     private readonly TextBlock _status;
     private string _page = "Loot";
-    private static readonly string[] PageNames = ["Map", "Loot", "Vendor", "Trades", "Items", "Harvest", "Recipes"];
+    private static readonly string[] PageNames = ["Map", "Loot", "Vendor", "Trades", "Items", "Harvest", "Recipes", "Market"];
     private readonly TextBlock _who;
     private readonly Button _pin;
     private readonly Button _about;
@@ -51,7 +52,8 @@ internal sealed class PanelWindow : Window
 
     /// <param name="updates">The update checker; null (a picture-taking run) means no update button or banner.</param>
     /// <param name="recipesFile">A recipe list to read instead of the kept copy and the wiki (a picture-taking run); null for the real thing.</param>
-    public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null, HistoryData? history = null, string? recipesFile = null)
+    /// <param name="marketFile">An auction feed to read instead of the kept book and mnm-db.com (a picture-taking run); null for the real thing.</param>
+    public PanelWindow(LootStore store, Settings settings, UpdateController? updates = null, HistoryData? history = null, string? recipesFile = null, string? marketFile = null)
     {
         _store = store;
         _settings = settings;
@@ -127,6 +129,7 @@ internal sealed class PanelWindow : Window
         _pages["Items"] = new ItemsMini(store, history, _session, _status, OpenInHistory);
         _pages["Harvest"] = new HarvestMini(store, history, _session, _status, OpenInHistory);
         _pages["Recipes"] = _recipes = new RecipesPanel(settings, _status, recipesFile);
+        _pages["Market"] = _market = new MarketPanel(store, _session, settings, _status, marketFile);
         _session.Said += text => Active.Say(text);
         var bottom = BuildBottomBar();
         var root = new DockPanel();
@@ -185,6 +188,9 @@ internal sealed class PanelWindow : Window
     /// <summary>For a picture: the Recipes page on a skill, with a search typed in.</summary>
     public void ShowRecipes(string? skill, string? search) => _recipes.Show(skill, search);
 
+    /// <summary>For a picture: the Market page on a tab, with a search typed in.</summary>
+    public void ShowMarket(string? tab, string? search) => _market.Show(tab, search);
+
     private void ShowPage(string key, bool save = true)
     {
         if (!_pages.TryGetValue(key, out var page)) return;
@@ -198,7 +204,7 @@ internal sealed class PanelWindow : Window
     }
 
     /// <summary>
-    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest, Recipes) with the status line above them. Every page shows
+    /// The bottom of the window: a button for each page (Map, Loot, Vendor, Trades, Items, Harvest, Recipes, Market) with the status line above them. Every page shows
     /// the same day and session; History is a button in the title bar, New session is in the session menu and the ledger folder in the ⓘ menu.
     /// </summary>
     private FrameworkElement BuildBottomBar()
@@ -364,6 +370,13 @@ internal sealed class PanelWindow : Window
         };
         recipes.Click += (_, _) => { _settings.RecipesOnline = recipes.IsChecked; _settings.Save(); _recipes.Refresh(); };
         menu.Items.Add(recipes);
+        var market = new MenuItem
+        {
+            Header = "Load auction prices from mnm-db.com (uses mnm-db.com)", IsCheckable = true, IsChecked = _settings.MarketOnline,
+            ToolTip = "The Market page shows what players ask for items, from mnm-db.com's auction feed (read off the LiveMNM stream, one server). It loads the feed by itself the first time you open the page and then once per publish, every six hours, while the page is open, so that site sees your internet address (nothing from your game or ledger is sent). The feed is kept on this PC. Untick it and the site is never asked.",
+        };
+        market.Click += (_, _) => { _settings.MarketOnline = market.IsChecked; _settings.Save(); _market.Refresh(); };
+        menu.Items.Add(market);
         var ledgerFolder = new MenuItem { Header = "Open the ledger folder", ToolTip = "Opens the folder where the game keeps this character's ledger files (one a day for the character, one for the party)." };
         ledgerFolder.Click += (_, _) => _panel.OpenFolder();
         menu.Items.Add(ledgerFolder);
