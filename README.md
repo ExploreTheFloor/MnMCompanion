@@ -147,7 +147,7 @@ The bottom of the window has a button for each **page**.
 | **Items** | Items you dropped, picked up and destroyed. Tabs: Log, and Lost (what was dropped or destroyed and not picked up again). |
 | **Harvest** | What you gathered, how many an hour, and roughly what it's worth. Tabs: Items, Log. |
 | **Recipes** | Every tradeskill recipe of the community wiki, by skill and by level, with a search box. See [The Recipes page](#the-recipes-page). It isn't about your day, so it ignores the session. |
-| **Market** | What players ask for items on the auction channel, from mnm-db.com's feed: every item with a price, what your loot this session would fetch, and what people are bidding for. See [The Market page](#the-market-page). |
+| **Market** | What players ask for items on the auction channel, from mnm-db.com's feed: what is for sale, what people are bidding for, and what your loot this session would fetch. See [The Market page](#the-market-page). |
 
 **Every page except Recipes and Market shows the same day and the same session** (Market's *Yours* tab follows it too). Choose *This session* (or an earlier one, or the whole day) on one page and they all
 follow, so "what did this one run give me?" is the same question on every page. A click on a row of Vendor, Trades, Items or Harvest opens that
@@ -229,14 +229,14 @@ browser instead. The wiki is by its community, can be incomplete or out of date,
 The **Market** page is what players ask for items on the game's auction channel, read from **mnm-db.com**'s public auction feed (a fan-made economy
 database that reads the `/auction` posts shown on the community LiveMNM stream and publishes them every six hours). It has three tabs:
 
-- **Items**: every item with a price, ranked by how busy its market is (or by name, price or newest, from the picker), with a picker for the kind
+- **Selling**: every item someone is selling, ranked by how busy its market is (or by name, price or newest, from the picker), with a picker for the kind
   (weapons, armor, jewelry, bags, materials) and a search box over item and seller names. A row shows who is selling and buying and the **middle
   ask** of the sellers active in the last three days; a bulk material (ore, wood, scraps...) shows a **stack's** price. Click a row for the breakdown:
   the lowest, middle and highest asks, the best bid, the spread, the seven-day trend, who is asking and bidding, the price day by day, every price
   change, a **Copy price check** button for chat and a link to the item's page on the site.
+- **Buying**: what players are bidding for, ranked by how many want it, and the gear they ask after ("+3 Str/Sta ring").
 - **Yours**: the items you looted this session (or the day), what each would fetch at the middle ask and the total, so you can tell what is worth
   auctioning rather than selling to a vendor. Items the market has no price for are listed below.
-- **Wanted**: what players are bidding for, ranked by how many want it, and the gear they ask after ("+3 Str/Sta ring").
 
 A post is what a player **asked**, not what was paid, and the feed covers **one server** (the one the stream shows: the page names it, and says so when
 you play on another). Prices come from reading a video stream, so a few are misread; the page shows only posts with a price for items the site's wiki knows.
@@ -670,7 +670,7 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--history` | Open the History window as soon as the app starts. |
 | `--mini <page>` | With `--snapshot --window`: draw this page of the small window (Map, Loot, Vendor, Trades, Items, Harvest, Recipes or Market). |
 | `--recipes <file>` | With `--snapshot --window --mini Recipes`: read the recipes from this file (the wiki's tradeskills JSON) instead of asking the wiki; `--tab "<skill>"` picks a skill and `--search "<words>"` types a search. |
-| `--market <file>` | With `--snapshot --window --mini Market`: read the auction feed from this file (the site's auctions.json) instead of asking mnm-db.com; `--tab Items|Yours|Wanted` picks a tab and `--search "<words>"` types a search. |
+| `--market <file>` | With `--snapshot --window --mini Market`: read the auction feed from this file (the site's auctions.json) instead of asking mnm-db.com; `--tab Selling|Buying|Yours` picks a tab and `--search "<words>"` types a search. |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
 | `--contribute <folder or file>` | Save what sharing would send (named by your random id: the totals, and what NPCs said to you as a second `.npcs.json` file) and quit, without a window. |

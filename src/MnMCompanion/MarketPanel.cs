@@ -15,9 +15,9 @@ namespace MnMCompanion;
 
 /// <summary>
 /// The Market page: what things sell for between players, from mnm-db.com's auction feed (prices read off the auction channel of the LiveMNM
-/// stream, one server, published every six hours). Three tabs: <b>Items</b>, every item with a price, by kind, with a search box, each opening
-/// to its sellers, buyers, the day-by-day prices and every change; <b>Yours</b>, what the loot you took this session would fetch; <b>Wanted</b>,
-/// what players are bidding for and asking after. The feed holds only each player's current price, so Companion keeps its own book on this PC
+/// stream, one server, published every six hours). Three tabs: <b>Selling</b>, every item someone is selling, by kind, with a search box, each
+/// opening to its sellers, buyers, the day-by-day prices and every change; <b>Buying</b>, what players are bidding for and asking after;
+/// <b>Yours</b>, what the loot you took this session would fetch. The feed holds only each player's current price, so Companion keeps its own book on this PC
 /// (<see cref="MarketBook"/>) and the history grows from the snapshots it takes. It is loaded by itself the first time the page is shown and
 /// once per publish after that (<see cref="Settings.MarketOnline"/>, on unless the player switched it off in the ⓘ menu). A picture-taking
 /// run reads a file instead (<c>--market</c>) and never asks the site.
@@ -29,7 +29,7 @@ internal sealed class MarketPanel : Border, IMiniPage
 
     private const int FirstBatch = 40, NextBatch = 40;
 
-    private static readonly string[] Tabs = ["Items", "Yours", "Wanted"];
+    private static readonly string[] Tabs = ["Selling", "Buying", "Yours"];
     private static readonly (string Key, string Label)[] Sorts = [("Active", "Most active"), ("Name", "Name"), ("PriceDown", "Price, high first"), ("PriceUp", "Price, low first"), ("Newest", "Newest")];
 
     private readonly Settings _settings;
@@ -57,7 +57,7 @@ internal sealed class MarketPanel : Border, IMiniPage
     private MarketSnapshot _market = MarketSnapshot.Empty;
     private int _bookVersion, _marketVersion = -1;
     private bool _cacheRead;
-    private string _tab = "Items";
+    private string _tab = "Selling";
     private MarketKind? _kind;
     private string _sort = "Active";
     private string _query = "";
@@ -101,7 +101,7 @@ internal sealed class MarketPanel : Border, IMiniPage
         searchBox.Children.Add(_search);
         searchBox.Children.Add(_hint);
         searchBox.Children.Add(_clear);
-        _search.ToolTip = "Every word has to be in the item's name (on Items and Wanted, a seller's name counts too). Any order, any case, part of a word is enough.";
+        _search.ToolTip = "Every word has to be in the item's name (a seller's or buyer's name counts too). Any order, any case, part of a word is enough.";
         _typing = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(180) };
         _typing.Tick += (_, _) => { _typing.Stop(); Typed(); };
         _search.TextChanged += (_, _) =>
@@ -374,8 +374,8 @@ internal sealed class MarketPanel : Border, IMiniPage
         bool have = _book is { GeneratedAt: not null };
         _tabBar.Visibility = have ? Visibility.Visible : Visibility.Collapsed;
         _controls.Visibility = have && _tab != "Yours" ? Visibility.Visible : Visibility.Collapsed;
-        _kindButton.Visibility = _tab == "Items" ? Visibility.Visible : Visibility.Collapsed;
-        _sortButton.Visibility = _tab == "Items" ? Visibility.Visible : Visibility.Collapsed;
+        _kindButton.Visibility = _tab == "Selling" ? Visibility.Visible : Visibility.Collapsed;
+        _sortButton.Visibility = _tab == "Selling" ? Visibility.Visible : Visibility.Collapsed;
 
         if (!have)
         {
@@ -398,8 +398,8 @@ internal sealed class MarketPanel : Border, IMiniPage
         switch (_tab)
         {
             case "Yours": ShowYours(market); break;
-            case "Wanted": ShowWanted(market); break;
-            default: ShowItems(market); break;
+            case "Buying": ShowBuying(market); break;
+            default: ShowSelling(market); break;
         }
     }
 
@@ -432,24 +432,27 @@ internal sealed class MarketPanel : Border, IMiniPage
         _body.Children.Add(box);
     }
 
-    // ------------------------------------------------------------------ Items
+    // ------------------------------------------------------------------ Selling
 
     private bool Matches(MarketItem item, bool sellers) =>
         _query.Trim().Length == 0 || NameSearch.Matches(item.Name, _query) || (sellers && item.Now.Any(l => NameSearch.Matches(l.Player, _query)));
 
-    private void ShowItems(MarketSnapshot market)
+    /// <summary>Every item someone is selling: a standing ask, or the latest ask when none stands now.</summary>
+    private static bool Selling(MarketItem i) => i.Asks.Count > 0 || i.LatestAsk is not null;
+
+    private void ShowSelling(MarketSnapshot market)
     {
         bool searching = NameSearch.Words(_query).Length > 0;
-        var items = market.Items.Where(i => i.Active || i.LatestAsk is not null).Where(i => _kind is null || i.Kind == _kind).Where(i => Matches(i, true)).ToList();
+        var items = market.Items.Where(Selling).Where(i => _kind is null || i.Kind == _kind).Where(i => Matches(i, true)).ToList();
         items = Sorted(items);
         if (items.Count == 0)
         {
-            _body.Children.Add(Note(searching ? $"Nothing on the market matches “{_query.Trim()}”." : "Nothing on the market" + (_kind is { } k ? " among " + KindName(k).ToLowerInvariant() : "") + " yet.", Palette.Muted));
+            _body.Children.Add(Note(searching ? $"Nobody is selling anything matching “{_query.Trim()}”." : "Nobody is selling anything" + (_kind is { } k ? " among " + KindName(k).ToLowerInvariant() : "") + " yet.", Palette.Muted));
             if (_kind is not null) _body.Children.Add(Centre(LootPanel.TextAction("Show every kind", () => ChooseKind(null))));
             return;
         }
-        int standing = items.Count(i => i.Active);
-        _body.Children.Add(Note($"{items.Count:N0} {(items.Count == 1 ? "item" : "items")}, {standing:N0} with a standing price" + (items.Count > MaxRows ? $"; the first {MaxRows} are shown. Narrow the search or choose a kind." : ".") + " Click one for its sellers and history.", Palette.Muted));
+        int standing = items.Count(i => i.Asks.Count > 0);
+        _body.Children.Add(Note($"{items.Count:N0} {(items.Count == 1 ? "item" : "items")} for sale, {standing:N0} with a seller these 3 days" + (items.Count > MaxRows ? $"; the first {MaxRows} are shown. Narrow the search or choose a kind." : ".") + " Click one for its sellers and history.", Palette.Muted));
         double most = Math.Max(1, items.Take(MaxRows).Max(i => i.Sightings));
         int rank = 0;
         foreach (var item in items.Take(MaxRows))
@@ -467,7 +470,7 @@ internal sealed class MarketPanel : Border, IMiniPage
         "PriceDown" => items.OrderByDescending(i => i.Headline ?? i.LatestAsk?.Copper ?? -1).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList(),
         "PriceUp" => items.OrderBy(i => i.Headline ?? i.LatestAsk?.Copper ?? long.MaxValue).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList(),
         "Newest" => items.OrderByDescending(i => i.LastSeen).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList(),
-        _ => items.OrderByDescending(i => i.Active).ThenByDescending(i => i.Sightings).ThenByDescending(i => i.Sellers + i.Buyers).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList(),
+        _ => items.OrderByDescending(i => i.Asks.Count > 0).ThenByDescending(i => i.Sightings).ThenByDescending(i => i.Sellers + i.Buyers).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList(),
     };
 
     /// <summary>An item: its name, who is selling and buying, the middle ask (a stack's price for a bulk material). A click opens its breakdown.</summary>
@@ -475,11 +478,11 @@ internal sealed class MarketPanel : Border, IMiniPage
     {
         string sub, value;
         Brush brush;
-        if (item.Active)
+        if (item.Asks.Count > 0)
         {
-            sub = item.Sellers > 0 ? Plural(item.Sellers, "seller") + (item.Buyers > 0 ? $" · {Plural(item.Buyers, "buyer")}" : "") : Plural(item.Buyers, "buyer") + " · no seller";
-            value = item.Asks.Count > 0 ? MarketMath.Shown(item.Median!.Value, item.Stack) : "bid " + MarketMath.Shown(item.BestBid!.Value, item.Stack);
-            brush = item.Asks.Count > 0 ? Palette.Gold : Palette.Heal;
+            sub = Plural(item.Sellers, "seller") + (item.Buyers > 0 ? $" · {Plural(item.Buyers, "buyer")}" : "");
+            value = MarketMath.Shown(item.Median!.Value, item.Stack);
+            brush = Palette.Gold;
         }
         else
         {
@@ -659,10 +662,10 @@ internal sealed class MarketPanel : Border, IMiniPage
         Emit(() => Note("Worth is the middle standing ask times how many you looted; a stack's worth counts each piece at the stack price over the stack size. Posts are asks, not sales.", Palette.Muted));
     }
 
-    // ------------------------------------------------------------------ Wanted
+    // ------------------------------------------------------------------ Buying
 
     /// <summary>What players are bidding for (ranked by how many want it) and the gear they ask after.</summary>
-    private void ShowWanted(MarketSnapshot market)
+    private void ShowBuying(MarketSnapshot market)
     {
         var wanted = market.Items.Where(i => i.Bids.Count > 0).Where(i => Matches(i, true)).OrderByDescending(i => i.Buyers).ThenByDescending(i => i.BestBid).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         bool searching = NameSearch.Words(_query).Length > 0;
@@ -778,7 +781,7 @@ internal sealed class MarketPanel : Border, IMiniPage
     {
         var market = Market();
         var menu = new ContextMenu { PlacementTarget = _kindButton, Placement = PlacementMode.Bottom };
-        var listed = market.Items.Where(i => i.Active || i.LatestAsk is not null).ToList();
+        var listed = market.Items.Where(Selling).ToList();
         var all = new MenuItem { Header = $"All kinds ({listed.Count:N0})", IsCheckable = true, IsChecked = _kind is null };
         all.Click += (_, _) => ChooseKind(null);
         menu.Items.Add(all);
