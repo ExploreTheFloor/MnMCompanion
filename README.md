@@ -238,6 +238,12 @@ database that reads the `/auction` posts shown on the community LiveMNM stream a
 - **Yours**: the items you looted this session (or the day), what each would fetch at the middle ask and the total, so you can tell what is worth
   auctioning rather than selling to a vendor. Items the market has no price for are listed below.
 
+<p align="center">
+  <img src="docs/images/window-market.png" alt="The Market page, Selling tab: items for sale ranked by how busy their market is, with sellers, buyers and the middle ask" width="200">
+  <img src="docs/images/window-market-buying.png" alt="The Buying tab: what players are bidding for, with the best bid" width="200">
+  <img src="docs/images/window-market-yours.png" alt="The Yours tab: this session's loot and what each item would fetch at the middle ask" width="200">
+</p>
+
 A post is what a player **asked**, not what was paid, and the feed covers **one server** (the one the stream shows: the page names it, and says so when
 you play on another). Prices come from reading a video stream, so a few are misread; the page shows only posts with a price for items the site's wiki knows.
 
