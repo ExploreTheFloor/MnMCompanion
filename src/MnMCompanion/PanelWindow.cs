@@ -44,6 +44,10 @@ internal sealed class PanelWindow : Window
     /// <summary>The player chose "What does sharing include?" in the ⓘ menu.</summary>
     public event Action? ShareRequested;
 
+    /// <summary>ⓘ → Send a suggestion… / What's new in this version…</summary>
+    public event Action? SuggestionRequested;
+    public event Action? WhatsNewRequested;
+
     /// <summary>The player pressed the timers button in the title bar.</summary>
     public event Action? TimersRequested;
 
@@ -383,6 +387,13 @@ internal sealed class PanelWindow : Window
         var folder = new MenuItem { Header = "Choose the game's data folder…", ToolTip = $"Where the game keeps its data. Now: {_store.LedgerRoot}" };
         folder.Click += async (_, _) => await ChooseRoot();
         menu.Items.Add(folder);
+        menu.Items.Add(new Separator());
+        var suggest = new MenuItem { Header = "Send a suggestion…", ToolTip = "An idea or a gripe for the person who makes Companion. Only what you write, the program's version and your random id are sent, and only when you press Send." };
+        suggest.Click += (_, _) => SuggestionRequested?.Invoke();
+        menu.Items.Add(suggest);
+        var notes = new MenuItem { Header = "What's new in this version…", ToolTip = "This version's notes from the change log (shown once by itself after an update)." };
+        notes.Click += (_, _) => WhatsNewRequested?.Invoke();
+        menu.Items.Add(notes);
         var page = new MenuItem { Header = "Project page" };
         page.Click += (_, _) => _updates.OpenProjectPage();
         menu.Items.Add(page);

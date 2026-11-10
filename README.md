@@ -36,9 +36,10 @@ monster it came from, and roughly what a vendor would pay for it. At the end of 
 8. [How the numbers are worked out](#how-the-numbers-are-worked-out)
 9. [Your privacy, and what it never does](#your-privacy-and-what-it-never-does)
 10. [Sharing with the community data](#sharing-with-the-community-data)
-11. [Updates](#updates)
-12. [Something looks wrong](#something-looks-wrong)
-13. [For the curious](#for-the-curious)
+11. [Sending a suggestion](#sending-a-suggestion)
+12. [Updates](#updates)
+13. [Something looks wrong](#something-looks-wrong)
+14. [For the curious](#for-the-curious)
 
 More: the [**FAQ**](docs/FAQ.md) answers the common questions in a few lines each, and [docs/ledger-notes.md](docs/ledger-notes.md) is what the game's ledger does and doesn't hold.
 
@@ -532,13 +533,16 @@ then the wiki is never asked.
 
 The **Market** page is the last: the first time you open it, and then once per publish (every six hours) while it is open, it asks mnm-db.com for its public auction feed (once you have it, only whether it has changed), with only the program's name and version, so that site sees your internet address (see [The Market page](#the-market-page)). It is on by default, and one tick in the ⓘ menu switches it off; then the site is never asked.
 
+**ⓘ → Send a suggestion…** sends what you wrote to the same community service, **only when you press Send**, with the program's version and your random id and nothing
+else (see [Sending a suggestion](#sending-a-suggestion)). The what's-new window after an update reads a copy of the change log inside the program and fetches nothing.
+
 The other players' names you see in the group come from your own ledger files; they never leave your PC.
 
 **What it saves on your PC**, all in `%LOCALAPPDATA%\MnMCompanion\`:
 
 | File | What |
 |---|---|
-| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, whether to show the live map, whether to load the recipes (and which skill you were on) and whether to load the market (and its kind and order). |
+| `settings.json` | Where the windows sit, which page you were on, what the History window was looking at, whether to check for updates, which version's what's-new you have seen, whether to show the live map, whether to load the recipes (and which skill you were on) and whether to load the market (and its kind and order). |
 | `recipes.json` | The wiki's recipe list, kept so the Recipes page works offline (unless you switched loading it off). Public data from the wiki, nothing from your game. |
 | `recipes.meta.json` | When the wiki was last asked and what its answer's version tag was, so Companion keeps to once a day (and to the wiki's own "wait") even after a restart. |
 | `market.json` | The price book the Market page keeps: every seller's current price from mnm-db.com's feed and the prices they replaced, with the site's item cards. Public data from the site, nothing from your game. |
@@ -599,6 +603,14 @@ It **never** contains your character names, any other player's name or number (n
 
 ---
 
+## Sending a suggestion
+
+Click **ⓘ → Send a suggestion…**, write what you'd like Companion to do (a page, a figure, a gripe) and press **Send** (or Ctrl+Enter). It goes privately to the
+person who makes Companion, through the same small service the sharing uses. What is sent is **only what you wrote, the program's version and your random id** (the one
+sharing uses, so a flood from one copy can be shut off): nothing from your game, your ledger or your PC, and you don't need to have said Yes to sharing. Nothing is sent
+until you press Send; one a minute and a few a day are taken. Suggestions aren't answered (there is no address to answer to); for a bug with files to attach, use the
+**Report a problem on GitHub** link in the same window, which opens the project's issue page.
+
 ## Updates
 
 <img src="docs/images/window-update.png" alt="The update banner" width="260" align="right">
@@ -610,7 +622,9 @@ unless you have switched that off:
    keeps your current version, and says why in a strip under the title bar.
 2. It replaces the old program and restarts into the new one. **If one of your own timers is counting down it waits until none is**, so no timer's end is missed during the restart.
    The strip says so and has **Restart now** and **Not now**. (Your timers, keys and windows are all there again after the restart.)
-3. After the restart a strip says which version you have now, and where to switch automatic updating off.
+3. After the restart a strip says which version you have now, and where to switch automatic updating off, and a **What's new** window shows the version's notes
+   (every version since the last one you saw, if an update skipped some). It opens once for a version and never again; **ⓘ → What's new in this version…** shows it
+   whenever you like. The notes are a copy of the [change log](CHANGELOG.md) carried inside the program, so nothing is fetched to show them.
 
 <img src="docs/images/window-update-waiting.png" alt="The strip while an update waits for a running timer" width="260">
 
@@ -685,6 +699,8 @@ Run these from a command prompt or a shortcut. None of them is needed for normal
 | `--market <file>` | With `--snapshot --window --mini Market`: read the auction feed from this file (the site's auctions.json) instead of asking mnm-db.com; `--tab Selling|Buying|Yours` picks a tab and `--search "<words>"` types a search. |
 | `--share` | Open the "Share my data with the community" window as soon as the app starts. |
 | `--no-share-prompt` | Start without asking the sharing question (for scripts and pictures). |
+| `--whats-new` / `--no-whats-new` | Open the what's-new window as the app starts / never open it by itself (for scripts and pictures). |
+| `--suggest` | Open the "Send a suggestion" window as soon as the app starts. |
 | `--contribute <folder or file>` | Save what sharing would send (named by your random id: the totals, and what NPCs said to you as a second `.npcs.json` file) and quit, without a window. |
 | `--archive [--db <file>] [--report <file>]` | Copy every ledger row into the saved database once, write what it did to a report file, and quit without showing a window. |
 | `--diagnose [--report <file>]` | Write a report of what this copy sees of where it runs (is it under Wine or Proton, where it looked for the game's data and what it found, whether a window can be drawn), with counts but no names and the user name in paths hidden, and quit. For testing on Linux. |

@@ -84,6 +84,8 @@ public partial class App : Application
         _panel.Closed += (_, _) => Shutdown();
         _panel.BreakdownRequested += OpenBreakdown;
         _panel.ShareRequested += OpenShare;
+        _panel.SuggestionRequested += OpenSuggestion;
+        _panel.WhatsNewRequested += () => OpenWhatsNew(since: null);
         _panel.TimersRequested += () => Timers().Toggle();
         _panel.HistoryPageRequested += OpenHistoryPage;
         _panel.Show();
@@ -95,11 +97,48 @@ public partial class App : Application
         }
         if (args.History) OpenBreakdown(DateOnly.FromDateTime(DateTime.Now), null, null);
         if (args.Share) OpenShare();
-        // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here)
-        if (CommunityPolicy.ShouldAsk(_settings.Sharing, !args.NoSharePrompt)) AskToShare();
+        if (args.Suggest) OpenSuggestion();
+        // What changed, once, the first run after a new version (or when asked for); a run that must not show windows (pictures, scripts) says --no-whats-new
+        var shownBefore = _settings.NotesShownVersion;
+        bool whatsNew = args.WhatsNew || (!args.NoWhatsNew && !_settings.ReadOnly && WhatsNewPolicy.ShouldShow(shownBefore, _settings.FreshInstall, AppVersion.Current()));
+        if (!_settings.ReadOnly && shownBefore != AppVersion.Show(AppVersion.Current()))
+        {
+            _settings.NotesShownVersion = AppVersion.Show(AppVersion.Current());
+            _settings.Save();
+        }
+        // Asked every time the app starts, and only while the answer is No (not when told not to; a run with no window never gets here); after the notes, if those are showing
+        bool askToShare = CommunityPolicy.ShouldAsk(_settings.Sharing, !args.NoSharePrompt);
+        if (whatsNew) OpenWhatsNew(since: AppVersion.Parse(shownBefore), then: askToShare ? AskToShare : null);
+        else if (askToShare) AskToShare();
         _updates.Start();
         if (args.Updated) _updates.Announce();
         _sharing.Start();
+    }
+
+    private void OpenSuggestion()
+    {
+        if (_history is null || _community is null) return;
+        var window = new SuggestionWindow(_history, _community) { Owner = _panel };
+        window.Show();
+        window.Activate();
+    }
+
+    /// <summary>
+    /// The "what's new" window. By itself it shows every version since the one shown last (<paramref name="since"/>), so an update that skipped versions
+    /// misses none; from the menu (null), the running version's entry alone. <paramref name="then"/> runs when it closes (the sharing question waits for it).
+    /// </summary>
+    private void OpenWhatsNew(Version? since, Action? then = null)
+    {
+        var current = AppVersion.Current();
+        var entries = ReleaseNotes.Parse(WhatsNewWindow.Changelog());
+        var shown = since is { } last && last < AppVersion.Normalize(current) ? last : null;
+        var footnote = _settings.CheckForUpdates && _settings.InstallUpdates
+            ? "Updates install by themselves; switch that off under ⓘ → Install updates automatically. Have an idea? ⓘ → Send a suggestion…"
+            : "Have an idea? ⓘ → Send a suggestion…";
+        var window = new WhatsNewWindow(ReleaseNotes.Between(entries, shown, current), current, footnote) { Owner = _panel };
+        if (then is not null) window.Closed += (_, _) => then();
+        window.Show();
+        window.Activate();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -554,9 +593,9 @@ public partial class App : Application
     }
 }
 
-/// <summary>Command line: <c>--updated</c> (given by an update to the new program: waits for the old one to exit, then says it was updated); <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update | --preview-waiting]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--search "words"] [--size WxH]</c> for the History window (<c>--search</c> types into the search box of the page: on Loot that shows the answer across every day). For the Recipes page, <c>--snapshot &lt;png&gt; --window --mini Recipes --recipes &lt;wiki tradeskills json&gt; [--tab "a skill"] [--search "words"]</c> reads that file instead of asking the wiki. For the Market page, <c>--snapshot &lt;png&gt; --window --mini Market --market &lt;auctions json&gt; [--tab Selling|Buying|Yours] [--search "words"]</c> reads that file instead of asking mnm-db.com.</summary>
+/// <summary>Command line: <c>--updated</c> (given by an update to the new program: waits for the old one to exit, then says it was updated); <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--whats-new</c> to open the "what's new" window as the app starts, <c>--no-whats-new</c> never to open it by itself (for scripts and pictures); <c>--suggest</c> to open the "Send a suggestion" window as the app starts; <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update | --preview-waiting]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--search "words"] [--size WxH]</c> for the History window (<c>--search</c> types into the search box of the page: on Loot that shows the answer across every day). For the Recipes page, <c>--snapshot &lt;png&gt; --window --mini Recipes --recipes &lt;wiki tradeskills json&gt; [--tab "a skill"] [--search "words"]</c> reads that file instead of asking the wiki. For the Market page, <c>--snapshot &lt;png&gt; --window --mini Market --market &lt;auctions json&gt; [--tab Selling|Buying|Yours] [--search "words"]</c> reads that file instead of asking mnm-db.com.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false, bool Timers = false, bool TimersSetup = false, string? Opacity = null, bool Buttons = false, bool Updated = false, bool PreviewWaiting = false, string? Search = null, string? Recipes = null, string? Market = null)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false, bool Timers = false, bool TimersSetup = false, string? Opacity = null, bool Buttons = false, bool Updated = false, bool PreviewWaiting = false, string? Search = null, string? Recipes = null, string? Market = null, bool WhatsNew = false, bool NoWhatsNew = false, bool Suggest = false)
 {
     public static Args Parse(string[] args)
     {
@@ -566,6 +605,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
             args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"), args.Contains("--diagnose"), args.Contains("--timers"), args.Contains("--timers-setup"), Value("--opacity"), args.Contains("--buttons"),
-            args.Contains("--updated"), args.Contains("--preview-waiting"), Value("--search"), Value("--recipes"), Value("--market"));
+            args.Contains("--updated"), args.Contains("--preview-waiting"), Value("--search"), Value("--recipes"), Value("--market"), args.Contains("--whats-new"), args.Contains("--no-whats-new"), args.Contains("--suggest"));
     }
 }

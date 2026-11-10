@@ -6,6 +6,21 @@ which is what the update message shows when you hover over it.
 Every entry says what it means for **your data**: whether anything new is shared with the community service (only ever after a Yes from you), and whether the program
 now asks anywhere else on the internet. A line starting with **Sharing** or **Network** is there for that.
 
+## 0.4.8 (2026-11-10)
+
+**In short:** A suggestion box, and a window that shows what changed, once, after an update.
+
+- **New: send a suggestion.** Click **ⓘ → Send a suggestion…**, write what you'd like Companion to do (or what bothers you) and press **Send**: it goes privately to the person
+  who makes Companion, through the same small service the sharing uses. Nothing from your game or your ledger goes with it: only what you wrote, the program's version and your
+  random id (the one sharing uses, so nobody can flood the box). You don't need to have said Yes to sharing. For a bug with files to attach, the window links to the issue page
+  on GitHub. See [Sending a suggestion](README.md#sending-a-suggestion).
+- **New: what's new, once.** The first time Companion runs after an update, a window shows this version's notes (every version since the last one you saw, if an update skipped
+  some), with **OK** and a link to every version's notes. It opens once and never again for that version; **ⓘ → What's new in this version…** shows it whenever you like.
+  The notes come from a copy of the change log inside the program, so no page is fetched.
+- **Network:** a suggestion is sent **only when you press Send**, to the project's community service (`mnm-intake.mnm-companion.workers.dev`), and it carries only the three
+  things above. The what's-new window asks nothing on the internet.
+- **Sharing:** nothing new is shared; a Yes you gave stays valid.
+
 ## 0.4.7 (2026-11-01)
 
 **In short:** A Market page with what players ask for items on the auction channel, and what your loot would fetch.

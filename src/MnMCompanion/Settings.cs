@@ -148,6 +148,13 @@ public sealed class Settings
     /// <summary>A version the player chose "Skip this version" for: not offered again (a newer one still is).</summary>
     public string? SkippedVersion { get; set; }
 
+    /// <summary>The version whose "what's new" was shown when the program started: the window opens by itself once, the first run after an update (see <c>WhatsNewPolicy</c>).</summary>
+    public string? NotesShownVersion { get; set; }
+
+    /// <summary>There was no settings file when the program started: a first run (nothing is "new" to show yet).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool FreshInstall { get; private set; }
+
     /// <summary>A picture-taking run: nothing is written.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool ReadOnly { get; set; }
@@ -165,7 +172,7 @@ public sealed class Settings
             if (File.Exists(FilePath) && JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath), Json) is { } s) return s;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { }
-        return new Settings();
+        return new Settings { FreshInstall = !File.Exists(FilePath) };
     }
 
     public void Save()

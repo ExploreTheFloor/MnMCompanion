@@ -10,7 +10,7 @@
     <RootNamespace>MnMCompanion</RootNamespace>
     <AssemblyName>MnMCompanion</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.4.7</Version>
+    <Version>0.4.8</Version>
     <!-- the exe's ProductVersion is exactly <Version>: the code signing policy checks it, and the SDK would add "+<commit>" -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Companion for Monsters &amp; Memories</Product>
@@ -25,6 +25,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <!-- The change log travels inside the program: the "what's new" window shows this version's entry without asking the network -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
 </Project>

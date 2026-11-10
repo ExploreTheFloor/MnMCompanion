@@ -106,6 +106,49 @@ public sealed class CommunityClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// Sends a suggestion the player typed (ⓘ → Send a suggestion…) to the project's owner: the words, the program's name and version, and the player's random id
+    /// (so a flood from one install can be shut off), nothing else. The service keeps it privately; nothing is echoed back. Only ever called when the player presses Send.
+    /// </summary>
+    public async Task<SendResult> SuggestAsync(string contributor, string text, Version app, CancellationToken cancel = default)
+    {
+        if (!Id.IsMatch(contributor)) return new SendResult(SendOutcome.Failed, "There is no contributor id to send with yet.");
+        var cleaned = Suggestion.Clean(text);
+        if (cleaned.Length == 0) return new SendResult(SendOutcome.Refused, "Write something first.");
+        try
+        {
+            var json = JsonSerializer.Serialize(new { contributor, app = "MnMCompanion " + AppVersion.Show(app), text = cleaned });
+            using var content = new StringContent(json, new UTF8Encoding(false), "application/json");
+            using var response = await _http.PostAsync("/v1/suggestion", content, cancel).ConfigureAwait(false);
+            var (error, problems) = await ReadError(response, cancel).ConfigureAwait(false);
+            var wait = RetryAfter(response);
+            switch ((int)response.StatusCode)
+            {
+                case 202:
+                    return new SendResult(SendOutcome.Sent, "Sent. Thank you!");
+                case 429:
+                    return new SendResult(SendOutcome.TooSoon, wait is { } w && w < TimeSpan.FromMinutes(10)
+                        ? $"One a minute: try again in {Math.Max(1, (int)Math.Ceiling(w.TotalSeconds))} s." : "That is enough suggestions for one day; thank you. Try again tomorrow.", wait);
+                case 503:
+                    return new SendResult(SendOutcome.Busy, "The suggestion box is full for today; try again later.", wait ?? TimeSpan.FromHours(1));
+                case 403:
+                    return new SendResult(SendOutcome.Refused, "The service doesn't take suggestions from this copy.");
+                case 400 or 413 or 415 or 422:
+                    return new SendResult(SendOutcome.Refused, "The service refused it" + (problems.Length > 0 ? ": " + problems : error.Length > 0 ? ": " + error : "") + ".");
+                default:
+                    return new SendResult(SendOutcome.Failed, $"The service answered with an error ({(int)response.StatusCode}).");
+            }
+        }
+        catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
+        {
+            return new SendResult(SendOutcome.Failed, "The service didn't answer in time.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new SendResult(SendOutcome.Failed, "Couldn't reach the service (" + ex.Message + ").");
+        }
+    }
+
     // ------------------------------------------------------------------ asking
 
     /// <summary>One monster's drop rates by zone, as the community's players have them.</summary>

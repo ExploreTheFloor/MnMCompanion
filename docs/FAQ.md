@@ -51,6 +51,17 @@ and only then replaces the old one and restarts (waiting first if one of your ti
 To be asked first instead, click **ⓘ** and untick **Install updates automatically**; untick **Check for updates automatically** too and it never asks GitHub by itself. You can also use **ⓘ → Check for updates now**. If you are still on **version 0.1.0** (when it was called Loot Goblin), that version can't see newer releases:
 download the current `MnMCompanion.exe` once and replace the old file; from then on it updates itself. So does **version 0.4.0**, which only offers the update: press **Update now** once, and every version after that installs by itself. See [Updates](../README.md#updates).
 
+### What is the "What's new" window that opened?
+The notes of the version you just got: the first time Companion runs after an update it shows what changed (every version since the last one you saw, if an update skipped some),
+once, and never again for that version. Press **OK**. **ⓘ → What's new in this version…** shows it again whenever you like, and the link at its foot opens the
+[change log](../CHANGELOG.md), which lists every version. The notes are a copy of the change log inside the program; nothing is fetched to show them.
+
+### How do I suggest something?
+**ⓘ → Send a suggestion…**, write it, press **Send**. It goes privately to the person who makes Companion, with the program's version and your random id (the one sharing
+uses) and nothing else: nothing from your game, your ledger or your PC, and only when you press Send. You don't need to have said Yes to sharing. There is no address to
+answer to, so suggestions aren't answered; for a bug with files to attach, use the **Report a problem on GitHub** link in the same window. See
+[Sending a suggestion](../README.md#sending-a-suggestion).
+
 ### How do I uninstall it?
 Close it and delete `MnMCompanion.exe`. Its settings and saved history are in `%LOCALAPPDATA%\MnMCompanion\` (paste that into the File Explorer address bar); delete that folder too
 if you want everything gone.
