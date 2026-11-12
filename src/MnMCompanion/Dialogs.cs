@@ -23,15 +23,26 @@ internal static class Dialogs
         window.ShowInTaskbar = true;
         window.Background = (Brush)Ui.Theme["Window"];
         window.Foreground = Palette.Text;
-        window.FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        window.UseText();
         window.SourceInitialized += (_, _) => DarkTitleBar(window);
+        Scale(window);
     }
 
-    public static TextBlock Title(string text) => new()
+    /// <summary>
+    /// Draws a small dialog at the size the player chose for dialogs (Ctrl + wheel in any of them changes it for all). <paramref name="settings"/> is where the
+    /// size is kept; the app's own settings when not given (null before the app has really started, which leaves the dialog at the normal size).
+    /// </summary>
+    public static void Scale(Window window, Settings? settings = null)
+    {
+        var use = settings ?? WindowScale.Shared;
+        if (use is null) return;
+        WindowScale.Attach(window, use, "Dialogs", "dialog windows", sizeIsSaved: false);
+    }
+
+    public static TextBlock Title(string text) => new TextBlock
     {
         Text = text, FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap,
-        FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"),
-    };
+    }.UseDisplay();
 
     public static TextBlock Text(string text, double top, Brush colour, double size = 12.5) =>
         new() { Text = text, FontSize = size, Foreground = colour, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, top, 0, 0) };

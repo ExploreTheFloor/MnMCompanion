@@ -194,7 +194,7 @@ internal sealed class DropRatesView : UserControl
     private static FrameworkElement Title(string name, string sub)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 2) };
-        row.Children.Add(new TextBlock { Text = name, FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") });
+        row.Children.Add(new TextBlock { Text = name, FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text }.UseDisplay());
         if (sub.Length > 0) row.Children.Add(new TextBlock { Text = "   " + sub, FontSize = 12, Foreground = Palette.Muted, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 3) });
         return row;
     }

@@ -38,6 +38,8 @@ internal sealed class PanelWindow : Window
     private readonly UpdateController? _updates;
     private readonly DispatcherTimer _timer;
     private bool _busy;
+    private readonly string? _recipesFile, _marketFile;
+    private readonly Dictionary<string, PageWindow> _pageWindows = [];
 
     public event Action<DateOnly, string?, LootSession?>? BreakdownRequested;
 
@@ -63,6 +65,8 @@ internal sealed class PanelWindow : Window
         _settings = settings;
         _updates = updates;
         _history = history;
+        _recipesFile = recipesFile;
+        _marketFile = marketFile;
         Title = "Companion";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResizeWithGrip;
@@ -81,7 +85,7 @@ internal sealed class PanelWindow : Window
         MinHeight = 240;
         UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
-        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        this.UseText();
 
         var b = settings.Panel ?? new Bounds(double.NaN, double.NaN, 480, 600);
         Width = b.Width;
@@ -102,6 +106,7 @@ internal sealed class PanelWindow : Window
         var close = TitleButton("", "Close", Close);
         _about = TitleButton("", "About Companion, and updates", OpenAboutMenu);
         var historyButton = LabelledButton("\uE81C", "History", "History: every day and every page, for this character or for everyone", OpenHistory);
+        var popOutButton = TitleButton("\uE8A7", "Open the page on show in a window of its own (or right-click any page button below)", () => PopOut(_page));
         var timersButton = LabelledButton("\uE916", "Timers", "Timers: your own timers, started by a key, and a timer for every corpse", () => TimersRequested?.Invoke());
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 32, Cursor = Cursors.SizeAll, LastChildFill = false };
         DockPanel.SetDock(close, Dock.Right);
@@ -109,6 +114,7 @@ internal sealed class PanelWindow : Window
         DockPanel.SetDock(_about, Dock.Right);
         DockPanel.SetDock(historyButton, Dock.Right);
         DockPanel.SetDock(timersButton, Dock.Right);
+        DockPanel.SetDock(popOutButton, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         DockPanel.SetDock(_who, Dock.Left);
         title.Children.Add(close);
@@ -116,6 +122,7 @@ internal sealed class PanelWindow : Window
         if (updates is not null) title.Children.Add(_about);
         title.Children.Add(historyButton);
         title.Children.Add(timersButton);
+        title.Children.Add(popOutButton);
         title.Children.Add(caption);
         title.Children.Add(_who);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
@@ -134,7 +141,11 @@ internal sealed class PanelWindow : Window
         _pages["Harvest"] = new HarvestMini(store, history, _session, _status, OpenInHistory);
         _pages["Recipes"] = _recipes = new RecipesPanel(settings, _status, recipesFile);
         _pages["Market"] = _market = new MarketPanel(store, _session, settings, _status, marketFile);
-        _session.Said += text => Active.Say(text);
+        _session.Said += text =>
+        {
+            Active.Say(text);
+            foreach (var window in _pageWindows.Values) window.Page.Say(text);
+        };
         var bottom = BuildBottomBar();
         var root = new DockPanel();
         DockPanel.SetDock(title, Dock.Top);
@@ -145,6 +156,8 @@ internal sealed class PanelWindow : Window
         root.Children.Add(bottom);
         root.Children.Add(_host);
         Content = root;
+        WindowScale.Attach(this, settings, "Panel", "small window", sizeIsSaved: settings.Panel is not null);
+        root.SizeChanged += (_, _) => ShowToolLabels();   // the contents' width, which a change of size alters without the window's width changing
         ShowPage(PageNames.Contains(settings.MiniPage) ? settings.MiniPage : "Loot", save: false);
         ShowPin();
         ShowSelection();
@@ -168,7 +181,8 @@ internal sealed class PanelWindow : Window
             await FollowAsync();
             await RefreshAsync();
             Active.Tick();
-            if (Active.NeedsHistory && _history is not null) _ = _history.RefreshAsync();
+            foreach (var window in _pageWindows.Values.ToList()) window.Tick();
+            if ((Active.NeedsHistory || _pageWindows.Values.Any(w => w.NeedsHistory)) && _history is not null) _ = _history.RefreshAsync();
         };
         Loaded += async (_, _) =>
         {
@@ -176,6 +190,8 @@ internal sealed class PanelWindow : Window
             await RefreshAsync(force: true);
             Active.Refresh();
             _timer.Start();
+            // the page windows that were open when the app closed
+            if (!settings.ReadOnly) foreach (var key in settings.PageWindowsOpen.Where(PageNames.Contains).Distinct().ToList()) PopOut(key);
         };
     }
 
@@ -219,6 +235,12 @@ internal sealed class PanelWindow : Window
             var key = name;
             var rb = new RadioButton { Content = new TextBlock { Text = key }, Style = (Style)Ui.Theme["Segment"], GroupName = "MiniPage", IsChecked = key == _page, Focusable = false };
             rb.Checked += (_, _) => { if (key != _page) ShowPage(key); };
+            rb.ToolTip = $"{key}. Right-click to open it in a window of its own.";
+            var menu = new ContextMenu();
+            var popOut = new MenuItem { Header = $"Open {key} in its own window", ToolTip = "A second copy of this page in a window you can move, resize and keep beside the game. It stays up to date with the small window." };
+            popOut.Click += (_, _) => PopOut(key);
+            menu.Items.Add(popOut);
+            rb.ContextMenu = menu;
             _nav[key] = rb;
             grid.Children.Add(rb);
         }
@@ -248,7 +270,7 @@ internal sealed class PanelWindow : Window
     /// <summary>A title bar button that opens a window: its picture and its name, so it says what it is. The name is left off when the window is narrow.</summary>
     private Button LabelledButton(string glyph, string label, string tip, Action click)
     {
-        var words = new TextBlock { Text = label, FontSize = 12.5, FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"), Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var words = new TextBlock { Text = label, FontSize = 12.5, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }.UseText();
         _toolLabels.Add(words);
         var picture = new TextBlock { Text = glyph, FontFamily = (FontFamily)Ui.Theme["Icons"], FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
         var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 10, 0) };
@@ -265,8 +287,60 @@ internal sealed class PanelWindow : Window
 
     private void ShowToolLabels()
     {
-        var visibility = ActualWidth >= 420 ? Visibility.Visible : Visibility.Collapsed;
+        var visibility = (Content is FrameworkElement content ? content.ActualWidth : ActualWidth) >= 420 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var label in _toolLabels) label.Visibility = visibility;
+    }
+
+    /// <summary>Opens a page in a window of its own, or brings the one it already has forward.</summary>
+    public PageWindow? PopOut(string key, bool quiet = false)
+    {
+        if (!PageNames.Contains(key)) return null;
+        if (_pageWindows.TryGetValue(key, out var open))
+        {
+            if (open.WindowState == WindowState.Minimized) open.WindowState = WindowState.Normal;
+            if (!quiet) open.Activate();
+            return open;
+        }
+        var (page, status) = MakePage(key);
+        var window = new PageWindow(key, page, status, _store, _settings, this, _pageWindows.Count);
+        _pageWindows[key] = window;
+        if (!_settings.PageWindowsOpen.Contains(key)) { _settings.PageWindowsOpen.Add(key); _settings.Save(); }
+        window.Closed += (_, _) =>
+        {
+            _pageWindows.Remove(key);
+            (page as IDisposable)?.Dispose();
+            // Only the player closing it (its ✕) takes it off the list of windows to bring back: closing the app closes it too, and it comes back next time
+            if (!window.ClosedByPlayer) return;
+            _settings.PageWindowsOpen.Remove(key);
+            _settings.Save();
+        };
+        if (quiet) window.ShowActivated = false;   // a picture
+        window.Show();
+        return window;
+    }
+
+    /// <summary>A second copy of a page for a window of its own, with its own status line. It reads the same store, session and history as the page in this window.</summary>
+    private (IMiniPage Page, TextBlock Status) MakePage(string key)
+    {
+        void OpenInHistory(string k) => HistoryPageRequested?.Invoke(k);
+        if (key == "Loot")
+        {
+            var loot = new LootPanel(_store, _session, _settings.View, view => { _settings.View = view; _settings.Save(); },
+                (day, member, session) => BreakdownRequested?.Invoke(day, member, session));
+            return (loot, loot.StatusLine);
+        }
+        var status = new TextBlock();
+        IMiniPage page = key switch
+        {
+            "Map" => new MapPanel(_store, _session, _settings, status),
+            "Vendor" => new VendorMini(_store, _history, _session, status, OpenInHistory),
+            "Trades" => new TradesMini(_store, _history, _session, status, OpenInHistory),
+            "Items" => new ItemsMini(_store, _history, _session, status, OpenInHistory),
+            "Harvest" => new HarvestMini(_store, _history, _session, status, OpenInHistory),
+            "Recipes" => new RecipesPanel(_settings, status, _recipesFile),
+            _ => new MarketPanel(_store, _session, _settings, status, _marketFile),
+        };
+        return (page, status);
     }
 
     private void SetOnTop(bool on)
@@ -279,7 +353,11 @@ internal sealed class PanelWindow : Window
 
     private void ShowPin() => _pin.Foreground = Topmost ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0x70, 0x7A, 0x88));
 
-    private void ShowSelection() => _who.Text = _store.Selected is { } s ? $"{s.Character} · {s.ServerName}" : "No ledger";
+    private void ShowSelection()
+    {
+        _who.Text = _store.Selected is { } s ? $"{s.Character} · {s.ServerName}" : "No ledger";
+        foreach (var window in _pageWindows.Values) window.ShowSelection();
+    }
 
     /// <summary>Reads the ledger on a worker thread and redraws if it changed (or <paramref name="force"/>).</summary>
     public async Task RefreshAsync(bool force = false)
@@ -294,6 +372,7 @@ internal sealed class PanelWindow : Window
             {
                 _panel.Refresh();
                 if (_page != "Loot") Active.Refresh();
+                foreach (var window in _pageWindows.Values.ToList()) window.Refresh();
             }
         }
         catch (Exception ex)
@@ -388,6 +467,9 @@ internal sealed class PanelWindow : Window
         folder.Click += async (_, _) => await ChooseRoot();
         menu.Items.Add(folder);
         menu.Items.Add(new Separator());
+        var look = new MenuItem { Header = "Size and font…", ToolTip = "Make this window (and any other) bigger or smaller, and pick the font. Ctrl and the mouse wheel over a window changes its size too." };
+        look.Click += (_, _) => LookWindow.Open(this, _settings);
+        menu.Items.Add(look);
         var suggest = new MenuItem { Header = "Send a suggestion…", ToolTip = "An idea or a gripe for the person who makes Companion. Only what you write, the program's version and your random id are sent, and only when you press Send." };
         suggest.Click += (_, _) => SuggestionRequested?.Invoke();
         menu.Items.Add(suggest);

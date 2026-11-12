@@ -41,7 +41,7 @@ internal abstract class StatsPanel<T> : Border, IMiniPage where T : class
     protected readonly SessionScope Session;
 
     protected readonly TextBlock Sub = new() { FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
-    protected readonly TextBlock Big = new() { FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, HorizontalAlignment = HorizontalAlignment.Right, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") };
+    protected readonly TextBlock Big = new TextBlock { FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, HorizontalAlignment = HorizontalAlignment.Right }.UseDisplay();
     protected readonly TextBlock Caption = new() { FontSize = 10, Foreground = Palette.Muted, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, -2, 1, 0) };
     protected readonly StackPanel Body = new() { Margin = new Thickness(0, 6, 0, 0) };
 

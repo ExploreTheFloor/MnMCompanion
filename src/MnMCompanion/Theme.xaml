@@ -10,6 +10,9 @@
         <SolidColorBrush x:Key="Danger" Color="#FF6B6B"/>
         <SolidColorBrush x:Key="Good" Color="#3DD68C"/>
         <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+        <!-- The typefaces of the words, as DynamicResources: the Size and font window changes these two in place (Ui.ApplyFont) and every window follows -->
+        <FontFamily x:Key="TextFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+        <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>
 
         <Style x:Key="IconButton" TargetType="ButtonBase">
             <Setter Property="Width" Value="26"/>

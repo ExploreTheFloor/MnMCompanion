@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Companion · History" Width="1560" Height="900" MinWidth="1180" MinHeight="600"
         Background="{StaticResource Window}" Foreground="{StaticResource Text}"
-        FontFamily="Segoe UI Variable Text, Segoe UI" TextOptions.TextFormattingMode="Display"
+        FontFamily="{DynamicResource TextFont}" TextOptions.TextFormattingMode="Display"
         UseLayoutRounding="True" WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -33,6 +33,8 @@
                     <Button x:Name="CharacterButton" Style="{StaticResource TextButton}" Padding="8,5" Click="OnCharacter"
                             ToolTip="Everyone on the server (or on the PC), or one character. The small window always follows whoever you play."/>
                 </StackPanel>
+                <Button DockPanel.Dock="Bottom" Style="{StaticResource TextButton}" Padding="8,5" Margin="4,8,4,0" Content="Size and font…" Click="OnLook"
+                        ToolTip="Make this window bigger or smaller, and pick the font. Ctrl and the mouse wheel does the size too."/>
                 <ListBox x:Name="Rail" Style="{StaticResource NavList}" ItemTemplate="{StaticResource RailItem}" SelectionChanged="OnRail"/>
             </DockPanel>
         </Border>
