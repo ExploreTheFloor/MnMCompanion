@@ -6,6 +6,26 @@ which is what the update message shows when you hover over it.
 Every entry says what it means for **your data**: whether anything new is shared with the community service (only ever after a Yes from you), and whether the program
 now asks anywhere else on the internet. A line starting with **Sharing** or **Network** is there for that.
 
+## 0.4.9 (2026-11-11)
+
+**In short:** Make any window bigger or smaller and pick the font, and put any page in a window of its own.
+
+- **New: window size.** Every window can be drawn from 70% to 250%, for a large second screen or a small overlay: hold **Ctrl** and turn the **mouse wheel** over a window, or press
+  **Ctrl +**, **Ctrl −** and **Ctrl 0** (back to normal), or open **ⓘ → Size and font…**. The window grows or shrinks with its contents, so you see the same page only larger.
+  **Each kind of window keeps its own size** (the small window, History, Timers, the timer setup, each page window, and the small dialogs), so a big window on the second screen doesn't
+  make the timers big. Menus and tooltips follow the size of their window. The History window has the same button under its list of pages, and the timers window has it in its *Opacity* menu.
+  See [Size and font](README.md#size-and-font).
+- **New: font.** Pick the typeface for every window from a short list of the ones Windows has (Segoe UI, Arial, Calibri, Verdana, Tahoma and a few more); it changes at once. The icons keep
+  their own font. A wide font needs a little more room, so widen the window if a row looks tight.
+- **New: pages in their own windows.** Right-click any button in the bottom bar and choose *Open … in its own window*, or press the new **pop-out** button in the title bar to open the page you
+  are on. It is a second copy of the page that stays up to date with the small window, with its own pin and size, and it remembers where you put it; windows that were open when you closed
+  Companion come back at the next start. The **✕** closes one (the page is still in the small window). See [Pages in their own windows](README.md#pages-in-their-own-windows).
+  The size, font and pop-out ideas all came from a suggestion sent through the new suggestion box.
+- **Fixed: menus with items under them.** A menu item that has a list under it never opened it, so the timers window's *Key to hold* choice (Ctrl, Alt or Shift) and the Windows sound groups in
+  the timer setup could not be reached. They open now.
+- **Network:** nothing new: none of this asks anything on the internet, and nothing is read from the game.
+- **Sharing:** nothing new is shared; a Yes you gave stays valid.
+
 ## 0.4.8 (2026-11-10)
 
 **In short:** A suggestion box, and a window that shows what changed, once, after an update.
