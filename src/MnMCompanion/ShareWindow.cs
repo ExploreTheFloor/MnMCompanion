@@ -62,15 +62,15 @@ internal sealed class ShareWindow : Window
         Topmost = mode == ShareMode.Ask;
         Background = (Brush)Ui.Theme["Window"];
         Foreground = Palette.Text;
-        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        this.UseText();
         SourceInitialized += (_, _) => DarkTitleBar();
+        Dialogs.Scale(this, settings);
 
         _stack.Children.Add(new TextBlock
         {
             Text = mode == ShareMode.Ask ? "Share your data with the community?" : "Sharing with the community",
             FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap,
-            FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"),
-        });
+        }.UseDisplay());
         _stack.Children.Add(Text("Players pool their own totals into one combined database of drop rates, vendor prices and gathering yields, kept privately by the project and never published. " +
             "Saying Yes adds yours for you, automatically, and lets you use what everyone has shared.", 10, Palette.Muted));
         if (settings.ConsentNeedsRenewal)

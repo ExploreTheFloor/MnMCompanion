@@ -631,7 +631,7 @@ internal sealed class MarketPanel : Border, IMiniPage
         var head = new DockPanel { Margin = new Thickness(2, 2, 2, 4) };
         var right = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right };
         DockPanel.SetDock(right, Dock.Right);
-        right.Children.Add(new TextBlock { Text = MarketMath.Coin(total), FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Palette.Gold, HorizontalAlignment = HorizontalAlignment.Right, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") });
+        right.Children.Add(new TextBlock { Text = MarketMath.Coin(total), FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Palette.Gold, HorizontalAlignment = HorizontalAlignment.Right }.UseDisplay());
         right.Children.Add(new TextBlock { Text = $"at {market.Server}'s middle asks", FontSize = 10, Foreground = Palette.Muted, HorizontalAlignment = HorizontalAlignment.Right });
         head.Children.Add(right);
         var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };

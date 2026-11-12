@@ -30,6 +30,9 @@ public partial class App : Application
         if (args.Updated) UpdateService.WaitForPreviousToExit(Environment.ProcessPath, TimeSpan.FromSeconds(15));
 
         _settings = Settings.Load();
+        // The typeface the player chose (or a picture's --font), and the scale that menus and tooltips get from the window they belong to
+        Ui.ApplyFont(args.Font ?? _settings.UiFont);
+        WindowScale.Register();
         // A run pointed at another game folder (a test, a picture, a borrowed copy) keeps its own saved copy and sessions and saves no settings,
         // so what it reads can never end up in the player's own database
         var other = args.Ledger is null ? null : LedgerDb.OtherFolder(args.Ledger);
@@ -74,6 +77,7 @@ public partial class App : Application
             return;
         }
 
+        WindowScale.Shared = _settings;   // the small dialogs find the player's sizes here (a picture-taking run never gets this far)
         _updates = new UpdateController(_settings) { Busy = () => _timers?.AnyRunning == true };
         _history = new HistoryData(() => _store.LedgerRoot, OtherDb(args));
         _community = new CommunityClient(AppVersion.Current());
@@ -438,7 +442,7 @@ public partial class App : Application
                 using var history = new HistoryData(() => _store.LedgerRoot, scratch, automatic: false);
                 history.RefreshNow();
                 var page = args.Page ?? "Loot";
-                var window = new HistoryWindow(_store, new Settings { ReadOnly = true, HistoryPage = page }, history) { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
+                var window = new HistoryWindow(_store, Scaled(new Settings { ReadOnly = true, HistoryPage = page }, args, "History"), history) { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
                 window.Left = -20000;
                 window.Top = 0;
                 window.Width = args.Width;
@@ -479,7 +483,7 @@ public partial class App : Application
             {
                 using var history = new HistoryData(() => _store.LedgerRoot, scratch, automatic: false);
                 history.RefreshNow();
-                var settings = new Settings { ReadOnly = true, ShareWithCommunity = true, ShareConsentSchema = Community.ContributionBuilder.Schema };
+                var settings = Scaled(new Settings { ReadOnly = true, ShareWithCommunity = true, ShareConsentSchema = Community.ContributionBuilder.Schema }, args, "Dialogs");
                 var window = new ShareWindow(history, settings, "MnMCompanion " + AppVersion.Show(AppVersion.Current()), ShareMode.Settings)
                     { ShowActivated = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = -20000, Top = 0 };
                 window.Show();
@@ -507,7 +511,7 @@ public partial class App : Application
             try
             {
                 var corpses = TimersSample(folder);
-                var settings = new Settings { ReadOnly = true, TimersOpacity = int.TryParse(args.Opacity, out var opacity) ? opacity : 100, TimersButtons = args.Buttons };
+                var settings = Scaled(new Settings { ReadOnly = true, TimersOpacity = int.TryParse(args.Opacity, out var opacity) ? opacity : 100, TimersButtons = args.Buttons }, args, "Timers", "Timer setup");
                 var timers = new TimersWindow(settings, () => folder, () => corpses);
                 Window window = args.TimersSetup
                     ? new TimerSetupWindow(timers, settings) { WindowStartupLocation = WindowStartupLocation.Manual, ShowInTaskbar = false }
@@ -543,7 +547,7 @@ public partial class App : Application
             {
                 using var history = new HistoryData(() => _store.LedgerRoot, scratch, automatic: false);
                 history.RefreshNow();
-                var window = new PanelWindow(_store, new Settings { View = args.View ?? "Value", MiniPage = args.Mini ?? "Loot", ReadOnly = true }, updates, history, args.Recipes, args.Market)
+                var window = new PanelWindow(_store, Scaled(new Settings { View = args.View ?? "Value", MiniPage = args.Mini ?? "Loot", ReadOnly = true }, args, "Panel", "Page " + (args.Mini ?? "Loot")), updates, history, args.Recipes, args.Market)
                     { ShowActivated = false, ShowInTaskbar = false, Width = args.Width, Height = args.Height };
                 window.Left = -20000;
                 window.Show();
@@ -553,6 +557,21 @@ public partial class App : Application
                 if (args.Mini == "Market") window.ShowMarket(args.Tab, args.Search);
                 window.DrawPageNow();
                 Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                if (args.PopOut)
+                {
+                    // The page in a window of its own instead of the small window (shown far off screen like the rest)
+                    var popped = window.PopOut(args.Mini ?? "Loot", quiet: true)!;
+                    popped.Left = -20000;
+                    popped.Top = 0;
+                    popped.Width = args.Width;
+                    popped.Height = args.Height;
+                    popped.Page.RefreshNow();
+                    Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                    RenderVisual(popped, (int)popped.ActualWidth, (int)popped.ActualHeight, path);
+                    popped.Close();
+                    window.Close();
+                    return;
+                }
                 var content = (FrameworkElement)window.Content;
                 File.WriteAllText(path + ".txt", $"window {window.ActualWidth}x{window.ActualHeight} content {content.ActualWidth}x{content.ActualHeight} dpi {VisualTreeHelper.GetDpi(window).PixelsPerDip}");
                 RenderVisual(window, (int)window.ActualWidth, (int)window.ActualHeight, path);
@@ -569,6 +588,14 @@ public partial class App : Application
         if (args.Day is { } day) panel.ShowDay(day);
         else panel.Refresh();
         Render(panel, args.Width, args.Height, path);
+    }
+
+    /// <summary>For a picture: the sizes asked for with <c>--scale</c> for the named windows (the settings are a throwaway, nothing is saved).</summary>
+    private static Settings Scaled(Settings settings, Args args, params string[] windows)
+    {
+        if (int.TryParse(args.Scale, out var percent))
+            foreach (var window in windows) settings.SetScale(window, percent);
+        return settings;
     }
 
     private static void Render(FrameworkElement element, int width, int height, string path)
@@ -593,9 +620,9 @@ public partial class App : Application
     }
 }
 
-/// <summary>Command line: <c>--updated</c> (given by an update to the new program: waits for the old one to exit, then says it was updated); <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--whats-new</c> to open the "what's new" window as the app starts, <c>--no-whats-new</c> never to open it by itself (for scripts and pictures); <c>--suggest</c> to open the "Send a suggestion" window as the app starts; <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update | --preview-waiting]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--search "words"] [--size WxH]</c> for the History window (<c>--search</c> types into the search box of the page: on Loot that shows the answer across every day). For the Recipes page, <c>--snapshot &lt;png&gt; --window --mini Recipes --recipes &lt;wiki tradeskills json&gt; [--tab "a skill"] [--search "words"]</c> reads that file instead of asking the wiki. For the Market page, <c>--snapshot &lt;png&gt; --window --mini Market --market &lt;auctions json&gt; [--tab Selling|Buying|Yours] [--search "words"]</c> reads that file instead of asking mnm-db.com.</summary>
+/// <summary>Command line: <c>--updated</c> (given by an update to the new program: waits for the old one to exit, then says it was updated); <c>--no-share-prompt</c> to start without asking about sharing (for scripts and pictures); <c>--whats-new</c> to open the "what's new" window as the app starts, <c>--no-whats-new</c> never to open it by itself (for scripts and pictures); <c>--suggest</c> to open the "Send a suggestion" window as the app starts; <c>--share</c> to open the "Share data with the community" window as the app starts; <c>--contribute &lt;file or folder&gt;</c> to save the file you can share with the community data and quit; <c>--history</c> to open the History window as the app starts; <c>--about [--report &lt;file&gt;]</c> to write the version and paths to a file and quit; <c>--archive [--db &lt;file&gt;] [--report &lt;file&gt;]</c> to copy every ledger row into the database and quit; <c>--ledger &lt;folder&gt;</c> <c>--character &lt;name&gt;</c> and, for a picture instead of a window, <c>--snapshot &lt;png&gt; [--view Value|Items|Mobs|Feed] [--day yyyy-MM-dd] [--size WxH] [--window [--preview-update | --preview-waiting]]</c>, or <c>--snapshot &lt;png&gt; --breakdown [--page Loot|Trades|Vendors|Changes|Harvest] [--member name] [--tab Looters|Items|Mobs|"Drop rates"|"Loot log"|Sales|Purchases|"Price book"|Log|...] [--drop "a monster"] [--period "7 days"] [--search "words"] [--size WxH]</c> for the History window (<c>--search</c> types into the search box of the page: on Loot that shows the answer across every day). For the Recipes page, <c>--snapshot &lt;png&gt; --window --mini Recipes --recipes &lt;wiki tradeskills json&gt; [--tab "a skill"] [--search "words"]</c> reads that file instead of asking the wiki. For the Market page, <c>--snapshot &lt;png&gt; --window --mini Market --market &lt;auctions json&gt; [--tab Selling|Buying|Yours] [--search "words"]</c> reads that file instead of asking mnm-db.com. In any picture, <c>--scale &lt;percent&gt;</c> draws the window at that size (give <c>--size</c> for the bigger window), <c>--font "Verdana"</c> in that typeface, and with <c>--window --mini &lt;page&gt;</c>, <c>--popout</c> the page in a window of its own.</summary>
 internal sealed record Args(string? Ledger, string? Character, string? Snapshot, string? View, DateOnly? Day, int Width, int Height, bool Window, bool Breakdown, string? Member, string? Tab,
-    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false, bool Timers = false, bool TimersSetup = false, string? Opacity = null, bool Buttons = false, bool Updated = false, bool PreviewWaiting = false, string? Search = null, string? Recipes = null, string? Market = null, bool WhatsNew = false, bool NoWhatsNew = false, bool Suggest = false)
+    bool Archive = false, string? Db = null, string? Report = null, bool About = false, bool PreviewUpdate = false, string? Page = null, string? Drop = null, string? Period = null, bool History = false, string? Contribute = null, bool Share = false, bool NoSharePrompt = false, string? Mini = null, bool Diagnose = false, bool Timers = false, bool TimersSetup = false, string? Opacity = null, bool Buttons = false, bool Updated = false, bool PreviewWaiting = false, string? Search = null, string? Recipes = null, string? Market = null, bool WhatsNew = false, bool NoWhatsNew = false, bool Suggest = false, string? Scale = null, string? Font = null, bool PopOut = false)
 {
     public static Args Parse(string[] args)
     {
@@ -605,6 +632,6 @@ internal sealed record Args(string? Ledger, string? Character, string? Snapshot,
         DateOnly? day = DateOnly.TryParse(Value("--day"), out var d) ? d : null;
         return new Args(Value("--ledger"), Value("--character"), Value("--snapshot"), Value("--view"), day, w, h, args.Contains("--window"), args.Contains("--breakdown"), Value("--member"), Value("--tab"),
             args.Contains("--archive"), Value("--db"), Value("--report"), args.Contains("--about"), args.Contains("--preview-update"), Value("--page"), Value("--drop"), Value("--period"), args.Contains("--history"), Value("--contribute"), args.Contains("--share"), args.Contains("--no-share-prompt"), Value("--mini"), args.Contains("--diagnose"), args.Contains("--timers"), args.Contains("--timers-setup"), Value("--opacity"), args.Contains("--buttons"),
-            args.Contains("--updated"), args.Contains("--preview-waiting"), Value("--search"), Value("--recipes"), Value("--market"), args.Contains("--whats-new"), args.Contains("--no-whats-new"), args.Contains("--suggest"));
+            args.Contains("--updated"), args.Contains("--preview-waiting"), Value("--search"), Value("--recipes"), Value("--market"), args.Contains("--whats-new"), args.Contains("--no-whats-new"), args.Contains("--suggest"), Value("--scale"), Value("--font"), args.Contains("--popout"));
     }
 }

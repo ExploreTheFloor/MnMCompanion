@@ -693,8 +693,8 @@ public partial class LootHistoryPage : UserControl
         stack.Children.Add(new TextBlock
         {
             Text = value, FontSize = 20, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 1), TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = accent ?? Palette.Text, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), ToolTip = value,
-        });
+            Foreground = accent ?? Palette.Text, ToolTip = value,
+        }.UseDisplay());
         stack.Children.Add(new TextBlock { Text = sub, FontSize = 11, Foreground = Palette.Muted, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = sub });
         Tiles.Children.Add(new Border { Style = (Style)FindResource("Tile"), Child = stack });
     }

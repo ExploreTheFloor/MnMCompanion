@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Documents;
 using System.Windows.Media;
 using MnMCompanion.Loot;
 
@@ -25,6 +26,54 @@ public static class Ui
     {
         Source = new Uri($"pack://application:,,,/{AssemblyName};component/Menus.xaml", UriKind.Absolute),
     };
+
+    /// <summary>The typeface in use now: a name from <see cref="Display.UiFonts.Offered"/>, or null for the program's own.</summary>
+    public static string? Font { get; private set; }
+
+    /// <summary>
+    /// Changes the typeface of every window at once: the two font entries of the theme are replaced in place, and everything that refers to them
+    /// (<see cref="UseText"/>, <see cref="UseDisplay"/>) follows. A name that is not offered, or not installed here, means the program's own.
+    /// </summary>
+    public static void ApplyFont(string? name)
+    {
+        Font = Display.UiFonts.Normalise(name, IsInstalled);
+        Theme["TextFont"] = new FontFamily(Display.UiFonts.Text(Font));
+        Theme["DisplayFont"] = new FontFamily(Display.UiFonts.Display(Font));
+    }
+
+    /// <summary>The offered typefaces this PC has, in list order.</summary>
+    public static IReadOnlyList<string> InstalledFonts => Display.UiFonts.Available(IsInstalled);
+
+    private static readonly Lazy<HashSet<string>> Installed = new(() =>
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var family in Fonts.SystemFontFamilies)
+        {
+            names.Add(family.Source);
+            foreach (var local in family.FamilyNames.Values) names.Add(local);
+        }
+        return names;
+    });
+
+    private static bool IsInstalled(string name)
+    {
+        try { return Installed.Value.Contains(name); }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
+    }
+
+    /// <summary>Makes an element's words follow the chosen typeface (body text).</summary>
+    public static T UseText<T>(this T element) where T : FrameworkElement
+    {
+        element.SetResourceReference(TextElement.FontFamilyProperty, "TextFont");
+        return element;
+    }
+
+    /// <summary>Makes a heading or large figure follow the chosen typeface (the display cut of it where the default has one).</summary>
+    public static T UseDisplay<T>(this T element) where T : FrameworkElement
+    {
+        element.SetResourceReference(TextElement.FontFamilyProperty, "DisplayFont");
+        return element;
+    }
 }
 
 /// <summary>Colours used for people and things, the same everywhere.</summary>

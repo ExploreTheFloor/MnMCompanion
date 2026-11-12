@@ -135,6 +135,14 @@ Yes, if you turn it on (it is off until you do). In the **Opacity** menu choose 
 Ctrl (or Alt or Shift, your choice under *Key to hold*) to click on the window itself, to drag it, press a button, or switch this off. That is handy with one monitor or a faint overlay. While it is
 on, Companion checks a few times a second whether that one key is held down, and nothing else you type.
 
+### Can I make the windows bigger, or use another font?
+Yes: **ⓘ → Size and font…** (or **Ctrl and the mouse wheel** over a window, **Ctrl +**, **Ctrl −**, **Ctrl 0** for the normal size). Each kind of window keeps its own size, from 70% to 250%, so the big window on the second screen
+can be large while the timers stay small, and the window grows with its contents. The font is one choice for every window, out of a short list of the typefaces Windows has. See [Size and font](../README.md#size-and-font).
+
+### Can I put a page (Map, Loot, Vendor…) in a window of its own?
+Yes: right-click its button in the bottom bar and choose *Open … in its own window*, or press the pop-out button in the title bar to open the page you are on. It is a second copy of the page that stays up to date with the small one,
+and it remembers where you put it. See [Pages in their own windows](../README.md#pages-in-their-own-windows).
+
 ### Will the key I give a timer stop working in the game?
 Yes, while Companion is running: Windows hands that key to Companion, so the game never receives it. Pick combinations the game doesn't use, such as `Ctrl+Alt+1`. (A letter or digit needs Ctrl or
 Alt with it for this reason.) Companion only hears the keys you set, can't see anything else you type, and never sends a key press.

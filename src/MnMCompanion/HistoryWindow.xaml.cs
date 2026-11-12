@@ -58,13 +58,18 @@ public partial class HistoryWindow : Window
         _settings = settings;
         _focus = new HistoryFocus(new LootStore(store.StateRoot, store.LedgerRoot), StartScope(store, settings));
         _history = history;
-        if (settings.Breakdown is { } b && b.Width >= MinWidth && b.Height >= MinHeight)
+        // The saved place was kept at the size the window was drawn at then, so it is compared with the smallest size at that size
+        var factor = Display.UiScale.Factor(settings.ScaleOf("History"));
+        bool placed = settings.Breakdown is { } b && b.Width >= MinWidth * factor && b.Height >= MinHeight * factor;
+        if (placed)
         {
+            var saved = settings.Breakdown!;
             WindowStartupLocation = WindowStartupLocation.Manual;
-            (Left, Top, Width, Height) = (b.Left, b.Top, b.Width, b.Height);
+            (Left, Top, Width, Height) = (saved.Left, saved.Top, saved.Width, saved.Height);
             KeepOnScreen();
         }
         BuildPeriodBar();
+        WindowScale.Attach(this, settings, "History", "History window", sizeIsSaved: placed);
         SourceInitialized += (_, _) => DarkTitleBar();
         LocationChanged += (_, _) => Remember();
         SizeChanged += (_, _) => Remember();
@@ -81,6 +86,8 @@ public partial class HistoryWindow : Window
         };
         Closed += (_, _) => _timer.Stop();
     }
+
+    private void OnLook(object sender, RoutedEventArgs e) => LookWindow.Open(this, _settings);
 
     // ---- Pages --------------------------------------------------------------------------------------------------
 

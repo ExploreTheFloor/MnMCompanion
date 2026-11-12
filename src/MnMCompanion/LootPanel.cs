@@ -88,11 +88,10 @@ internal sealed class LootPanel : Border, IMiniPage
         Child = root;
     }
 
-    private static TextBlock Figure() => new()
+    private static TextBlock Figure() => new TextBlock
     {
         FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, TextTrimming = TextTrimming.CharacterEllipsis,
-        FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"),
-    };
+    }.UseDisplay();
 
     private static TextBlock Note() => new() { FontSize = 10, Foreground = Palette.Muted, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, -1, 0, 0) };
 

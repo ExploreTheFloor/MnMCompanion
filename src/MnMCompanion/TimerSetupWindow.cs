@@ -51,7 +51,7 @@ internal sealed class TimerSetupWindow : Window
         ShowInTaskbar = true;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
-        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        this.UseText();
 
         var close = TimersWindow.TitleButton("", "Close. What you changed is already kept.", Close);
         var caption = new TextBlock { Text = "Timer setup", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
@@ -77,6 +77,7 @@ internal sealed class TimerSetupWindow : Window
         root.Children.Add(title);
         root.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = body });
         Content = root;
+        WindowScale.Attach(this, settings, "Timer setup", "timer setup window", sizeIsSaved: false);
 
         _timers.BookReplaced += Rebuild;
         Closed += (_, _) => _timers.BookReplaced -= Rebuild;

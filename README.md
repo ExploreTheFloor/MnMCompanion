@@ -111,8 +111,8 @@ If the window says it can't find any ledger, see [Something looks wrong](#someth
 <img src="docs/images/window-update.png" alt="The window with an update banner under the title bar" width="300" align="right">
 
 From left to right: the **name** of the program, the **character and server** it is showing, then on the right a **Timers** button (a stopwatch) and a **History** button (a clock),
-each with its name beside it (the names drop away when the window is narrow), an **ⓘ** button
-(about, updates, the ledger folder, and where the game keeps its data), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
+each with its name beside it (the names drop away when the window is narrow), a **pop-out** button (see [Pages in their own windows](#pages-in-their-own-windows)), an **ⓘ** button
+(about, updates, size and font, the ledger folder, and where the game keeps its data), a **pin** (keep the window on top of the game, or let other windows cover it) and **close**.
 
 There is nothing to pick: this window **follows the character you're playing**. The game rewrites the ledger of whoever is logged in, so when it
 starts writing a different character's ledger the window switches to them (and says so in the status line), and when it starts it opens on
@@ -158,6 +158,22 @@ The **History** button is in the title bar, next to **Timers** and ⓘ: it opens
 character or for everyone. **New session** is in the session menu (the *Whole day / This session* chip under the day) and starts every page again
 from nothing; the *Copy* buttons are on the Loot page's tabs; **Open the ledger folder** is in the ⓘ menu. The line above the page buttons says what
 just happened (a session archived, how many items are unpriced).
+
+### Pages in their own windows
+
+Any page can have a window of its own, the way History does: **right-click its button** in the bottom bar and choose *Open … in its own window*, or press the **pop-out** button in the title bar to
+open the page you are on. The window is a second copy of the page, looking at the same ledger, session and history, so it shows what the page shows in the small window and keeps up with it. Move it,
+resize it, pin it on top of the game or not (its own pin), and close it with its **✕**; the page is still in the small window. Each window remembers where it was, and the ones that were open come back
+the next time you start Companion.
+
+### Size and font
+
+For a larger second screen, or a smaller overlay: **ⓘ → Size and font…** (the History window has the same button under its list of pages, the timers window has it in its *Opacity* menu, and a page
+window has an **A** button). **Ctrl and the mouse wheel** over any window changes its size too, as do **Ctrl and +**, **Ctrl and −**, and **Ctrl and 0** for the normal size. The size runs from 70% to 250%,
+and **each kind of window keeps its own** (the small window, History, Timers, each page window, and the small dialogs), so the big window on the second screen can be large while the timers stay small. The
+window grows or shrinks with its contents, so you see the same page, only larger. The **font** is one for every window, picked from the typefaces Windows has out of a short list (Segoe UI, Arial, Calibri,
+Verdana, Tahoma and a few more); the icons keep their own. A wide font takes more room, so make the window a little wider. Nothing is sent anywhere and nothing is read: these are only how big and in what
+typeface the windows are drawn.
 
 ### The Loot page's four tabs
 
@@ -512,7 +528,7 @@ The price is *what a vendor pays*, not what another player might pay. It's a flo
 **It reads files. That's all.** Companion:
 
 - reads two things the game writes, its ledger files and each character's journal (what NPCs have said to you), and nothing else it writes;
-- **never** touches the running game or its memory, and never sends a key press or moves your mouse. The only keys it listens for are the ones *you* set for timers (see [Timers](#timers)), and, only if you turn on click-through for the timers window, whether the one modifier key you chose (Ctrl, Alt or Shift) is held down; it can't see anything else you type, and it records nothing;
+- **never** touches the running game or its memory, and never sends a key press or moves your mouse. The only keys it listens for are the ones *you* set for timers (see [Timers](#timers)), and, only if you turn on click-through for the timers window, whether the one modifier key you chose (Ctrl, Alt or Shift) is held down; it can't see anything else you type, and it records nothing. (Ctrl with the mouse wheel, + , − or 0 over one of its own windows changes that window's size: it only reacts while you are using that window, and never sees keys typed anywhere else;)
 - **never** sends your loot, your characters, your ledgers or anything about you anywhere, **unless you answer Yes** to sharing your data with the community (below), and even then only anonymous totals, never names;
 - installs nothing but its own newer versions, from this project's GitHub releases, and only after checking the download against the checksum published with it. You can switch that off, and then updates are only *offered* (see [Updates](#updates)).
 

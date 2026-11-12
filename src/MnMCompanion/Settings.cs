@@ -80,6 +80,30 @@ public sealed class Settings
     public bool TimersClickThrough { get; set; }
     public string TimersClickThroughKey { get; set; } = MnMCompanion.Timers.ClickThroughKey.Default;
 
+    /// <summary>
+    /// How big each kind of window is drawn, in percent (<see cref="Display.UiScale"/>), by the name the window goes by ("Panel", "History", "Timers", "Dialogs",
+    /// "Page Map" and so on). A window not in the list is drawn at 100.
+    /// </summary>
+    public Dictionary<string, int> WindowScales { get; set; } = [];
+
+    /// <summary>The typeface chosen for every window (<see cref="Display.UiFonts"/>); null for the program's own.</summary>
+    public string? UiFont { get; set; }
+
+    /// <summary>Where each page's own window sits (by page name: "Map", "Loot", ...), and which of them were open when the app closed (they come back the same way).</summary>
+    public Dictionary<string, Bounds> PageWindows { get; set; } = [];
+    public List<string> PageWindowsOpen { get; set; } = [];
+
+    /// <summary>The size a kind of window is drawn at, in percent.</summary>
+    public int ScaleOf(string window) => WindowScales.TryGetValue(window, out var p) ? Display.UiScale.Clamp(p) : Display.UiScale.Default;
+
+    /// <summary>Remembers the size of a kind of window (100 is the normal size and is not kept).</summary>
+    public void SetScale(string window, int percent)
+    {
+        percent = Display.UiScale.Clamp(percent);
+        if (percent == Display.UiScale.Default) WindowScales.Remove(window);
+        else WindowScales[window] = percent;
+    }
+
     /// <summary>Whether the timers window shows each timer as a button across its top, to start and stop it with a click.</summary>
     public bool TimersButtons { get; set; }
 

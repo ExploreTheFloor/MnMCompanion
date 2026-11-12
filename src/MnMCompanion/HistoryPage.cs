@@ -39,9 +39,9 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
     private readonly ScrollViewer _scroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly StackPanel _detail = new() { Margin = new Thickness(28, 20, 28, 28) };
     private readonly Border _swatch = new() { Width = 12, Height = 12, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 2, 10, 0), VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock _name = new() { FontSize = 26, FontWeight = FontWeights.SemiBold, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), Foreground = Palette.Text };
+    private readonly TextBlock _name = new TextBlock { FontSize = 26, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text }.UseDisplay();
     private readonly TextBlock _sub = new() { FontSize = 12, Foreground = Palette.Muted, Margin = new Thickness(22, 2, 0, 0) };
-    private readonly TextBlock _big = new() { FontSize = 30, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Right, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), Foreground = Palette.Text };
+    private readonly TextBlock _big = new TextBlock { FontSize = 30, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Right, Foreground = Palette.Text }.UseDisplay();
     private readonly TextBlock _bigCaption = new() { FontSize = 11, Foreground = Palette.Muted, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, -4, 0, 0) };
     private readonly WrapPanel _tiles = new() { Margin = new Thickness(0, 0, -10, 6) };
     private readonly StackPanel _copyBar = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -210,8 +210,8 @@ internal abstract class HistoryPage<T> : UserControl, IHistoryPage where T : cla
         stack.Children.Add(new TextBlock
         {
             Text = value, FontSize = 20, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 1), TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = accent ?? Palette.Text, FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), ToolTip = value,
-        });
+            Foreground = accent ?? Palette.Text, ToolTip = value,
+        }.UseDisplay());
         stack.Children.Add(new TextBlock { Text = sub, FontSize = 11, Foreground = Palette.Muted, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = sub });
         _tiles.Children.Add(new Border { Style = (Style)Ui.Theme["Tile"], Child = stack });
     }

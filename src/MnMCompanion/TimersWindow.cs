@@ -100,7 +100,7 @@ internal sealed class TimersWindow : Window
         UseLayoutRounding = true;
         ShowInTaskbar = false;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
-        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        this.UseText();
 
         var b = settings.Timers ?? new Bounds(double.NaN, double.NaN, 320, 300);
         Width = b.Width;
@@ -156,6 +156,8 @@ internal sealed class TimersWindow : Window
         root.Children.Add(bottom);
         root.Children.Add(scroll);
         Content = root;
+        WindowScale.Attach(this, settings, "Timers", "timers window", sizeIsSaved: settings.Timers is not null);
+        root.SizeChanged += (_, _) => ShowToolLabels();
         ApplyLook();
 
         if (!settings.ReadOnly) _hotkeys = MakeHotkeys();
@@ -216,7 +218,7 @@ internal sealed class TimersWindow : Window
         {
             Text = glyph, FontFamily = symbolFont is null ? (FontFamily)Ui.Theme["Icons"] : new FontFamily(symbolFont), FontSize = 14, VerticalAlignment = VerticalAlignment.Center,
         };
-        var words = new TextBlock { Text = label, FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI"), FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var words = new TextBlock { Text = label, FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }.UseText();
         _toolLabels.Add(words);
         var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 9, 0) };
         content.Children.Add(picture);
@@ -233,7 +235,7 @@ internal sealed class TimersWindow : Window
 
     private void ShowToolLabels()
     {
-        var visibility = ActualWidth >= 290 ? Visibility.Visible : Visibility.Collapsed;
+        var visibility = (Content is FrameworkElement content ? content.ActualWidth : ActualWidth) >= 290 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var label in _toolLabels) label.Visibility = visibility;
     }
 
@@ -273,6 +275,10 @@ internal sealed class TimersWindow : Window
                 which.Items.Add(choice);
             }
             menu.Items.Add(which);
+            menu.Items.Add(new Separator());
+            var look = new MenuItem { Header = "Size and font…", ToolTip = "Make this window bigger or smaller, and pick the font. Ctrl and the mouse wheel over the window changes its size too." };
+            look.Click += (_, _) => LookWindow.Open(this, _settings);
+            menu.Items.Add(look);
             menu.IsOpen = true;
         };
         return button;
@@ -591,10 +597,9 @@ internal sealed class TimersWindow : Window
     private void AddTimerButton(TimerPreset preset)
     {
         string name = preset.Name;
-        var font = new FontFamily("Segoe UI Variable Text, Segoe UI");
         var glyph = new TextBlock { FontFamily = (FontFamily)Ui.Theme["Icons"], FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0) };
-        var label = new TextBlock { Text = name, FontFamily = font, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center };
-        var length = new TextBlock { Text = TimerClock.Spell(preset.Seconds), FontFamily = font, FontSize = 11, Opacity = 0.6, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { Text = name, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center }.UseText();
+        var length = new TextBlock { Text = TimerClock.Spell(preset.Seconds), FontSize = 11, Opacity = 0.6, Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }.UseText();
         var content = new StackPanel { Orientation = Orientation.Horizontal };
         content.Children.Add(glyph);
         content.Children.Add(label);
