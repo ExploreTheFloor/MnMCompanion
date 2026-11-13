@@ -25,6 +25,7 @@ internal sealed class TimerSetupWindow : Window
     private readonly TextBox _corpseName = new() { Style = (Style)Ui.Theme["Field"], MaxLength = TimerBook.MaxName, ToolTip = "What the timer is called. The bar says this, then the monster: “Corpse: a bog crawler”" };
     private readonly TextBox _corpseLength = new() { Style = (Style)Ui.Theme["Field"], MaxLength = 12, Width = 80, ToolTip = "How long it runs from the moment the corpse was looted: 90, 1:30, 5m, 1h30m" };
     private readonly SoundField _corpseSound = new();
+    private readonly WrapPanel _skipList = new() { Margin = new Thickness(0, 4, 0, 0) };
     private bool _loading;
 
     public TimerSetupWindow(TimersWindow timers, Settings settings)
@@ -101,7 +102,44 @@ internal sealed class TimerSetupWindow : Window
         _corpseName.Text = corpse.Name;
         _corpseLength.Text = TimerClock.Spell(corpse.Seconds);
         _corpseSound.Set(corpse.Sound);
+        RebuildSkips(corpse);
         _loading = false;
+    }
+
+    /// <summary>The monsters whose corpses get no timer (left out from a corpse's bar in the timers window), each with a × that times them again.</summary>
+    private void RebuildSkips(CorpseTimerSetting corpse)
+    {
+        _skipList.Children.Clear();
+        if (corpse.Skip.Count == 0)
+        {
+            _skipList.Children.Add(Note("Every kind of monster is timed. On a corpse's bar in the timers window, the × takes the timer off that one corpse, and a right-click can stop timing that kind of monster; they are listed here."));
+            return;
+        }
+        _skipList.Children.Add(new TextBlock { Text = "Not timed:", Style = (Style)Ui.Theme["Label"], VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+        foreach (var monster in corpse.Skip.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+        {
+            var words = new TextBlock { Text = monster, FontSize = 12, Foreground = Palette.Text, VerticalAlignment = VerticalAlignment.Center }.UseText();
+            var cross = new Button
+            {
+                Content = "", Style = (Style)Ui.Theme["IconButton"], Width = 20, Height = 20, FontSize = 10, Margin = new Thickness(4, 0, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x93, 0xA1)), ToolTip = $"Time {monster} corpses again",
+            };
+            System.Windows.Automation.AutomationProperties.SetName(cross, $"Time {monster} corpses again");
+            string name = monster;
+            cross.Click += (_, _) =>
+            {
+                if (!Book.Corpse.RemoveSkip(name)) return;
+                _timers.BookEdited();
+                RebuildSkips(Book.Corpse);
+            };
+            var chip = new StackPanel { Orientation = Orientation.Horizontal };
+            chip.Children.Add(words);
+            chip.Children.Add(cross);
+            _skipList.Children.Add(new Border
+            {
+                Background = (Brush)Ui.Theme["Subtle"], CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 2, 4, 2), Margin = new Thickness(0, 0, 6, 6), Child = chip,
+            });
+        }
     }
 
     // Name, Length, Key, Sound, ▶, delete
@@ -409,6 +447,7 @@ internal sealed class TimerSetupWindow : Window
             var next = new CorpseTimerSetting
             {
                 On = _corpseOn.IsChecked == true, Name = _corpseName.Text, Seconds = seconds.Value, Sound = _corpseSound.Sound,
+                Skip = setting.Skip.ToList(),   // the monsters left out are not edited here, only listed (and taken back) below
             }.Cleaned();
             if (next.On == setting.On && next.Name == setting.Name && next.Seconds == setting.Seconds && next.Sound == setting.Sound) return;
             Book.Corpse = next;
@@ -443,6 +482,7 @@ internal sealed class TimerSetupWindow : Window
         stack.Children.Add(new Border { Margin = new Thickness(0, 8, 0, 0), Child = _corpseOn });
         stack.Children.Add(labels);
         stack.Children.Add(fields);
+        stack.Children.Add(new Border { Margin = new Thickness(0, 12, 0, 0), Child = _skipList });
         return stack;
     }
 

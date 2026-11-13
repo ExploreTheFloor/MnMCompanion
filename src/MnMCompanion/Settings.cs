@@ -107,6 +107,13 @@ public sealed class Settings
     /// <summary>Whether the timers window shows each timer as a button across its top, to start and stop it with a click.</summary>
     public bool TimersButtons { get; set; }
 
+    /// <summary>
+    /// The timers window's own switch (the On/Off button in its title bar). Off, the window shows no bars, no key starts a timer, no sound plays and the corpses get
+    /// no timer, until it is turned on again; timers already counting keep their end times and come back if they are still running. On by default: it is a
+    /// switch for timers the player has set up, not a new feature, and the timers themselves all start switched off.
+    /// </summary>
+    public bool TimersOn { get; set; } = true;
+
     /// <summary>The page of the History window that was open last ("Loot", "Trades", "Vendors", "Changes" or "Harvest").</summary>
     public string? HistoryPage { get; set; }
 

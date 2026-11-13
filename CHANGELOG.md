@@ -6,6 +6,20 @@ which is what the update message shows when you hover over it.
 Every entry says what it means for **your data**: whether anything new is shared with the community service (only ever after a Yes from you), and whether the program
 now asks anywhere else on the internet. A line starting with **Sharing** or **Network** is there for that.
 
+## 0.4.10 (2026-11-13)
+
+**In short:** An On/Off switch for the timers, and a way to take the timer off a corpse, or off a whole kind of monster.
+
+- **New: timers On/Off.** The timers window has a switch in its title bar. **Off**, no key starts a timer, no sound plays and corpses get no timer, and the window says so;
+  **On** brings everything back, and a timer that was counting carries on from where it would be. Your timers, keys and sounds are kept either way. The title shows *Timers · off* while it is off.
+  An update that installs by itself no longer waits for a timer while the timers are off.
+- **New: not every corpse.** Each corpse's bar now has a **×** that takes the timer off that one corpse. **Right-click** a corpse's bar to **stop timing that kind of monster**
+  ("Stop timing a bog crawler corpses"): from then on its corpses get no timer. The monsters left out are listed under **Corpses** in *Set up…*, each with a × that times them again.
+  The **Corpses** heading in the window also has a quick **Turn off** for the corpse timer as a whole. See [Timers](README.md#timers).
+  Both ideas came from a suggestion sent through the suggestion box.
+- **Network:** nothing new: none of this asks anything on the internet, and nothing is read from the game. What you leave out is kept in your own `timers.json`.
+- **Sharing:** nothing new is shared; a Yes you gave stays valid.
+
 ## 0.4.9 (2026-11-11)
 
 **In short:** Make any window bigger or smaller and pick the font, and put any page in a window of its own.

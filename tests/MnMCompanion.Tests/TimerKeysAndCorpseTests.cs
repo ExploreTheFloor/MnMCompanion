@@ -313,4 +313,114 @@ public class TimerKeysAndCorpseTests
         Assert.Equal(CorpseTimerSetting.DefaultSeconds, new CorpseTimerSetting { Seconds = TimerClock.MaxSeconds + 1 }.Cleaned().Seconds);
         Assert.True(cleaned.On);
     }
+
+    // ------------------------------------------------------------------ leaving corpses out (one corpse, or a kind of monster)
+
+    [Fact]
+    public void A_corpse_left_out_by_id_loses_its_timer_and_the_others_keep_theirs()
+    {
+        var setting = new CorpseTimerSetting { On = true, Seconds = 600 };
+        var crawler = Corpse("a bog crawler", Now.AddSeconds(-60));
+        var wolf = Corpse("a marsh wolf", Now.AddSeconds(-20));
+        var all = CorpseTimers.Active([crawler, wolf], setting, Now);
+        Assert.Equal(2, all.Count);
+
+        var book = new TimerBook { Corpse = setting };
+        Assert.True(book.LeaveOutCorpse(CorpseTimers.IdOf(crawler)));
+        Assert.False(book.LeaveOutCorpse(CorpseTimers.IdOf(crawler)));   // once is enough
+        Assert.False(book.LeaveOutCorpse("not a corpse id"));
+        Assert.False(book.LeaveOutCorpse(null));
+
+        var left = CorpseTimers.Active([crawler, wolf], setting, Now, book.LeftOutCorpses);
+        Assert.Equal(["a marsh wolf"], left.Select(t => t.Monster));
+        // The same corpse looted by someone else is a different corpse
+        var brom = Corpse("a bog crawler", Now.AddSeconds(-60), you: false, who: "Brom");
+        Assert.Equal(["a bog crawler", "a marsh wolf"], CorpseTimers.Active([crawler, wolf, brom], setting, Now, book.LeftOutCorpses).Select(t => t.Monster));
+    }
+
+    [Fact]
+    public void A_kind_of_monster_left_out_gets_no_timer_whatever_its_case_and_can_be_timed_again()
+    {
+        var setting = new CorpseTimerSetting { On = true, Seconds = 600 };
+        Assert.True(setting.AddSkip("A Bog Crawler"));
+        Assert.False(setting.AddSkip("a bog crawler"));   // the same kind, spelt differently
+        Assert.False(setting.AddSkip("   "));
+        Assert.False(setting.AddSkip(null));
+        Assert.True(setting.Skips("a bog crawler"));
+
+        var corpses = new[] { Corpse("a bog crawler", Now.AddSeconds(-5)), Corpse("a marsh wolf", Now.AddSeconds(-5)) };
+        Assert.Equal(["a marsh wolf"], CorpseTimers.Active(corpses, setting, Now).Select(t => t.Monster));
+
+        Assert.True(setting.RemoveSkip("a bog crawler"));
+        Assert.False(setting.RemoveSkip("a bog crawler"));
+        Assert.Equal(2, CorpseTimers.Active(corpses, setting, Now).Count);
+    }
+
+    [Fact]
+    public void What_is_left_out_is_saved_read_back_and_a_damaged_file_is_brought_to_rights()
+    {
+        using var s = new Fixture.Scratch();
+        var folder = Path.Combine(s.Path, "srv-Aldric");
+        var book = new TimerBook();
+        book.Corpse = new CorpseTimerSetting { On = true, Seconds = 600 };
+        book.Corpse.AddSkip("a moss beetle");
+        var crawler = Corpse("a bog crawler", Now.AddSeconds(-60));
+        book.LeaveOutCorpse(CorpseTimers.IdOf(crawler));
+        Assert.True(book.Save(folder));
+
+        var back = TimerBook.Load(folder, Now.AddSeconds(-50).ToUniversalTime());   // read back before the crawler's time is up
+        Assert.Equal(["a moss beetle"], back.Corpse.Skip);
+        Assert.Equal([CorpseTimers.IdOf(crawler)], back.LeftOutCorpses);
+
+        // Left out long ago (its time is up): forgotten on reading, as it can't come back
+        var later = TimerBook.Load(folder, Now.AddSeconds(600 + TimerClock.DoneShownSeconds + 1).ToUniversalTime());
+        Assert.Empty(later.LeftOutCorpses);
+
+        File.WriteAllText(Path.Combine(folder, "timers.json"), """
+            { "corpse": { "on": true, "skip": ["a bog crawler", "A BOG CRAWLER", "  ", null, "a marsh wolf"] },
+              "leftOutCorpses": ["junk", null, "", "123|Aldric|a bog crawler", "123|Aldric|a bog crawler", "notanumber|x|y"] }
+            """);
+        var hand = TimerBook.Load(folder, Now.ToUniversalTime());
+        Assert.Equal(["a bog crawler", "a marsh wolf"], hand.Corpse.Skip);
+        Assert.Empty(hand.LeftOutCorpses);   // ticks 123 is the year 1: long gone; the junk never got in
+
+        var old = new TimerBook();
+        File.WriteAllText(Path.Combine(folder, "timers.json"), """{ "presets": [], "corpse": { "on": true } }""");
+        Assert.Empty(TimerBook.Load(folder, Now.ToUniversalTime()).Corpse.Skip);
+        Assert.Empty(TimerBook.Load(folder, Now.ToUniversalTime()).LeftOutCorpses);
+        Assert.Empty(old.LeftOutCorpses);
+    }
+
+    [Fact]
+    public void Left_out_corpses_are_forgotten_once_their_time_is_up_and_the_list_never_grows_past_its_cap()
+    {
+        var book = new TimerBook { Corpse = new CorpseTimerSetting { On = true, Seconds = 60 } };
+        var fresh = Corpse("a bog crawler", Now.AddSeconds(-10));
+        var stale = Corpse("a marsh wolf", Now.AddSeconds(-60 - TimerClock.DoneShownSeconds - 1));
+        book.LeaveOutCorpse(CorpseTimers.IdOf(fresh));
+        book.LeaveOutCorpse(CorpseTimers.IdOf(stale));
+        Assert.True(book.PruneLeftOut(Now));
+        Assert.Equal([CorpseTimers.IdOf(fresh)], book.LeftOutCorpses);
+        Assert.False(book.PruneLeftOut(Now));
+
+        for (int i = 0; i < TimerBook.MaxLeftOut + 20; i++) book.LeaveOutCorpse(CorpseTimers.IdOf(Corpse("m" + i, Now.AddSeconds(-i))));
+        Assert.Equal(TimerBook.MaxLeftOut, book.LeftOutCorpses.Count);
+        Assert.DoesNotContain(CorpseTimers.IdOf(fresh), book.LeftOutCorpses);   // the oldest entries went first
+
+        var setting = new CorpseTimerSetting();
+        for (int i = 0; i < CorpseTimerSetting.MaxSkip + 5; i++) setting.AddSkip("monster " + i);
+        Assert.Equal(CorpseTimerSetting.MaxSkip, setting.Skip.Count);
+        Assert.Equal(CorpseTimerSetting.MaxSkip, setting.Cleaned().Skip.Count);
+    }
+
+    [Fact]
+    public void A_corpse_id_says_when_it_was_looted()
+    {
+        var corpse = Corpse("a bog crawler", Now.AddSeconds(-5));
+        Assert.Equal(Now.AddSeconds(-5), CorpseTimers.StartOf(CorpseTimers.IdOf(corpse)));
+        Assert.Null(CorpseTimers.StartOf("nothing"));
+        Assert.Null(CorpseTimers.StartOf("|x|y"));
+        Assert.Null(CorpseTimers.StartOf("-5|x|y"));
+        Assert.Null(CorpseTimers.StartOf("99999999999999999999|x|y"));
+    }
 }

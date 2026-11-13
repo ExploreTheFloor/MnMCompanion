@@ -431,6 +431,10 @@ The **Timers** button (a stopwatch) in the title bar opens a small window of tim
 buttons, the window not pinned and not faded. Nothing happens until you turn something on. The window holds only the bars of the timers that are
 running and one button, **Set up…**, so it takes little room (plus a row of buttons across the top, if you turn on **Buttons**). There are two kinds of timer.
 
+**On and Off.** The switch in the window's title bar turns every timer off at once, and on again. **Off**, no key starts a timer, no sound plays, corpses get no timer, and the
+window says so (its title reads *Timers · off*). **On** brings them back: a timer that was counting carries on from where it would be, and a corpse still within its time gets its bar back.
+Your timers, keys and sounds are kept either way. It starts **On**, because it is a switch for what you set up, and everything you can set up starts off.
+
 **Timers you name, each with a key and a sound.** Press **Set up…**, name a timer ("Haste"), give it a length (`90`, `1:30`, `5m` or `1h30m`, up to 24 hours) and, if you want, a **key** such as
 `Ctrl+Alt+1` and a **sound** for when it ends. Press the key, in the game or anywhere else, and the timer starts counting down; press it again to start it over. A timer with no key starts from its button
 (below) or from the ▶ beside it in the setup. Right-click a running timer to start it over, and the **×** stops it.
@@ -441,6 +445,10 @@ button is lit and shows a stop square; one that isn't running shows a start arro
 **A timer on every corpse.** Under **Corpses** in the setup, turn on *Start a timer on every corpse* and give it a name, a length and, if you like, a sound. Every monster corpse that is looted,
 by you or by your group, then gets its own bar ("Corpse: a bog crawler") that starts at the moment the loot was taken. The window shows the eight ending soonest and counts the rest. It comes
 straight from the ledger, so a corpse looted while Companion was closed still shows what is left of its time.
+
+**Not every corpse.** The **×** on a corpse's bar takes the timer off that one corpse (the bar goes and does not come back). **Right-click** a corpse's bar to **stop timing that kind of
+monster**: *Stop timing a bog crawler corpses* means no bog crawler corpse gets a timer from then on. The monsters you left out are listed under **Corpses** in *Set up…*, each with a × that
+times them again. The **Turn off** beside the *Corpses* heading in the window stops the corpse timer altogether (the same as the switch in the setup). All of this is kept in your own `timers.json`.
 
 **Sounds.** Pick from the sounds Windows plays for its own events, the alarms and rings that come with Windows, or any `.wav` file of your own. A sound plays when you pick it, so you can
 hear it before you keep it. A timer with no sound just ends quietly.

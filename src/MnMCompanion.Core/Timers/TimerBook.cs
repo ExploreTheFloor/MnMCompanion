@@ -12,24 +12,49 @@ public sealed record TimerPreset(string Name, int Seconds, string? Key = null, s
 /// <summary>
 /// The corpse timer: with <see cref="On"/>, every monster corpse that is looted gets a timer called <see cref="Name"/> that runs for
 /// <see cref="Seconds"/> from the loot (see <see cref="CorpseTimers"/>). <see cref="Sound"/> is played when one of them ends (none unless the player picks one).
+/// Monsters in <see cref="Skip"/> get no timer (the player said so from a corpse's bar, or in the setup).
 /// </summary>
 public sealed class CorpseTimerSetting
 {
     public const string DefaultName = "Corpse";
     public const int DefaultSeconds = 600;
+    /// <summary>How many kinds of monster can be left out.</summary>
+    public const int MaxSkip = 200;
 
     public bool On { get; set; }
     public string Name { get; set; } = DefaultName;
     public int Seconds { get; set; } = DefaultSeconds;
     public string? Sound { get; set; }
 
-    /// <summary>The same setting with a usable name and length (what a hand-edited or damaged file is brought to).</summary>
-    public CorpseTimerSetting Cleaned() => new()
+    /// <summary>The monsters whose corpses get no timer, by name as the ledger spells it ("a bog crawler"); compared without regard to case.</summary>
+    public List<string> Skip { get; set; } = [];
+
+    /// <summary>Whether <paramref name="monster"/> is one of the kinds left out.</summary>
+    public bool Skips(string monster) => Skip.Any(s => string.Equals(s, monster, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Leaves the corpses of <paramref name="monster"/> without a timer from now on. False if the name is empty, already there, or the list is full.</summary>
+    public bool AddSkip(string? monster)
     {
-        On = On, Sound = TimerSounds.Normalize(Sound),
-        Name = TimerBook.CleanName(Name) ?? DefaultName,
-        Seconds = Seconds is >= 1 and <= TimerClock.MaxSeconds ? Seconds : DefaultSeconds,
-    };
+        if (TimerBook.CleanName(monster) is not { } clean || Skips(clean) || Skip.Count >= MaxSkip) return false;
+        Skip.Add(clean);
+        return true;
+    }
+
+    /// <summary>Times the corpses of <paramref name="monster"/> again. True if it was being left out.</summary>
+    public bool RemoveSkip(string monster) => Skip.RemoveAll(s => string.Equals(s, monster, StringComparison.OrdinalIgnoreCase)) > 0;
+
+    /// <summary>The same setting with a usable name, length and skip list (what a hand-edited or damaged file is brought to).</summary>
+    public CorpseTimerSetting Cleaned()
+    {
+        var cleaned = new CorpseTimerSetting
+        {
+            On = On, Sound = TimerSounds.Normalize(Sound),
+            Name = TimerBook.CleanName(Name) ?? DefaultName,
+            Seconds = Seconds is >= 1 and <= TimerClock.MaxSeconds ? Seconds : DefaultSeconds,
+        };
+        foreach (var s in Skip ?? []) cleaned.AddSkip(s);
+        return cleaned;
+    }
 }
 
 /// <summary>
@@ -140,6 +165,28 @@ public sealed class TimerBook
 
     /// <summary>The timer every looted corpse gets, when the player wants one (off until they turn it on).</summary>
     public CorpseTimerSetting Corpse { get; set; } = new();
+
+    /// <summary>How many single corpses can be left out at once (the oldest go first; a corpse whose time is up goes by itself, see <see cref="PruneLeftOut"/>).</summary>
+    public const int MaxLeftOut = 500;
+
+    /// <summary>The single corpses the player took the timer off (by <see cref="CorpseTimer.Id"/>), until their time would have run out anyway.</summary>
+    public List<string> LeftOutCorpses { get; set; } = [];
+
+    /// <summary>Takes the timer off one corpse: its bar goes and does not come back. False if the id isn't a corpse's or is already left out.</summary>
+    public bool LeaveOutCorpse(string? id)
+    {
+        if (id is null || CorpseTimers.StartOf(id) is null || LeftOutCorpses.Contains(id, StringComparer.Ordinal)) return false;
+        LeftOutCorpses.Add(id);
+        while (LeftOutCorpses.Count > MaxLeftOut) LeftOutCorpses.RemoveAt(0);
+        return true;
+    }
+
+    /// <summary>Forgets left-out corpses whose timer would have run out by <paramref name="nowLocal"/> anyway (they can't come back). True if any went.</summary>
+    public bool PruneLeftOut(DateTime nowLocal)
+    {
+        int seconds = Math.Clamp(Corpse.Seconds, 1, TimerClock.MaxSeconds);
+        return LeftOutCorpses.RemoveAll(id => CorpseTimers.StartOf(id) is not { } start || (start.AddSeconds(seconds) - nowLocal).TotalSeconds < -TimerClock.DoneShownSeconds) > 0;
+    }
 
     /// <summary>A name as it is kept: trimmed, one line, at most <see cref="MaxName"/> characters; null if nothing is left.</summary>
     public static string? CleanName(string? name)
@@ -262,6 +309,7 @@ public sealed class TimerBook
         // A key that can't be used (or that another timer already has) is dropped, and the timer is kept without it
         foreach (var p in read.Presets ?? []) if (p is not null && !book.AddPreset(p.Name, p.Seconds, p.Key, p.Sound)) book.AddPreset(p.Name, p.Seconds, null, p.Sound);
         book.Corpse = (read.Corpse ?? new CorpseTimerSetting()).Cleaned();
+        foreach (var id in (read.LeftOutCorpses ?? []).Where(id => id is not null)) book.LeaveOutCorpse(id);
         foreach (var t in (read.Running ?? []).Where(t => t is not null).OrderBy(t => t.EndsUtc))
         {
             if (CleanName(t.Name) is not { } clean || t.Seconds is < 1 or > TimerClock.MaxSeconds || book.Running.Count >= MaxRunning) continue;
@@ -269,6 +317,7 @@ public sealed class TimerBook
             book.Running.Add(new RunningTimer(clean, t.EndsUtc.ToUniversalTime(), t.Seconds));
         }
         book.Prune(nowUtc);
+        book.PruneLeftOut(nowUtc.ToLocalTime());
         return book;
     }
 

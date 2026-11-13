@@ -247,7 +247,7 @@ public partial class App : Application
             $"program: {Environment.ProcessPath}",
             $"can update itself: {(updates.CanInstall ? "yes" : "no (not a published single-file program, or its folder is read-only)")}",
             $"checks for updates: {(_settings.CheckForUpdates ? "yes" : "no")}; installs them by itself: {(_settings.CheckForUpdates && _settings.InstallUpdates ? "yes" : "no")}; skipped version: {_settings.SkippedVersion ?? "none"}",
-            $"timers: window {(_settings.TimersOpen ? "open" : "closed")}, on top {(_settings.TimersOnTop ? "yes" : "no")}, buttons strip {(_settings.TimersButtons ? "yes" : "no")}, background {_settings.TimersOpacity}%",
+            $"timers: {(_settings.TimersOn ? "on" : "OFF")}, window {(_settings.TimersOpen ? "open" : "closed")}, on top {(_settings.TimersOnTop ? "yes" : "no")}, buttons strip {(_settings.TimersButtons ? "yes" : "no")}, background {_settings.TimersOpacity}%",
             $"settings and database: {Settings.Folder}",
             $"game data: {_store.LedgerRoot}",
         };
@@ -308,7 +308,7 @@ public partial class App : Application
         book.AddPreset("Bind Wound", 30, "Ctrl+Alt+3", "system:Beep");
         book.AddPreset("Shield", 600, null, "system:Exclamation");
         book.AddPreset("Food", 1800, "Ctrl+Alt+F");
-        book.Corpse = new Timers.CorpseTimerSetting { On = true, Name = "Corpse", Seconds = 600, Sound = "system:Beep" };
+        book.Corpse = new Timers.CorpseTimerSetting { On = true, Name = "Corpse", Seconds = 600, Sound = "system:Beep", Skip = ["a moss beetle"] };
         book.Start("Regeneration", 300, now.AddSeconds(-40));
         book.Start("Haste", 90, now.AddSeconds(-64));
         book.Start("Bind Wound", 30, now.AddSeconds(-24));

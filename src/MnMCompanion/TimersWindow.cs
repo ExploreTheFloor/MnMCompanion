@@ -35,6 +35,9 @@ internal sealed class TimersWindow : Window
     private TimerSetupWindow? _setup;
     private readonly Button _pin;
     private readonly Button _buttonsToggle;
+    private readonly Button _power;
+    private readonly TextBlock _powerGlyph = new() { Text = "", FontFamily = (FontFamily)Ui.Theme["Icons"], FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _powerWords = new TextBlock { Text = "On", FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }.UseText();
     private readonly List<TextBlock> _toolLabels = [];
     private readonly Border _strip = new() { Visibility = Visibility.Collapsed, Padding = new Thickness(10, 8, 10, 2) };
     private readonly WrapPanel _buttons = new();
@@ -46,7 +49,8 @@ internal sealed class TimersWindow : Window
     private readonly Dictionary<string, Row> _live = new(StringComparer.OrdinalIgnoreCase);
     private readonly StackPanel _corpseRows = new();
     private readonly Dictionary<string, Row> _corpseLive = new(StringComparer.Ordinal);
-    private readonly TextBlock _corpseHeader = new() { Text = "Corpses", Style = (Style)Ui.Theme["Label"], Margin = new Thickness(0, 8, 0, 4), Visibility = Visibility.Collapsed };
+    private readonly Dictionary<string, string> _corpseMonster = new(StringComparer.Ordinal);
+    private readonly DockPanel _corpseHead = new() { Margin = new Thickness(0, 6, 0, 4), Visibility = Visibility.Collapsed, LastChildFill = true };
     private readonly TextBlock _corpseMore = new() { FontSize = 11, Foreground = Palette.Muted, Margin = new Thickness(2, 0, 0, 4), Visibility = Visibility.Collapsed };
     private readonly TextBlock _empty;
     private readonly TextBlock _message = new() { FontSize = 11, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6), Visibility = Visibility.Collapsed };
@@ -71,6 +75,12 @@ internal sealed class TimersWindow : Window
         public required ProgressBar Bar { get; init; }
         public TimerPhase Phase;
     }
+
+    /// <summary>What a bar is: a timer the player started (it can be stopped or started over) or a corpse's (its timer can be taken off, or its monster's kind left out).</summary>
+    private enum RowKind { Timer, Corpse }
+
+    private const string EmptyText = "Nothing running. Press a timer's key to start it, or turn on Buttons above to start timers with a click. Set up… is where timers, keys and sounds are made, and where a timer on every corpse is turned on.";
+    private const string OffText = "Timers are off. No key starts a timer, no sound plays and corpses get no timer. Press On above to have them back; a timer that was counting carries on from where it would be.";
 
     /// <summary>The timers were read again (another character is being played): the setup window shows the new ones.</summary>
     public event Action? BookReplaced;
@@ -114,6 +124,7 @@ internal sealed class TimersWindow : Window
         _pin = TitleButton("\uE718", "Keep this window on top of the game", TogglePin);
         var opacity = OpacityButton();
         _buttonsToggle = ToolButton("\uE80A", null, "Buttons", "Show each timer as a button across the top: click one to start it, click it again to stop it", ToggleButtons);
+        _power = PowerButton();
         var caption = _caption = new TextBlock { Text = "Timers", Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xEE)), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
         var title = new DockPanel { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x14, 0x18)), Height = 30, Cursor = Cursors.SizeAll, LastChildFill = false };
         _title = title;
@@ -121,25 +132,40 @@ internal sealed class TimersWindow : Window
         DockPanel.SetDock(_pin, Dock.Right);
         DockPanel.SetDock(opacity, Dock.Right);
         DockPanel.SetDock(_buttonsToggle, Dock.Right);
+        DockPanel.SetDock(_power, Dock.Right);
         DockPanel.SetDock(caption, Dock.Left);
         title.Children.Add(close);
         title.Children.Add(_pin);
         title.Children.Add(opacity);
         title.Children.Add(_buttonsToggle);
+        title.Children.Add(_power);
         title.Children.Add(caption);
         title.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed && e.OriginalSource is not Button) DragMove(); };
 
         _empty = new TextBlock
         {
-            Text = "Nothing running. Press a timer's key to start it, or turn on Buttons above to start timers with a click. Set up… is where timers, keys and sounds are made, and where a timer on every corpse is turned on.",
+            Text = EmptyText,
             FontSize = 11.5, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 6),
         };
+
+        // The corpses' heading, with a quick way to stop timing corpses altogether (the setup has the same switch)
+        var corpseWords = new TextBlock { Text = "Corpses", Style = (Style)Ui.Theme["Label"], VerticalAlignment = VerticalAlignment.Center };
+        var corpseOff = new Button
+        {
+            Content = "Turn off", Style = (Style)Ui.Theme["TextButton"], Padding = new Thickness(8, 1, 8, 1), FontSize = 11, Foreground = Palette.Muted,
+            ToolTip = "Stop putting a timer on corpses (the same as the switch under Corpses in Set up…). The × on a corpse's bar takes the timer off that one corpse only.",
+        };
+        System.Windows.Automation.AutomationProperties.SetName(corpseOff, "Turn off corpse timers");
+        corpseOff.Click += (_, _) => { _book.Corpse.On = false; CorpseEdited(); Say("Corpses get no timer now. Turn it on again under Corpses in Set up…."); };
+        DockPanel.SetDock(corpseOff, Dock.Right);
+        _corpseHead.Children.Add(corpseOff);
+        _corpseHead.Children.Add(corpseWords);
 
         var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0) };
         var body = new StackPanel { Margin = new Thickness(12, 10, 12, 8) };
         body.Children.Add(_empty);
         body.Children.Add(_rows);
-        body.Children.Add(_corpseHeader);
+        body.Children.Add(_corpseHead);
         body.Children.Add(_corpseRows);
         body.Children.Add(_corpseMore);
         scroll.Content = body;
@@ -237,6 +263,40 @@ internal sealed class TimersWindow : Window
     {
         var visibility = (Content is FrameworkElement content ? content.ActualWidth : ActualWidth) >= 290 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var label in _toolLabels) label.Visibility = visibility;
+    }
+
+    // ------------------------------------------------------------------ the switch
+
+    /// <summary>The title bar's On/Off switch for every timer at once: a power picture and the state beside it (the words say the state, the tip says what a click does).</summary>
+    private Button PowerButton()
+    {
+        _toolLabels.Add(_powerWords);
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 9, 0) };
+        content.Children.Add(_powerGlyph);
+        content.Children.Add(_powerWords);
+        var button = new Button
+        {
+            Content = content, Style = (Style)Ui.Theme["IconButton"], Width = double.NaN, MinWidth = 30, Height = 24, Margin = new Thickness(1, 0, 1, 0),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0)), VerticalAlignment = VerticalAlignment.Center,
+        };
+        System.Windows.Automation.AutomationProperties.SetName(button, "Timers on or off");
+        button.Click += (_, _) => TogglePower();
+        return button;
+    }
+
+    /// <summary>Whether the timers are on (the title bar's switch). Off, nothing shows, starts or sounds; the timers themselves are kept.</summary>
+    internal bool On => _settings.TimersOn;
+
+    private void TogglePower() => SetOn(!_settings.TimersOn);
+
+    internal void SetOn(bool on)
+    {
+        _settings.TimersOn = on;
+        _settings.Save();
+        ShowCaption();
+        ApplyLook();
+        SyncKeys();
+        Tick();
     }
 
     /// <summary>The button of the title bar that opens the menu of opacity levels: a half-filled circle and its name.</summary>
@@ -376,7 +436,8 @@ internal sealed class TimersWindow : Window
     /// <summary>The title says which key to hold while click-through is on, so a window that ignores the mouse is never a mystery.</summary>
     private void ShowCaption()
     {
-        _caption.Text = _settings.TimersClickThrough ? $"Timers · hold {ClickThroughKey.Normalise(_settings.TimersClickThroughKey)}" : "Timers";
+        var text = _settings.TimersClickThrough ? $"Timers · hold {ClickThroughKey.Normalise(_settings.TimersClickThroughKey)}" : "Timers";
+        _caption.Text = _settings.TimersOn ? text : text + " · off";
     }
 
     private void ToggleButtons()
@@ -406,6 +467,12 @@ internal sealed class TimersWindow : Window
         _title.Background = new SolidColorBrush(Color.FromArgb(TimerLook.TitleAlpha(percent), 0x10, 0x14, 0x18));
         _pin.Foreground = Topmost ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0x70, 0x7A, 0x88));
         _buttonsToggle.Foreground = _settings.TimersButtons ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0xC8, 0xD4, 0xE0));
+        bool on = _settings.TimersOn;
+        _power.Foreground = on ? new SolidColorBrush(Palette.AccentColor) : new SolidColorBrush(Color.FromRgb(0x8B, 0x93, 0xA1));
+        _powerWords.Text = on ? "On" : "Off";
+        _power.ToolTip = on
+            ? "Timers are on. Click to turn every timer off: no key starts one, no sound plays and corpses get no timer, until you turn them on again. Your timers and keys are kept."
+            : "Timers are off. Click to turn them on again.";
         _strip.BorderBrush = (Brush)Ui.Theme["Stroke"];
         _strip.BorderThickness = new Thickness(0, 0, 0, 1);
         _pin.ToolTip = Topmost ? "On top of the game. Click to let other windows cover it." : "Not on top. Click to keep this window on top of the game.";
@@ -427,6 +494,7 @@ internal sealed class TimersWindow : Window
     {
         get
         {
+            if (!_settings.TimersOn) return false;   // off, nothing is shown or heard, so there is no end to miss
             var now = DateTime.UtcNow;
             return _book.Running.Any(r => TimerBook.Remaining(r, now) > 0);
         }
@@ -444,9 +512,9 @@ internal sealed class TimersWindow : Window
         _setup.Closed += (_, _) =>
         {
             _setup = null;
-            ResumeKeys();
+            SyncKeys();
         };
-        SuspendKeys();
+        SyncKeys();
         _setup.Show();
         _setup.Activate();
     }
@@ -459,20 +527,34 @@ internal sealed class TimersWindow : Window
         Tick();
     }
 
-    /// <summary>Starts the timer called <paramref name="name"/> (or starts it over), as its key does. False if there is no such timer or too many are running.</summary>
+    /// <summary>The corpse timer was changed from this window (turned off, or a monster left out): kept, shown, and the setup window (if open) told.</summary>
+    private void CorpseEdited()
+    {
+        BookEdited();
+        BookReplaced?.Invoke();
+    }
+
+    /// <summary>Starts the timer called <paramref name="name"/> (or starts it over), as its key does. False if there is no such timer, the timers are off, or too many are running.</summary>
     internal bool StartByName(string name)
     {
+        if (!_settings.TimersOn) return false;
         if (_book.Presets.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is not { } preset) return false;
         return Start(preset.Name, preset.Seconds);
     }
 
-    internal void SuspendKeys() => _hotkeys?.Suspend();
-
-    internal void ResumeKeys()
+    /// <summary>
+    /// Holds the keys only while they should start timers: the timers are on and the setup window is closed (a key is let go there so it can be pressed
+    /// to be recorded). Anything Windows refused is said in the message line.
+    /// </summary>
+    private void SyncKeys()
     {
         if (_hotkeys is null) return;
-        KeyProblems = _hotkeys.Resume().Values.ToList();
-        Say(string.Join(" ", KeyProblems));
+        if (_settings.TimersOn && _setup is null)
+        {
+            KeyProblems = _hotkeys.Resume().Values.ToList();
+            Say(string.Join(" ", KeyProblems));
+        }
+        else _hotkeys.Suspend();
     }
 
     // ------------------------------------------------------------------ keys
@@ -501,7 +583,7 @@ internal sealed class TimersWindow : Window
             .Where(k => k.Key is not null)
             .Select(k => (k.Name, Key: k.Key!))
             .ToList();
-        KeyProblems = _hotkeys.Apply(keys).Values.ToList();
+        KeyProblems = _hotkeys.Apply(keys).Values.ToList();   // registers nothing while suspended (timers off, or the setup open); Resume takes them later
         Say(string.Join(" ", KeyProblems));
     }
 
@@ -562,6 +644,8 @@ internal sealed class TimersWindow : Window
         _rows.Children.Clear();
         _corpseLive.Clear();
         _corpseRows.Children.Clear();
+        _corpseMonster.Clear();
+        if (!_settings.TimersOn) _hotkeys?.Suspend();
         RegisterKeys();
         BookReplaced?.Invoke();
     }
@@ -572,7 +656,7 @@ internal sealed class TimersWindow : Window
     /// </summary>
     private void RenderButtons(DateTime nowUtc)
     {
-        bool on = _settings.TimersButtons;
+        bool on = _settings.TimersButtons && _settings.TimersOn;
         _strip.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (!on) return;
         var built = string.Join("\u0001", _book.Presets.Select(p => $"{p.Name}|{p.Seconds}|{p.Key}"));
@@ -634,23 +718,54 @@ internal sealed class TimersWindow : Window
     private void Render(DateTime nowUtc)
     {
         RenderButtons(nowUtc);
+        if (!_settings.TimersOn)
+        {
+            // Off: no bars, no sounds (a row met again later starts from its current stage, so nothing beeps for what it missed)
+            Sync(_rows, _live, [], false, RowKind.Timer, _ => null, false);
+            Sync(_corpseRows, _corpseLive, [], false, RowKind.Corpse, _ => null, true);
+            _corpseHead.Visibility = _corpseMore.Visibility = Visibility.Collapsed;
+            _empty.Text = OffText;
+            _empty.Visibility = Visibility.Visible;
+            return;
+        }
+        _empty.Text = EmptyText;
+
         bool blinkOn = nowUtc.Ticks / (TimeSpan.TicksPerMillisecond * 400) % 2 == 0;
         var timers = _book.ByEnd();
-        Sync(_rows, _live, timers.Select(t => (t.Name, t.Name, TimerBook.Remaining(t, nowUtc), t.Seconds)).ToList(), blinkOn, stoppable: true, soundOf: _book.SoundOf, throttled: false);
+        Sync(_rows, _live, timers.Select(t => (t.Name, t.Name, TimerBook.Remaining(t, nowUtc), t.Seconds)).ToList(), blinkOn, RowKind.Timer, soundOf: _book.SoundOf, throttled: false);
 
-        // The corpse timers are worked out from the loot each time; only while the player wants them
+        // The corpse timers are worked out from the loot each time; only while the player wants them, and never for a corpse or a kind of monster they left out
         var nowLocal = DateTime.Now;
-        var corpses = _book.Corpse.On && _corpses is not null ? CorpseTimers.Active(_corpses(), _book.Corpse, nowLocal) : [];
+        if (_book.PruneLeftOut(nowLocal)) SaveBook();
+        var corpses = _book.Corpse.On && _corpses is not null ? CorpseTimers.Active(_corpses(), _book.Corpse, nowLocal, _book.LeftOutCorpses) : [];
         var shown = corpses.Take(CorpseTimers.MaxShown).Select(c => (c.Id, c.Label, (c.EndsLocal - nowLocal).TotalSeconds, c.Seconds)).ToList();
-        Sync(_corpseRows, _corpseLive, shown, blinkOn, stoppable: false, soundOf: _ => _book.Corpse.Sound, throttled: true);
-        _corpseHeader.Visibility = shown.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _corpseMonster.Clear();
+        foreach (var c in corpses.Take(CorpseTimers.MaxShown)) _corpseMonster[c.Id] = c.Monster;
+        Sync(_corpseRows, _corpseLive, shown, blinkOn, RowKind.Corpse, soundOf: _ => _book.Corpse.Sound, throttled: true);
+        _corpseHead.Visibility = shown.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         _corpseMore.Visibility = corpses.Count > shown.Count ? Visibility.Visible : Visibility.Collapsed;
         _corpseMore.Text = $"+{corpses.Count - shown.Count} more, ending later";
         _empty.Visibility = timers.Count == 0 && shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>Takes the timer off one corpse (its bar goes for good), from the × on its bar or its menu.</summary>
+    private void LeaveOutCorpse(string id)
+    {
+        if (!_book.LeaveOutCorpse(id)) return;
+        SaveBook();
+        Tick();
+    }
+
+    /// <summary>Stops timing every corpse of the monster shown on the bar of <paramref name="id"/>, from its menu. The setup lists the monsters left out and can take one back.</summary>
+    private void SkipMonsterOf(string id)
+    {
+        if (!_corpseMonster.TryGetValue(id, out var monster) || !_book.Corpse.AddSkip(monster)) return;
+        CorpseEdited();
+        Say($"{monster} corpses get no timer now. Under Corpses in Set up… you can time them again.");
+    }
+
     /// <summary>Makes the rows of <paramref name="panel"/> match <paramref name="items"/> (in that order): new ones made, gone ones taken away, the rest redrawn.</summary>
-    private void Sync(StackPanel panel, Dictionary<string, Row> live, IReadOnlyList<(string Id, string Label, double Remaining, int Seconds)> items, bool blinkOn, bool stoppable, Func<string, string?> soundOf, bool throttled)
+    private void Sync(StackPanel panel, Dictionary<string, Row> live, IReadOnlyList<(string Id, string Label, double Remaining, int Seconds)> items, bool blinkOn, RowKind kind, Func<string, string?> soundOf, bool throttled)
     {
         var ids = items.Select(i => i.Id).ToHashSet(live.Comparer);
         foreach (var gone in live.Keys.Where(k => !ids.Contains(k)).ToList())
@@ -664,7 +779,7 @@ internal sealed class TimersWindow : Window
             var phase = TimerClock.Phase(remaining);
             if (!live.TryGetValue(id, out var row))
             {
-                row = MakeRow(id, stoppable);
+                row = MakeRow(id, kind);
                 row.Phase = phase;   // a timer met in the middle of its life (after a restart) doesn't beep for the stage it is already past
                 live[id] = row;
             }
@@ -689,21 +804,25 @@ internal sealed class TimersWindow : Window
         }
     }
 
-    /// <summary>One bar. A timer the player started can be stopped or started over; a corpse timer just runs out.</summary>
-    private Row MakeRow(string id, bool stoppable)
+    /// <summary>
+    /// One bar. A timer the player started can be stopped (the \u00D7) or started over (right-click); a corpse's timer can be taken off that corpse (the \u00D7), or its
+    /// kind of monster left out from now on (right-click).
+    /// </summary>
+    private Row MakeRow(string id, RowKind kind)
     {
+        bool stoppable = kind == RowKind.Timer;
         var label = new TextBlock { FontSize = 13, Foreground = Palette.Text, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-        var clock = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, stoppable ? 4 : 8, 0) };
+        var clock = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) };
         var bar = new ProgressBar { Height = 4, Minimum = 0, Maximum = 1, Background = BarBack, BorderThickness = new Thickness(0), Margin = new Thickness(0, 4, 0, 0), Foreground = Palette.You };
 
         var top = new DockPanel();
         DockPanel.SetDock(clock, Dock.Right);
-        if (stoppable)
-        {
-            var stop = RowButton("\uE711", "Stop this timer", () => { _book.Stop(id); SaveBook(); Tick(); });
-            DockPanel.SetDock(stop, Dock.Right);
-            top.Children.Add(stop);
-        }
+        var cross = stoppable
+            ? RowButton("\uE711", "Stop this timer", () => { _book.Stop(id); SaveBook(); Tick(); })
+            : RowButton("\uE711", "Take the timer off this corpse. Right-click the bar to stop timing this kind of monster.", () => LeaveOutCorpse(id));
+        System.Windows.Automation.AutomationProperties.SetName(cross, stoppable ? "Stop" : "Take the timer off this corpse");
+        DockPanel.SetDock(cross, Dock.Right);
+        top.Children.Add(cross);
         top.Children.Add(clock);
         top.Children.Add(label);
         var stack = new StackPanel();
@@ -723,6 +842,27 @@ internal sealed class TimersWindow : Window
                 if (_book.Running.FirstOrDefault(r => string.Equals(r.Name, id, StringComparison.OrdinalIgnoreCase)) is { } running) Start(running.Name, running.Seconds);
             };
             menu.Items.Add(again);
+            box.ContextMenu = menu;
+        }
+        else
+        {
+            box.ToolTip = "Right-click to take the timer off this corpse, or to stop timing this kind of monster";
+            var menu = new ContextMenu();
+            var one = new MenuItem { Header = "Take the timer off this corpse" };
+            one.Click += (_, _) => LeaveOutCorpse(id);
+            var kindItem = new MenuItem();
+            kindItem.Click += (_, _) => SkipMonsterOf(id);
+            var all = new MenuItem { Header = "Turn corpse timers off" };
+            all.Click += (_, _) => { _book.Corpse.On = false; CorpseEdited(); };
+            menu.Opened += (_, _) =>
+            {
+                string monster = _corpseMonster.TryGetValue(id, out var m) ? m : "this monster";
+                kindItem.Header = $"Stop timing {monster} corpses";
+            };
+            menu.Items.Add(one);
+            menu.Items.Add(kindItem);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(all);
             box.ContextMenu = menu;
         }
         return new Row { Box = box, Name = label, Clock = clock, Bar = bar };

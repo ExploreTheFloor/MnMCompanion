@@ -126,6 +126,11 @@ you loot**, with a name, a length and a sound of your choice. What it can't do i
 start those yourself, with the key or, if you turn on **Buttons** in the Timers window, with a click on the timer's button (click it again to stop it). (A tool that reads the game's memory could
 do it automatically; Companion deliberately never does that.)
 
+### Can I turn the timers off for a while, or stop them following every corpse?
+Yes to both. The timers window has an **On/Off** switch in its title bar: Off, no key starts a timer, no sound plays and corpses get no timer, until you turn it On again (your timers and keys are kept).
+For corpses, the **×** on a corpse's bar takes the timer off that one corpse, and a **right-click** on the bar can stop timing that kind of monster for good; the monsters you left out are listed in
+*Set up…* under Corpses, where a × times them again. See [Timers](../README.md#timers).
+
 ### Can the timers window stay on top and be see-through?
 Yes. It has its own pin (off until you press it) and an **Opacity** button that fades its background down to 10% while the bars and words stay solid, so you can read the timers over the game without hiding
 what is behind them. The game has to be in a window or borderless for any window to show on top of it.
